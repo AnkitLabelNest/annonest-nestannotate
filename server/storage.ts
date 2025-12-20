@@ -152,93 +152,6 @@ export class MemStorage implements IStorage {
       isActive: true,
     });
 
-    const firm1Id = randomUUID();
-    const firm2Id = randomUUID();
-    const firm3Id = randomUUID();
-
-    this.firms.set(firm1Id, {
-      id: firm1Id,
-      name: "Sequoia Capital",
-      type: "gp",
-      website: "https://sequoiacap.com",
-      description: "Leading venture capital firm",
-      headquarters: "Menlo Park, CA",
-      foundedYear: 1972,
-      aum: "$85B",
-      createdBy: adminId,
-      lastEditedBy: adminId,
-      viewedBy: [adminId],
-    });
-
-    this.firms.set(firm2Id, {
-      id: firm2Id,
-      name: "BlackRock",
-      type: "lp",
-      website: "https://blackrock.com",
-      description: "Global investment management corporation",
-      headquarters: "New York, NY",
-      foundedYear: 1988,
-      aum: "$10T",
-      createdBy: adminId,
-      lastEditedBy: adminId,
-      viewedBy: [],
-    });
-
-    this.firms.set(firm3Id, {
-      id: firm3Id,
-      name: "TechCorp Inc",
-      type: "company",
-      website: "https://techcorp.example.com",
-      description: "Technology company",
-      headquarters: "San Francisco, CA",
-      foundedYear: 2015,
-      aum: null,
-      createdBy: managerId,
-      lastEditedBy: managerId,
-      viewedBy: [],
-    });
-
-    const contact1Id = randomUUID();
-    this.contacts.set(contact1Id, {
-      id: contact1Id,
-      firmId: firm1Id,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith@sequoiacap.com",
-      phone: "+1 650-555-0100",
-      title: "Partner",
-      linkedIn: "https://linkedin.com/in/johnsmith",
-      createdBy: adminId,
-      lastEditedBy: adminId,
-    });
-
-    const fund1Id = randomUUID();
-    this.funds.set(fund1Id, {
-      id: fund1Id,
-      firmId: firm1Id,
-      name: "Sequoia Fund XV",
-      vintage: 2023,
-      size: "$2.8B",
-      strategy: "Growth Equity",
-      status: "Active",
-      createdBy: adminId,
-      lastEditedBy: adminId,
-    });
-
-    const deal1Id = randomUUID();
-    this.deals.set(deal1Id, {
-      id: deal1Id,
-      firmId: firm1Id,
-      fundId: fund1Id,
-      companyName: "OpenAI",
-      dealType: "Series B",
-      amount: "$300M",
-      date: "2023-06-15",
-      status: "Closed",
-      createdBy: adminId,
-      lastEditedBy: adminId,
-    });
-
     const project1Id = randomUUID();
     const project2Id = randomUUID();
 
@@ -312,33 +225,6 @@ export class MemStorage implements IStorage {
       reviewedBy: null,
       confidenceScore: null,
       pipelineStep: "input",
-    });
-
-    const url1Id = randomUUID();
-    const url2Id = randomUUID();
-
-    this.monitoredUrls.set(url1Id, {
-      id: url1Id,
-      url: "https://sequoiacap.com/about",
-      entityType: "firm",
-      entityId: firm1Id,
-      status: "running",
-      lastRunDate: new Date(),
-      lastChangeDate: null,
-      changeDetails: null,
-      createdBy: adminId,
-    });
-
-    this.monitoredUrls.set(url2Id, {
-      id: url2Id,
-      url: "https://blackrock.com/team",
-      entityType: "firm",
-      entityId: firm2Id,
-      status: "changed",
-      lastRunDate: new Date(),
-      lastChangeDate: new Date(),
-      changeDetails: { field: "team", oldValue: "15 members", newValue: "17 members" },
-      createdBy: adminId,
     });
   }
 

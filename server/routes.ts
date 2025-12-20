@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { supabase } from "./supabase";
 import {
   loginSchema,
   insertFirmSchema,
@@ -13,6 +14,7 @@ import {
   insertMonitoredUrlSchema,
   moduleAccessByRole,
   type UserRole,
+  type Firm,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -91,47 +93,82 @@ export async function registerRoutes(
     return res.json(userWithoutPassword);
   });
 
-  // Firms routes
+  // Firms routes - Supabase only
   app.get("/api/firms", async (_req: Request, res: Response) => {
-    const firms = await storage.getFirms();
-    return res.json(firms);
+    try {
+      const { data, error } = await supabase
+        .from("firms")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return res.json(data || []);
+    } catch (error) {
+      console.error("Error fetching firms:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.get("/api/firms/:id", async (req: Request, res: Response) => {
-    const firm = await storage.getFirm(req.params.id);
-    if (!firm) {
-      return res.status(404).json({ message: "Firm not found" });
+    try {
+      const { data, error } = await supabase
+        .from("firms")
+        .select("*")
+        .eq("id", req.params.id)
+        .single();
+      
+      if (error || !data) {
+        return res.status(404).json({ message: "Firm not found" });
+      }
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    return res.json(firm);
   });
 
   app.post("/api/firms", async (req: Request, res: Response) => {
     try {
       const parsed = insertFirmSchema.parse(req.body);
       
-      const duplicates = await storage.findDuplicateFirms(parsed.name);
-      if (duplicates.length > 0) {
+      const { data: duplicates, error: dupError } = await supabase
+        .from("firms")
+        .select("*")
+        .ilike("name", `%${parsed.name}%`);
+      
+      if (dupError) throw dupError;
+      
+      if (duplicates && duplicates.length > 0) {
         return res.status(409).json({ 
           message: "Potential duplicate firm found",
           duplicates
         });
       }
       
-      const firm = await storage.createFirm(parsed);
+      const { data: firm, error: insertError } = await supabase
+        .from("firms")
+        .insert([{
+          name: parsed.name,
+          type: parsed.type,
+          website: parsed.website || null,
+          description: parsed.description || null,
+          headquarters: parsed.headquarters || null,
+          founded_year: parsed.foundedYear || null,
+          aum: parsed.aum || null,
+          created_by: req.headers["x-user-id"] as string || null,
+          last_edited_by: req.headers["x-user-id"] as string || null,
+        }])
+        .select()
+        .single();
       
-      await storage.createAuditLog({
-        userId: req.headers["x-user-id"] as string || null,
-        action: "create",
-        entityType: "firm",
-        entityId: firm.id,
-        details: { name: firm.name },
-      });
+      if (insertError) throw insertError;
       
       return res.status(201).json(firm);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Error creating firm:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -139,66 +176,99 @@ export async function registerRoutes(
   app.post("/api/firms/force", async (req: Request, res: Response) => {
     try {
       const parsed = insertFirmSchema.parse(req.body);
-      const firm = await storage.createFirm(parsed);
       
-      await storage.createAuditLog({
-        userId: req.headers["x-user-id"] as string || null,
-        action: "create",
-        entityType: "firm",
-        entityId: firm.id,
-        details: { name: firm.name, forcedCreation: true },
-      });
+      const { data: firm, error: insertError } = await supabase
+        .from("firms")
+        .insert([{
+          name: parsed.name,
+          type: parsed.type,
+          website: parsed.website || null,
+          description: parsed.description || null,
+          headquarters: parsed.headquarters || null,
+          founded_year: parsed.foundedYear || null,
+          aum: parsed.aum || null,
+          created_by: req.headers["x-user-id"] as string || null,
+          last_edited_by: req.headers["x-user-id"] as string || null,
+        }])
+        .select()
+        .single();
+      
+      if (insertError) throw insertError;
       
       return res.status(201).json(firm);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Error creating firm (force):", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   app.patch("/api/firms/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateFirm(req.params.id, req.body);
-    if (!updated) {
-      return res.status(404).json({ message: "Firm not found" });
+    try {
+      const { data: updated, error } = await supabase
+        .from("firms")
+        .update({
+          ...req.body,
+          last_edited_by: req.headers["x-user-id"] as string || null,
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+      
+      if (error || !updated) {
+        return res.status(404).json({ message: "Firm not found" });
+      }
+      
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    await storage.createAuditLog({
-      userId: req.headers["x-user-id"] as string || null,
-      action: "update",
-      entityType: "firm",
-      entityId: updated.id,
-      details: req.body,
-    });
-    
-    return res.json(updated);
   });
 
   app.delete("/api/firms/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteFirm(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ message: "Firm not found" });
+    try {
+      const { error } = await supabase
+        .from("firms")
+        .delete()
+        .eq("id", req.params.id);
+      
+      if (error) throw error;
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    await storage.createAuditLog({
-      userId: req.headers["x-user-id"] as string || null,
-      action: "delete",
-      entityType: "firm",
-      entityId: req.params.id,
-      details: null,
-    });
-    
-    return res.status(204).send();
   });
 
   app.get("/api/firms/:id/duplicates", async (req: Request, res: Response) => {
-    const firm = await storage.getFirm(req.params.id);
-    if (!firm) {
-      return res.status(404).json({ message: "Firm not found" });
+    try {
+      const { data: firm, error: fetchError } = await supabase
+        .from("firms")
+        .select("*")
+        .eq("id", req.params.id)
+        .single();
+      
+      if (fetchError || !firm) {
+        return res.status(404).json({ message: "Firm not found" });
+      }
+      
+      const { data: duplicates, error: dupError } = await supabase
+        .from("firms")
+        .select("*")
+        .ilike("name", `%${firm.name}%`)
+        .neq("id", firm.id);
+      
+      if (dupError) throw dupError;
+      
+      return res.json(duplicates || []);
+    } catch (error) {
+      console.error("Error fetching duplicates:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    const duplicates = await storage.findDuplicateFirms(firm.name, firm.id);
-    return res.json(duplicates);
   });
 
   // Contacts routes
