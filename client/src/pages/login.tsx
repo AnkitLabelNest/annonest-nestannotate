@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -14,30 +13,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
+import { signIn } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { loginSchema, type LoginInput, userRoles, type UserRole } from "@shared/schema";
-import { Loader2, Lock, User, ChevronRight } from "lucide-react";
-
-const demoUsers: Record<UserRole, { username: string; password: string; displayName: string; email: string }> = {
-  admin: { username: "admin", password: "admin123", displayName: "Alex Admin", email: "admin@annonest.com" },
-  manager: { username: "manager", password: "manager123", displayName: "Morgan Manager", email: "manager@annonest.com" },
-  annotator: { username: "annotator", password: "annotator123", displayName: "Anna Annotator", email: "annotator@annonest.com" },
-  qa: { username: "qa", password: "qa123", displayName: "Quinn QA", email: "qa@annonest.com" },
-};
+import { loginSchema, type LoginInput } from "@shared/schema";
+import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole | "">("");
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -51,37 +36,34 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        form.setError("root", { message: error.message || "Invalid credentials" });
+      const { user, session } = await signIn(data.username, data.password);
+      
+      if (!user) {
+        form.setError("root", { message: "Authentication failed" });
         setIsLoading(false);
         return;
       }
 
-      const { user } = await response.json();
       login({
-        ...user,
+        id: user.id,
+        username: data.username,
         password: data.password,
+        email: user.email || "",
+        role: "annotator",
+        displayName: user.user_metadata?.displayName || "User",
+        avatar: user.user_metadata?.avatar || null,
+        qaPercentage: 20,
+        isActive: true,
       });
+      
       setLocation("/dashboard");
-    } catch {
-      form.setError("root", { message: "Connection error. Please try again." });
+    } catch (error) {
+      form.setError("root", { 
+        message: error instanceof Error ? error.message : "Invalid credentials" 
+      });
     }
 
     setIsLoading(false);
-  };
-
-  const handleQuickLogin = (role: UserRole) => {
-    const user = demoUsers[role];
-    form.setValue("username", user.username);
-    form.setValue("password", user.password);
-    setSelectedRole(role);
   };
 
   return (
@@ -110,7 +92,7 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle>Sign In</CardTitle>
               <CardDescription>
-                Enter your credentials or select a demo account
+                Enter your email and password to continue
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -121,15 +103,16 @@ export default function LoginPage() {
                     name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               {...field}
-                              placeholder="Enter username"
+                              type="email"
+                              placeholder="Enter your email"
                               className="pl-10"
-                              data-testid="input-username"
+                              data-testid="input-email"
                             />
                           </div>
                         </FormControl>
@@ -187,43 +170,13 @@ export default function LoginPage() {
                   </Button>
                 </form>
               </Form>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or use demo account
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {userRoles.map((role) => (
-                  <Button
-                    key={role}
-                    variant={selectedRole === role ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleQuickLogin(role)}
-                    className="capitalize"
-                    data-testid={`button-demo-${role}`}
-                  >
-                    {role}
-                  </Button>
-                ))}
-              </div>
-
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                Demo accounts have different module access levels
-              </p>
             </CardContent>
           </Card>
         </div>
       </main>
 
       <footer className="p-4 text-center text-sm text-muted-foreground border-t border-border">
-        AnnoNest Enterprise Platform - Role-Based Access Control Demo
+        AnnoNest Enterprise Platform - Data Annotation & Intelligence
       </footer>
     </div>
   );
