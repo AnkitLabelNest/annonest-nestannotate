@@ -183,6 +183,28 @@ export const moduleAccessByRole: Record<UserRole, string[]> = {
   qa: ["nest_annotate", "data_nest"],
 };
 
+export interface SuggestedEntity {
+  type: string;
+  examples: string[];
+}
+
+export interface AnnotationSuggestion {
+  id: string;
+  taskId: string;
+  suggestedLabels: string[];
+  suggestedEntities: SuggestedEntity[];
+  confidence: number;
+  reasoning: string;
+  basedOnPatterns: string[];
+  createdAt: Date;
+}
+
+export interface PatternMatch {
+  pattern: string;
+  frequency: number;
+  examples: string[];
+}
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),

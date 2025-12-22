@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 import { WorkflowProgress } from "@/components/workflow-progress";
 import {
   Link as LinkIcon,
@@ -18,7 +20,174 @@ import {
   Save,
   ArrowRight,
   CheckCircle2,
+  Sparkles,
+  TrendingUp,
+  Loader2,
 } from "lucide-react";
+
+interface SuggestionData {
+  id: string;
+  taskId: string;
+  suggestedLabels: string[];
+  suggestedEntities: Array<{ type: string; examples: string[] }>;
+  confidence: number;
+  reasoning: string;
+  basedOnPatterns: string[];
+  createdAt: string;
+}
+
+interface PatternData {
+  patterns: Array<{ pattern: string; frequency: number; examples: string[] }>;
+  totalAnnotations: number;
+  uniqueLabels: number;
+}
+
+function AISuggestionsPanel({ taskId, onApplyLabel }: { taskId?: string; onApplyLabel: (type: string) => void }) {
+  const { data: suggestionData, isLoading: suggestionLoading } = useQuery<SuggestionData>({
+    queryKey: ['/api/suggestions', taskId],
+    enabled: !!taskId,
+  });
+
+  const { data: patternData, isLoading: patternLoading } = useQuery<PatternData>({
+    queryKey: ['/api/patterns'],
+    enabled: !taskId,
+  });
+
+  const isLoading = taskId ? suggestionLoading : patternLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (taskId && suggestionData) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Confidence</span>
+            <span className="font-medium">{suggestionData.confidence}%</span>
+          </div>
+          <Progress value={suggestionData.confidence} className="h-2" />
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Suggested Labels</p>
+          <div className="flex flex-wrap gap-1">
+            {suggestionData.suggestedLabels.length > 0 ? (
+              suggestionData.suggestedLabels.map((label) => (
+                <Badge
+                  key={label}
+                  variant="secondary"
+                  className="cursor-pointer text-xs"
+                  onClick={() => onApplyLabel(label)}
+                  data-testid={`ai-suggestion-${label}`}
+                >
+                  {label}
+                </Badge>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground">No label suggestions available</p>
+            )}
+          </div>
+        </div>
+
+        {suggestionData.suggestedEntities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Entity Patterns</p>
+            <div className="space-y-1">
+              {suggestionData.suggestedEntities.slice(0, 3).map((entity) => (
+                <div key={entity.type} className="text-xs p-2 rounded bg-muted/50">
+                  <span className="font-medium capitalize">{entity.type}</span>
+                  {entity.examples.length > 0 && (
+                    <span className="text-muted-foreground ml-1">
+                      (e.g., {entity.examples.slice(0, 2).join(", ")})
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground p-2 rounded bg-primary/5 border border-primary/10">
+          {suggestionData.reasoning}
+        </div>
+
+        {suggestionData.basedOnPatterns.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground font-medium">Based on patterns:</p>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              {suggestionData.basedOnPatterns.map((pattern, i) => (
+                <li key={i} className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {pattern}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!patternData || patternData.patterns.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <TrendingUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          No patterns detected yet
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Complete more annotations to unlock AI suggestions
+        </p>
+      </div>
+    );
+  }
+
+  const confidence = Math.min(95, Math.max(30, 30 + (patternData.totalAnnotations * 5)));
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Confidence</span>
+          <span className="font-medium">{confidence}%</span>
+        </div>
+        <Progress value={confidence} className="h-2" />
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Based on {patternData.totalAnnotations} historical annotations
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {patternData.patterns.slice(0, 6).map((pattern) => (
+            <Badge
+              key={pattern.pattern}
+              variant="secondary"
+              className="cursor-pointer text-xs"
+              onClick={() => onApplyLabel(pattern.pattern)}
+              data-testid={`ai-suggestion-${pattern.pattern}`}
+            >
+              {pattern.pattern}
+              <span className="ml-1 opacity-60">({pattern.frequency})</span>
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {patternData.uniqueLabels > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {patternData.uniqueLabels} unique label types detected
+        </p>
+      )}
+    </div>
+  );
+}
 
 const entityTypes = [
   { id: "person", label: "Person", color: "bg-blue-500" },
@@ -44,6 +213,7 @@ export default function TextLabelPage() {
   ]);
   const [confidence, setConfidence] = useState([85]);
   const [currentStep, setCurrentStep] = useState("entity_tagging");
+  const currentTaskId = "demo-task-1";
 
   const handleTextSelect = () => {
     const selection = window.getSelection();
@@ -252,6 +422,18 @@ export default function TextLabelPage() {
                   })
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                AI Suggestions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AISuggestionsPanel taskId={currentTaskId} onApplyLabel={addLabel} />
             </CardContent>
           </Card>
 

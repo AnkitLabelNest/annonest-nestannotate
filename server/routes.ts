@@ -529,6 +529,116 @@ export async function registerRoutes(
     return res.status(204).send();
   });
 
+  // AI Annotation Suggestions
+  app.get("/api/suggestions/:taskId", async (req: Request, res: Response) => {
+    try {
+      const task = await storage.getTask(req.params.taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      const allAnnotations = await storage.getAnnotations();
+      const completedAnnotations = allAnnotations.filter(a => 
+        a.reviewStatus === "approved" || a.labels?.length > 0
+      );
+
+      const labelFrequency: Record<string, number> = {};
+      const entityPatterns: Record<string, { type: string; examples: string[] }> = {};
+      
+      completedAnnotations.forEach(annotation => {
+        if (annotation.labels && Array.isArray(annotation.labels)) {
+          annotation.labels.forEach((label: string) => {
+            labelFrequency[label] = (labelFrequency[label] || 0) + 1;
+          });
+        }
+        
+        if (annotation.entities && typeof annotation.entities === 'object') {
+          const entities = annotation.entities as Record<string, string>;
+          Object.entries(entities).forEach(([type, value]) => {
+            if (!entityPatterns[type]) {
+              entityPatterns[type] = { type, examples: [] };
+            }
+            if (entityPatterns[type].examples.length < 5 && typeof value === 'string') {
+              entityPatterns[type].examples.push(value);
+            }
+          });
+        }
+      });
+
+      const sortedLabels = Object.entries(labelFrequency)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([label]) => label);
+
+      const suggestedEntities = Object.values(entityPatterns).slice(0, 5);
+
+      const totalAnnotations = completedAnnotations.length;
+      const confidence = Math.min(95, Math.max(30, 30 + (totalAnnotations * 5)));
+
+      const patterns = sortedLabels.slice(0, 3).map(label => 
+        `Label "${label}" used ${labelFrequency[label]} times`
+      );
+
+      const suggestion = {
+        id: `sug-${req.params.taskId}`,
+        taskId: req.params.taskId,
+        suggestedLabels: sortedLabels,
+        suggestedEntities,
+        confidence,
+        reasoning: totalAnnotations > 0 
+          ? `Based on analysis of ${totalAnnotations} historical annotations with similar patterns.`
+          : "No historical data available yet. Suggestions will improve as more annotations are completed.",
+        basedOnPatterns: patterns,
+        createdAt: new Date(),
+      };
+
+      return res.json(suggestion);
+    } catch (error) {
+      console.error("Error generating suggestions:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/patterns", async (_req: Request, res: Response) => {
+    try {
+      const allAnnotations = await storage.getAnnotations();
+      const completedAnnotations = allAnnotations.filter(a => 
+        a.reviewStatus === "approved" || a.labels?.length > 0
+      );
+
+      const labelFrequency: Record<string, { count: number; examples: string[] }> = {};
+      
+      completedAnnotations.forEach(annotation => {
+        if (annotation.labels && Array.isArray(annotation.labels)) {
+          annotation.labels.forEach((label: string) => {
+            if (!labelFrequency[label]) {
+              labelFrequency[label] = { count: 0, examples: [] };
+            }
+            labelFrequency[label].count += 1;
+          });
+        }
+      });
+
+      const patterns = Object.entries(labelFrequency)
+        .map(([pattern, data]) => ({
+          pattern,
+          frequency: data.count,
+          examples: data.examples,
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 20);
+
+      return res.json({
+        patterns,
+        totalAnnotations: completedAnnotations.length,
+        uniqueLabels: Object.keys(labelFrequency).length,
+      });
+    } catch (error) {
+      console.error("Error fetching patterns:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/stats", async (_req: Request, res: Response) => {
     const [firms, contacts, funds, deals, tasks, projects, urls] = await Promise.all([
