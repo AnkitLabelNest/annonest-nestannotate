@@ -43,3 +43,5 @@ waitForPort = 5000
 [userenv.shared]
 VITE_SUPABASE_URL = "https://evugaodpzepyjonlrptn.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_P5C3dk9nw2VVFD_W25my6Q_6MpPg6gH"
+SUPABASE_URL = "https://evugaodpzepyjonlrptn.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_P5C3dk9nw2VVFD_W25my6Q_6MpPg6gH"

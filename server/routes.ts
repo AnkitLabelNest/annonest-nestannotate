@@ -101,11 +101,20 @@ export async function registerRoutes(
         .select("*")
         .order("created_at", { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42P17') {
+          console.error("RLS Policy Error:", error.message);
+          return res.status(503).json({ 
+            message: "Database policy configuration error. Please check Supabase RLS policies.",
+            hint: "Disable or fix the recursive policy on user_profiles table in Supabase Dashboard → Authentication → Policies"
+          });
+        }
+        throw error;
+      }
       return res.json(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching firms:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
