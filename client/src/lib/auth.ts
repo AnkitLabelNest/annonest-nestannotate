@@ -4,20 +4,13 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 let supabase: SupabaseClient | null = null;
 let supabaseInitialized = false;
 
+const SUPABASE_URL = "https://evugaodpzepyjonlrptn.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_P5C3dk9nw2VVFD_W25my6Q_6MpPg6gH";
+
 function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseInitialized) {
     supabaseInitialized = true;
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    console.log("[Supabase Client] URL:", supabaseUrl ? "configured" : "missing", "Key:", supabaseAnonKey ? "configured" : "missing");
-    
-    if (supabaseUrl && supabaseAnonKey) {
-      supabase = createClient(supabaseUrl, supabaseAnonKey);
-      console.log("[Supabase Client] Initialized successfully");
-    } else {
-      console.log("[Supabase Client] Not initialized - missing configuration");
-    }
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return supabase;
 }
