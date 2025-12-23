@@ -67,6 +67,13 @@ export async function registerRoutes(
     return { isTrialExpired, isApproved };
   }
 
+  async function getUserOrgId(req: Request): Promise<string> {
+    const userId = req.headers["x-user-id"] as string;
+    if (!userId) return "default-org-001";
+    const user = await storage.getUser(userId);
+    return user?.orgId || "default-org-001";
+  }
+
   // Auth routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
@@ -156,6 +163,7 @@ export async function registerRoutes(
                            "User";
         
         user = await storage.createUserWithId(supabaseUser.id, {
+          orgId: "default-org-001",
           username: supabaseUser.email || supabaseUser.id,
           password: await bcrypt.hash(crypto.randomUUID(), 10), // Random password for Supabase users
           email: supabaseUser.email || "",
@@ -251,6 +259,7 @@ export async function registerRoutes(
       const newUser = await storage.createUserWithId(
         verifiedSupabaseId,
         {
+          orgId: isSupabaseUser ? "default-org-001" : "guest-org-001",
           username: parsed.email,
           password: hashedPassword,
           email: parsed.email,
@@ -418,7 +427,9 @@ export async function registerRoutes(
       
       const firm = await storage.createFirm(parsed);
       
+      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
+        orgId,
         userId: req.headers["x-user-id"] as string || null,
         action: "create",
         entityType: "firm",
@@ -440,7 +451,9 @@ export async function registerRoutes(
       const parsed = insertFirmSchema.parse(req.body);
       const firm = await storage.createFirm(parsed);
       
+      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
+        orgId,
         userId: req.headers["x-user-id"] as string || null,
         action: "create",
         entityType: "firm",
@@ -507,7 +520,9 @@ export async function registerRoutes(
       const parsed = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(parsed);
       
+      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
+        orgId,
         userId: req.headers["x-user-id"] as string || null,
         action: "create",
         entityType: "contact",
@@ -560,7 +575,9 @@ export async function registerRoutes(
       const parsed = insertFundSchema.parse(req.body);
       const fund = await storage.createFund(parsed);
       
+      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
+        orgId,
         userId: req.headers["x-user-id"] as string || null,
         action: "create",
         entityType: "fund",
@@ -614,7 +631,9 @@ export async function registerRoutes(
       const parsed = insertDealSchema.parse(req.body);
       const deal = await storage.createDeal(parsed);
       
+      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
+        orgId,
         userId: req.headers["x-user-id"] as string || null,
         action: "create",
         entityType: "deal",

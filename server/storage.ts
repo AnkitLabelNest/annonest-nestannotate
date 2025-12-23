@@ -108,6 +108,7 @@ export class MemStorage implements IStorage {
   }
 
   private seedData() {
+    const defaultOrgId = "default-org-001";
     const adminId = randomUUID();
     const managerId = randomUUID();
     const annotatorId = randomUUID();
@@ -115,6 +116,7 @@ export class MemStorage implements IStorage {
 
     this.users.set(adminId, {
       id: adminId,
+      orgId: defaultOrgId,
       username: "admin",
       password: "admin123",
       email: "admin@annonest.com",
@@ -123,6 +125,7 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 100,
       isActive: true,
+      supabaseId: null,
       createdAt: new Date(),
       trialEndsAt: null,
       approvalStatus: "approved",
@@ -132,6 +135,7 @@ export class MemStorage implements IStorage {
 
     this.users.set(managerId, {
       id: managerId,
+      orgId: defaultOrgId,
       username: "manager",
       password: "manager123",
       email: "manager@annonest.com",
@@ -140,6 +144,7 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 50,
       isActive: true,
+      supabaseId: null,
       createdAt: new Date(),
       trialEndsAt: null,
       approvalStatus: "approved",
@@ -149,6 +154,7 @@ export class MemStorage implements IStorage {
 
     this.users.set(annotatorId, {
       id: annotatorId,
+      orgId: defaultOrgId,
       username: "annotator",
       password: "annotator123",
       email: "annotator@annonest.com",
@@ -157,6 +163,7 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 20,
       isActive: true,
+      supabaseId: null,
       createdAt: new Date(),
       trialEndsAt: null,
       approvalStatus: "approved",
@@ -166,6 +173,7 @@ export class MemStorage implements IStorage {
 
     this.users.set(qaId, {
       id: qaId,
+      orgId: defaultOrgId,
       username: "qa",
       password: "qa123",
       email: "qa@annonest.com",
@@ -174,6 +182,7 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 100,
       isActive: true,
+      supabaseId: null,
       createdAt: new Date(),
       trialEndsAt: null,
       approvalStatus: "approved",
@@ -186,6 +195,7 @@ export class MemStorage implements IStorage {
 
     this.projects.set(project1Id, {
       id: project1Id,
+      orgId: defaultOrgId,
       name: "News Article Classification",
       description: "Classify news articles by topic and sentiment",
       type: "text",
@@ -196,6 +206,7 @@ export class MemStorage implements IStorage {
 
     this.projects.set(project2Id, {
       id: project2Id,
+      orgId: defaultOrgId,
       name: "Product Image Labeling",
       description: "Label products in e-commerce images",
       type: "image",
@@ -210,6 +221,7 @@ export class MemStorage implements IStorage {
 
     this.tasks.set(task1Id, {
       id: task1Id,
+      orgId: defaultOrgId,
       projectId: project1Id,
       title: "Classify Tech News Articles",
       description: "Label 100 tech news articles with categories",
@@ -226,6 +238,7 @@ export class MemStorage implements IStorage {
 
     this.tasks.set(task2Id, {
       id: task2Id,
+      orgId: defaultOrgId,
       projectId: project1Id,
       title: "Review Sports Articles",
       description: "Review and approve sports article classifications",
@@ -242,6 +255,7 @@ export class MemStorage implements IStorage {
 
     this.tasks.set(task3Id, {
       id: task3Id,
+      orgId: defaultOrgId,
       projectId: project2Id,
       title: "Label Electronics Products",
       description: "Draw bounding boxes around electronics in images",
