@@ -1509,5 +1509,293 @@ export async function registerRoutes(
     });
   });
 
+  // ============================================
+  // Location Reference Tables (Countries/States/Cities)
+  // ============================================
+
+  // Initialize location reference tables
+  app.post("/api/locations/init", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+
+      // Create ref_countries table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ref_countries (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL UNIQUE,
+          iso_code_2 CHAR(2) UNIQUE,
+          iso_code_3 CHAR(3) UNIQUE,
+          phone_code TEXT,
+          currency_code CHAR(3),
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      // Create ref_states table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ref_states (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          country_id UUID REFERENCES ref_countries(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          state_code TEXT,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(country_id, name)
+        )
+      `);
+
+      // Create ref_cities table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ref_cities (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          state_id UUID REFERENCES ref_states(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(state_id, name)
+        )
+      `);
+
+      return res.json({ message: "Location reference tables initialized successfully" });
+    } catch (error) {
+      console.error("Error initializing location tables:", error);
+      return res.status(500).json({ message: "Error initializing location tables" });
+    }
+  });
+
+  // Get all countries
+  app.get("/api/locations/countries", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ref_countries') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
+      const result = await db.execute(sql`
+        SELECT * FROM ref_countries WHERE is_active = TRUE ORDER BY name ASC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get states by country
+  app.get("/api/locations/states/:countryId", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ref_states') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
+      const { countryId } = req.params;
+      const result = await db.execute(sql`
+        SELECT * FROM ref_states WHERE country_id = ${countryId} AND is_active = TRUE ORDER BY name ASC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching states:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get cities by state
+  app.get("/api/locations/cities/:stateId", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ref_cities') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
+      const { stateId } = req.params;
+      const result = await db.execute(sql`
+        SELECT * FROM ref_cities WHERE state_id = ${stateId} AND is_active = TRUE ORDER BY name ASC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching cities:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // CRUD routes for countries (Manager only)
+  app.post("/api/locations/countries", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ref_countries (name, iso_code_2, iso_code_3, phone_code, currency_code)
+        VALUES (${data.name}, ${data.iso_code_2 || null}, ${data.iso_code_3 || null}, ${data.phone_code || null}, ${data.currency_code || null})
+        RETURNING *
+      `);
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating country:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/locations/countries/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ref_countries SET 
+          name = ${data.name},
+          iso_code_2 = ${data.iso_code_2 || null},
+          iso_code_3 = ${data.iso_code_3 || null},
+          phone_code = ${data.phone_code || null},
+          currency_code = ${data.currency_code || null},
+          is_active = ${data.is_active ?? true},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating country:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/locations/countries/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      
+      await db.execute(sql`DELETE FROM ref_countries WHERE id = ${id}`);
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting country:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // CRUD routes for states (Manager only)
+  app.post("/api/locations/states", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ref_states (country_id, name, state_code)
+        VALUES (${data.country_id}, ${data.name}, ${data.state_code || null})
+        RETURNING *
+      `);
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating state:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/locations/states/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ref_states SET 
+          name = ${data.name},
+          state_code = ${data.state_code || null},
+          is_active = ${data.is_active ?? true},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating state:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/locations/states/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      
+      await db.execute(sql`DELETE FROM ref_states WHERE id = ${id}`);
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting state:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // CRUD routes for cities (Manager only)
+  app.post("/api/locations/cities", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ref_cities (state_id, name)
+        VALUES (${data.state_id}, ${data.name})
+        RETURNING *
+      `);
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating city:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/locations/cities/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ref_cities SET 
+          name = ${data.name},
+          is_active = ${data.is_active ?? true},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating city:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/locations/cities/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      
+      await db.execute(sql`DELETE FROM ref_cities WHERE id = ${id}`);
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting city:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }
