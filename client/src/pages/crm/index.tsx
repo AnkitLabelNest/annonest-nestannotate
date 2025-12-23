@@ -24,7 +24,7 @@ export default function CRMDashboard() {
       title: "General Partners",
       description: "Fund managers and investment firms",
       icon: Building2,
-      path: "/crm/gps",
+      path: "/data/gps",
       count: getCount("entities_gp"),
       color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
@@ -33,7 +33,7 @@ export default function CRMDashboard() {
       title: "Limited Partners",
       description: "Capital allocators and investors",
       icon: Wallet,
-      path: "/crm/lps",
+      path: "/data/lps",
       count: getCount("entities_lp"),
       color: "bg-green-500/10 text-green-600 dark:text-green-400",
     },
@@ -42,7 +42,7 @@ export default function CRMDashboard() {
       title: "Funds",
       description: "Investment vehicles and vintages",
       icon: TrendingUp,
-      path: "/crm/funds",
+      path: "/data/funds",
       count: getCount("entities_fund"),
       color: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
     },
@@ -51,7 +51,7 @@ export default function CRMDashboard() {
       title: "Portfolio Companies",
       description: "Backed companies and investments",
       icon: Factory,
-      path: "/crm/portfolio-companies",
+      path: "/data/portfolio-companies",
       count: getCount("entities_portfolio_company"),
       color: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
     },
@@ -60,7 +60,7 @@ export default function CRMDashboard() {
       title: "Service Providers",
       description: "Legal, admin, audit, and advisors",
       icon: Handshake,
-      path: "/crm/service-providers",
+      path: "/data/service-providers",
       count: getCount("entities_service_provider"),
       color: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
     },
@@ -69,7 +69,7 @@ export default function CRMDashboard() {
       title: "Contacts",
       description: "Professionals and decision makers",
       icon: Users,
-      path: "/crm/contacts",
+      path: "/data/contacts",
       count: getCount("entities_contact"),
       color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
     },
@@ -78,7 +78,7 @@ export default function CRMDashboard() {
       title: "Deals",
       description: "Transactions and investments",
       icon: Briefcase,
-      path: "/crm/deals",
+      path: "/data/deals",
       count: getCount("entities_deal"),
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     },
@@ -87,7 +87,7 @@ export default function CRMDashboard() {
       title: "Public Companies",
       description: "Market benchmarks and comps",
       icon: Globe,
-      path: "/crm/public-companies",
+      path: "/data/public-companies",
       count: getCount("public_company_snapshot"),
       color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
     },
@@ -96,7 +96,7 @@ export default function CRMDashboard() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-crm-title">CRM Dashboard</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-datanest-title">DataNest</h1>
         <p className="text-muted-foreground">Manage your private markets data and relationships</p>
       </div>
 
@@ -131,7 +131,7 @@ export default function CRMDashboard() {
           <CardDescription>View and manage entity connections</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href="/crm/relationships">
+          <Link href="/data/relationships">
             <Button variant="outline" data-testid="button-view-relationships">
               View Relationship Map
             </Button>

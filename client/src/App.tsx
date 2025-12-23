@@ -19,23 +19,23 @@ import ImageLabelPage from "@/pages/annotate/image";
 import VideoLabelPage from "@/pages/annotate/video";
 import TranscriptionPage from "@/pages/annotate/transcription";
 import TranslationPage from "@/pages/annotate/translation";
-import DataNestPage from "@/pages/data/index";
-import FirmsPage from "@/pages/data/firms";
-import ContactsPage from "@/pages/data/contacts";
-import FundsPage from "@/pages/data/funds";
-import DealsPage from "@/pages/data/deals";
+import DemoDataNestPage from "@/pages/data/index";
+import DemoFirmsPage from "@/pages/data/firms";
+import DemoContactsPage from "@/pages/data/contacts";
+import DemoFundsPage from "@/pages/data/funds";
+import DemoDealsPage from "@/pages/data/deals";
 import ExtractionPage from "@/pages/extraction";
 import IntelligencePage from "@/pages/intelligence";
 import SettingsPage from "@/pages/settings";
 import AdminUsersPage from "@/pages/admin/users";
-import CRMDashboard from "@/pages/crm/index";
+import DataNestDashboard from "@/pages/crm/index";
 import GPsPage from "@/pages/crm/gps";
 import LPsPage from "@/pages/crm/lps";
-import CRMFundsPage from "@/pages/crm/funds";
+import DataNestFundsPage from "@/pages/crm/funds";
 import PortfolioCompaniesPage from "@/pages/crm/portfolio-companies";
 import ServiceProvidersPage from "@/pages/crm/service-providers";
-import CRMContactsPage from "@/pages/crm/contacts";
-import CRMDealsPage from "@/pages/crm/deals";
+import DataNestContactsPage from "@/pages/crm/contacts";
+import DataNestDealsPage from "@/pages/crm/deals";
 import PublicCompaniesPage from "@/pages/crm/public-companies";
 import RelationshipsPage from "@/pages/crm/relationships";
 import NotFound from "@/pages/not-found";
@@ -104,23 +104,23 @@ function AppRoutes() {
         <Route path="/annotate/video" component={VideoLabelPage} />
         <Route path="/annotate/transcription" component={TranscriptionPage} />
         <Route path="/annotate/translation" component={TranslationPage} />
-        <Route path="/data" component={DataNestPage} />
-        <Route path="/data/firms" component={FirmsPage} />
-        <Route path="/data/contacts" component={ContactsPage} />
-        <Route path="/data/funds" component={FundsPage} />
-        <Route path="/data/deals" component={DealsPage} />
+        <Route path="/demo" component={DemoDataNestPage} />
+        <Route path="/demo/firms" component={DemoFirmsPage} />
+        <Route path="/demo/contacts" component={DemoContactsPage} />
+        <Route path="/demo/funds" component={DemoFundsPage} />
+        <Route path="/demo/deals" component={DemoDealsPage} />
         <Route path="/extraction" component={ExtractionPage} />
         <Route path="/intelligence" component={IntelligencePage} />
-        <Route path="/crm" component={CRMDashboard} />
-        <Route path="/crm/gps" component={GPsPage} />
-        <Route path="/crm/lps" component={LPsPage} />
-        <Route path="/crm/funds" component={CRMFundsPage} />
-        <Route path="/crm/portfolio-companies" component={PortfolioCompaniesPage} />
-        <Route path="/crm/service-providers" component={ServiceProvidersPage} />
-        <Route path="/crm/contacts" component={CRMContactsPage} />
-        <Route path="/crm/deals" component={CRMDealsPage} />
-        <Route path="/crm/public-companies" component={PublicCompaniesPage} />
-        <Route path="/crm/relationships" component={RelationshipsPage} />
+        <Route path="/data" component={DataNestDashboard} />
+        <Route path="/data/gps" component={GPsPage} />
+        <Route path="/data/lps" component={LPsPage} />
+        <Route path="/data/funds" component={DataNestFundsPage} />
+        <Route path="/data/portfolio-companies" component={PortfolioCompaniesPage} />
+        <Route path="/data/service-providers" component={ServiceProvidersPage} />
+        <Route path="/data/contacts" component={DataNestContactsPage} />
+        <Route path="/data/deals" component={DataNestDealsPage} />
+        <Route path="/data/public-companies" component={PublicCompaniesPage} />
+        <Route path="/data/relationships" component={RelationshipsPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
