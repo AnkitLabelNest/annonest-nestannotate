@@ -4,18 +4,19 @@ import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL;
+// Use SUPABASE_DATABASE_URL for production (externally accessible)
+// Fall back to DATABASE_URL for local development
+const connectionString = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
 if (!connectionString) {
-  throw new Error("DATABASE_URL environment variable is required");
+  throw new Error("SUPABASE_DATABASE_URL or DATABASE_URL environment variable is required");
 }
 
-console.log("[db] Connecting to Supabase PostgreSQL database");
+const isSupabase = connectionString.includes("supabase");
+console.log(`[db] Connecting to ${isSupabase ? "Supabase" : "local"} PostgreSQL database`);
 
 const pool = new Pool({
   connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
 });
 
 export const db = drizzle(pool, { schema });
