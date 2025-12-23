@@ -953,10 +953,10 @@ export async function registerRoutes(
         UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
         UNION ALL SELECT 'public_company_snapshot', count(*)::int FROM public_company_snapshot
         UNION ALL SELECT 'relationships', count(*)::int FROM relationships
-        UNION ALL SELECT 'ext_agritech', COALESCE((SELECT count(*)::int FROM ext_agritech_portfolio_company), 0)
-        UNION ALL SELECT 'ext_blockchain', COALESCE((SELECT count(*)::int FROM ext_blockchain_portfolio_company), 0)
-        UNION ALL SELECT 'ext_healthcare', COALESCE((SELECT count(*)::int FROM ext_healthcare_portfolio_company), 0)
-        UNION ALL SELECT 'entities_public_market', COALESCE((SELECT count(*)::int FROM entities_public_market), 0)
+        UNION ALL SELECT 'ext_agritech', CASE WHEN to_regclass('ext_agritech_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_agritech_portfolio_company) ELSE 0 END
+        UNION ALL SELECT 'ext_blockchain', CASE WHEN to_regclass('ext_blockchain_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_blockchain_portfolio_company) ELSE 0 END
+        UNION ALL SELECT 'ext_healthcare', CASE WHEN to_regclass('ext_healthcare_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_healthcare_portfolio_company) ELSE 0 END
+        UNION ALL SELECT 'entities_public_market', CASE WHEN to_regclass('entities_public_market') IS NOT NULL THEN (SELECT count(*)::int FROM entities_public_market) ELSE 0 END
       `);
       
       return res.json(counts.rows);
@@ -1274,6 +1274,10 @@ export async function registerRoutes(
     try {
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ext_agritech_portfolio_company') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
       const result = await db.execute(sql`
         SELECT a.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
         FROM ext_agritech_portfolio_company a
@@ -1312,6 +1316,10 @@ export async function registerRoutes(
     try {
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ext_blockchain_portfolio_company') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
       const result = await db.execute(sql`
         SELECT b.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
         FROM ext_blockchain_portfolio_company b
@@ -1350,6 +1358,10 @@ export async function registerRoutes(
     try {
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('ext_healthcare_portfolio_company') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
       const result = await db.execute(sql`
         SELECT h.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
         FROM ext_healthcare_portfolio_company h
@@ -1388,6 +1400,10 @@ export async function registerRoutes(
     try {
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
+      const tableExists = await db.execute(sql`SELECT to_regclass('entities_public_market') IS NOT NULL as exists`);
+      if (!tableExists.rows[0]?.exists) {
+        return res.json([]);
+      }
       const result = await db.execute(sql`
         SELECT * FROM entities_public_market ORDER BY created_at DESC
       `);
