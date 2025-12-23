@@ -29,6 +29,26 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Health check endpoint for debugging
+  app.get("/api/health", async (req: Request, res: Response) => {
+    try {
+      const dbCheck = await storage.getUserByUsername("admin");
+      return res.json({
+        status: "ok",
+        database: dbCheck ? "connected" : "no admin user",
+        supabase: supabase ? "configured" : "not configured",
+        environment: process.env.NODE_ENV || "unknown"
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        status: "error",
+        message: error?.message,
+        database: "error",
+        supabase: supabase ? "configured" : "not configured"
+      });
+    }
+  });
+
   function checkTrialStatus(user: { role: string; trialEndsAt: Date | null; approvalStatus: string | null }) {
     if (user.role !== "guest") {
       return { isTrialExpired: false, isApproved: true };
@@ -168,9 +188,12 @@ export async function registerRoutes(
         modules: moduleAccessByRole[user.role as UserRole] || [],
         trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
       });
-    } catch (error) {
-      console.error("Supabase login error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error: any) {
+      console.error("Supabase login error:", error?.message || error);
+      return res.status(500).json({ 
+        message: "Internal server error", 
+        details: process.env.NODE_ENV !== "production" ? error?.message : undefined 
+      });
     }
   });
 
