@@ -1,8 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import bcrypt from "bcrypt";
+import { createClient } from "@supabase/supabase-js";
 import { storage } from "./storage";
 import {
   loginSchema,
+  signupSchema,
   insertFirmSchema,
   insertContactSchema,
   insertFundSchema,
@@ -17,6 +20,12 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -28,7 +37,18 @@ export async function registerRoutes(
       const parsed = loginSchema.parse(req.body);
       const user = await storage.getUserByUsername(parsed.username);
       
-      if (!user || user.password !== parsed.password) {
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      let passwordValid = false;
+      if (user.password.startsWith("$2")) {
+        passwordValid = await bcrypt.compare(parsed.password, user.password);
+      } else {
+        passwordValid = user.password === parsed.password;
+      }
+      
+      if (!passwordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
@@ -46,6 +66,70 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/signup", async (req: Request, res: Response) => {
+    try {
+      const parsed = signupSchema.parse(req.body);
+      
+      let verifiedSupabaseId: string | undefined = undefined;
+      
+      if (parsed.supabaseId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return res.status(401).json({ message: "Authorization token required for Supabase signup" });
+        }
+        
+        if (!supabase) {
+          return res.status(500).json({ message: "Supabase not configured on server" });
+        }
+        
+        const token = authHeader.substring(7);
+        const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !supabaseUser) {
+          return res.status(401).json({ message: "Invalid Supabase token" });
+        }
+        
+        if (supabaseUser.id !== parsed.supabaseId) {
+          return res.status(403).json({ message: "Supabase ID mismatch" });
+        }
+        
+        verifiedSupabaseId = supabaseUser.id;
+      }
+      
+      const existingUser = await storage.getUserByEmail(parsed.email);
+      if (existingUser) {
+        return res.status(409).json({ message: "An account with this email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(parsed.password, 10);
+
+      const newUser = await storage.createUserWithId(
+        verifiedSupabaseId,
+        {
+          username: parsed.email,
+          password: hashedPassword,
+          email: parsed.email,
+          displayName: parsed.displayName,
+          role: "annotator",
+          isActive: true,
+          qaPercentage: 20,
+        }
+      );
+
+      const { password, ...userWithoutPassword } = newUser;
+      return res.status(201).json({ 
+        user: userWithoutPassword,
+        modules: moduleAccessByRole[newUser.role as UserRole] || []
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Signup error:", error);
+      return res.status(500).json({ message: "Could not create account" });
     }
   });
 

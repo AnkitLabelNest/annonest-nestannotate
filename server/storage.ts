@@ -15,8 +15,10 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  createUserWithId(id: string | undefined, user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
 
   getFirms(): Promise<Firm[]>;
@@ -238,12 +240,36 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
+    );
+  }
+
   async getUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
+    const user: User = { 
+      id,
+      avatar: null,
+      qaPercentage: 20,
+      isActive: true,
+      ...insertUser,
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async createUserWithId(providedId: string | undefined, insertUser: InsertUser): Promise<User> {
+    const id = providedId || randomUUID();
+    
+    if (this.users.has(id)) {
+      throw new Error("User with this ID already exists");
+    }
+    
     const user: User = { 
       id,
       avatar: null,

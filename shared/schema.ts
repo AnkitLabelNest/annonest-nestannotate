@@ -3,7 +3,7 @@ import { pgTable, text, varchar, timestamp, boolean, integer, jsonb } from "driz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoles = ["admin", "manager", "annotator", "qa"] as const;
+export const userRoles = ["admin", "manager", "researcher", "annotator", "qa"] as const;
 export type UserRole = typeof userRoles[number];
 
 export const firmTypes = ["gp", "lp", "service_provider", "company"] as const;
@@ -179,6 +179,7 @@ export type MonitoredUrl = typeof monitoredUrls.$inferSelect;
 export const moduleAccessByRole: Record<UserRole, string[]> = {
   admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
   manager: ["nest_annotate", "data_nest", "extraction_engine"],
+  researcher: ["nest_annotate", "data_nest", "extraction_engine"],
   annotator: ["nest_annotate"],
   qa: ["nest_annotate", "data_nest"],
 };
@@ -211,3 +212,12 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const signupSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  displayName: z.string().min(1, "Display name is required"),
+  supabaseId: z.string().optional(),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;

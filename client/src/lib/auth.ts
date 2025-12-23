@@ -42,6 +42,32 @@ export async function signIn(email: string, password: string) {
   };
 }
 
+export async function signUp(email: string, password: string, displayName: string) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error("Supabase is not configured. Cannot create account.");
+  }
+  
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        displayName,
+      },
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    user: data.user,
+    session: data.session,
+  };
+}
+
 export async function signOut() {
   const client = getSupabaseClient();
   if (!client) {

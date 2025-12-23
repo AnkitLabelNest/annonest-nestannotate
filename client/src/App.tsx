@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
 import DashboardPage from "@/pages/dashboard";
 import AnnotatePage from "@/pages/annotate/index";
 import TextLabelPage from "@/pages/annotate/text";
@@ -68,6 +69,7 @@ function AppRoutes() {
     return (
       <Switch>
         <Route path="/" component={LoginPage} />
+        <Route path="/signup" component={SignupPage} />
         <Route>
           <Redirect to="/" />
         </Route>

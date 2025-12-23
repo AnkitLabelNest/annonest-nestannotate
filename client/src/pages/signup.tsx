@@ -14,83 +14,95 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth-context";
-import { isSupabaseConfigured, signIn as supabaseSignIn } from "@/lib/auth";
+import { isSupabaseConfigured, signUp as supabaseSignUp } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { loginSchema, type LoginInput } from "@shared/schema";
-import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
+import { signupSchema, type SignupInput } from "@shared/schema";
+import { Loader2, Lock, Mail, ChevronRight, User } from "lucide-react";
 
-async function loginWithBackend(data: LoginInput) {
-  const response = await fetch("/api/auth/login", {
+async function signUpWithBackend(data: SignupInput, accessToken?: string) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+  
+  const response = await fetch("/api/auth/signup", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(data),
   });
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Invalid credentials" }));
-    throw new Error(error.message || "Authentication failed");
+    const error = await response.json().catch(() => ({ message: "Signup failed" }));
+    throw new Error(error.message || "Could not create account");
   }
   
   return response.json();
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<SignupInput>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
+      displayName: "",
     },
   });
 
-  const onSubmit = async (data: LoginInput) => {
+  const onSubmit = async (data: SignupInput) => {
     setIsLoading(true);
     
     try {
+      let backendResponse;
+      
       if (isSupabaseConfigured()) {
-        const { user } = await supabaseSignIn(data.username, data.password);
+        const { user: supabaseUser, session } = await supabaseSignUp(data.email, data.password, data.displayName);
         
-        if (!user) {
-          form.setError("root", { message: "Authentication failed" });
+        if (!supabaseUser) {
+          form.setError("root", { message: "Could not create account" });
           setIsLoading(false);
           return;
         }
 
-        login({
-          id: user.id,
-          username: data.username,
-          password: data.password,
-          email: user.email || "",
-          role: "annotator",
-          displayName: user.user_metadata?.displayName || "User",
-          avatar: user.user_metadata?.avatar || null,
-          qaPercentage: 20,
-          isActive: true,
-        });
+        backendResponse = await signUpWithBackend(
+          {
+            email: data.email,
+            password: data.password,
+            displayName: data.displayName,
+            supabaseId: supabaseUser.id,
+          },
+          session?.access_token
+        );
       } else {
-        const { user } = await loginWithBackend(data);
-        
-        login({
-          id: user.id,
-          username: user.username,
+        backendResponse = await signUpWithBackend({
+          email: data.email,
           password: data.password,
-          email: user.email || "",
-          role: user.role,
-          displayName: user.displayName || user.username,
-          avatar: user.avatar || null,
-          qaPercentage: user.qaPercentage || 20,
-          isActive: user.isActive,
+          displayName: data.displayName,
         });
       }
+      
+      const { user } = backendResponse;
+      
+      login({
+        id: user.id,
+        username: user.username || data.email,
+        password: data.password,
+        email: user.email || data.email,
+        role: user.role || "annotator",
+        displayName: user.displayName || data.displayName,
+        avatar: user.avatar || null,
+        qaPercentage: user.qaPercentage || 20,
+        isActive: user.isActive ?? true,
+      });
       
       setLocation("/dashboard");
     } catch (error) {
       form.setError("root", { 
-        message: error instanceof Error ? error.message : "Invalid credentials" 
+        message: error instanceof Error ? error.message : "Could not create account" 
       });
     }
 
@@ -115,15 +127,15 @@ export default function LoginPage() {
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold">Welcome back</h2>
-            <p className="text-muted-foreground mt-1">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-bold">Create an Account</h2>
+            <p className="text-muted-foreground mt-1">Sign up to get started with AnnoNest</p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Sign In</CardTitle>
+              <CardTitle>Sign Up</CardTitle>
               <CardDescription>
-                Enter your email and password to continue
+                Enter your details to create a new account
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -131,7 +143,30 @@ export default function LoginPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="username"
+                    name="displayName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Display Name</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              type="text"
+                              placeholder="Enter your name"
+                              className="pl-10"
+                              data-testid="input-display-name"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
@@ -164,7 +199,7 @@ export default function LoginPage() {
                             <Input
                               {...field}
                               type="password"
-                              placeholder="Enter password"
+                              placeholder="Create a password (min 6 characters)"
                               className="pl-10"
                               data-testid="input-password"
                             />
@@ -185,25 +220,25 @@ export default function LoginPage() {
                     type="submit"
                     className="w-full"
                     disabled={isLoading}
-                    data-testid="button-login"
+                    data-testid="button-signup"
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
+                        Creating account...
                       </>
                     ) : (
                       <>
-                        Sign In
+                        Create Account
                         <ChevronRight className="ml-2 h-4 w-4" />
                       </>
                     )}
                   </Button>
 
                   <div className="text-center text-sm text-muted-foreground">
-                    Don't have an account?{" "}
-                    <Link href="/signup" className="text-primary hover:underline" data-testid="link-signup">
-                      Sign up
+                    Already have an account?{" "}
+                    <Link href="/" className="text-primary hover:underline" data-testid="link-login">
+                      Sign in
                     </Link>
                   </div>
                 </form>
