@@ -105,6 +105,10 @@ const modules = [
       { id: "contacts", title: "Contacts", icon: Users, path: "/data/contacts" },
       { id: "deals", title: "Deals", icon: Briefcase, path: "/data/deals" },
       { id: "relationships", title: "Relationships", icon: LinkIcon, path: "/data/relationships" },
+      { id: "agritech", title: "Agritech", icon: Factory, path: "/data/agritech" },
+      { id: "blockchain", title: "Blockchain", icon: Factory, path: "/data/blockchain" },
+      { id: "healthcare", title: "Healthcare", icon: Factory, path: "/data/healthcare" },
+      { id: "public-market", title: "Public Market", icon: TrendingUp, path: "/data/public-market" },
     ],
   },
 ];

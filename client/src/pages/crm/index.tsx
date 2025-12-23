@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Users, Wallet, Briefcase, Factory, Handshake, TrendingUp, Globe } from "lucide-react";
+import { Building2, Users, Wallet, Briefcase, Factory, Handshake, TrendingUp, Globe, Leaf, Blocks, Heart } from "lucide-react";
 
 interface EntityCount {
   entity: string;
@@ -90,6 +90,42 @@ export default function CRMDashboard() {
       path: "/data/public-companies",
       count: getCount("public_company_snapshot"),
       color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+    },
+    {
+      id: "agritech",
+      title: "Agritech",
+      description: "Agricultural technology companies",
+      icon: Leaf,
+      path: "/data/agritech",
+      count: getCount("ext_agritech"),
+      color: "bg-green-600/10 text-green-700 dark:text-green-400",
+    },
+    {
+      id: "blockchain",
+      title: "Blockchain",
+      description: "Web3 and DeFi companies",
+      icon: Blocks,
+      path: "/data/blockchain",
+      count: getCount("ext_blockchain"),
+      color: "bg-purple-600/10 text-purple-700 dark:text-purple-400",
+    },
+    {
+      id: "healthcare",
+      title: "Healthcare",
+      description: "Biotech and life sciences",
+      icon: Heart,
+      path: "/data/healthcare",
+      count: getCount("ext_healthcare"),
+      color: "bg-red-500/10 text-red-600 dark:text-red-400",
+    },
+    {
+      id: "public-market",
+      title: "Public Market",
+      description: "Publicly traded companies",
+      icon: TrendingUp,
+      path: "/data/public-market",
+      count: getCount("entities_public_market"),
+      color: "bg-blue-600/10 text-blue-700 dark:text-blue-400",
     },
   ];
 

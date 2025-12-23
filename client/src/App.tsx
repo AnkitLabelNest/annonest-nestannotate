@@ -38,6 +38,10 @@ import DataNestContactsPage from "@/pages/crm/contacts";
 import DataNestDealsPage from "@/pages/crm/deals";
 import PublicCompaniesPage from "@/pages/crm/public-companies";
 import RelationshipsPage from "@/pages/crm/relationships";
+import AgritechPage from "@/pages/crm/agritech";
+import BlockchainPage from "@/pages/crm/blockchain";
+import HealthcarePage from "@/pages/crm/healthcare";
+import PublicMarketPage from "@/pages/crm/public-market";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -121,6 +125,10 @@ function AppRoutes() {
         <Route path="/data/deals" component={DataNestDealsPage} />
         <Route path="/data/public-companies" component={PublicCompaniesPage} />
         <Route path="/data/relationships" component={RelationshipsPage} />
+        <Route path="/data/agritech" component={AgritechPage} />
+        <Route path="/data/blockchain" component={BlockchainPage} />
+        <Route path="/data/healthcare" component={HealthcarePage} />
+        <Route path="/data/public-market" component={PublicMarketPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
