@@ -38,6 +38,7 @@ import {
   Factory,
   Handshake,
   TrendingUp,
+  Globe,
 } from "lucide-react";
 import type { UserRole } from "@shared/schema";
 
@@ -203,6 +204,16 @@ export function AppSidebar() {
                     <Link href="/admin/users" data-testid="nav-admin-users">
                       <ShieldCheck className="h-4 w-4" />
                       <span>User Management</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {user?.role === "manager" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/settings/locations"}>
+                    <Link href="/settings/locations" data-testid="nav-locations">
+                      <Globe className="h-4 w-4" />
+                      <span>Location Data</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

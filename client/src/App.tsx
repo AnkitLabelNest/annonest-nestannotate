@@ -42,6 +42,7 @@ import AgritechPage from "@/pages/crm/agritech";
 import BlockchainPage from "@/pages/crm/blockchain";
 import HealthcarePage from "@/pages/crm/healthcare";
 import PublicMarketPage from "@/pages/crm/public-market";
+import LocationManagementPage from "@/pages/settings/locations";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -131,6 +132,7 @@ function AppRoutes() {
         <Route path="/data/public-market" component={PublicMarketPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/settings/locations" component={LocationManagementPage} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>
