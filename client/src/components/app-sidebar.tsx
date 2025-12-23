@@ -33,6 +33,7 @@ import {
   Wallet,
   Briefcase,
   Link as LinkIcon,
+  ShieldCheck,
 } from "lucide-react";
 import type { UserRole } from "@shared/schema";
 
@@ -171,8 +172,18 @@ export function AppSidebar() {
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {(user?.role === "admin" || user?.role === "manager") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/admin/users"}>
+                    <Link href="/admin/users" data-testid="nav-admin-users">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>User Management</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={location === "/settings"}>
                   <Link href="/settings" data-testid="nav-settings">
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>

@@ -27,6 +27,7 @@ import DealsPage from "@/pages/data/deals";
 import ExtractionPage from "@/pages/extraction";
 import IntelligencePage from "@/pages/intelligence";
 import SettingsPage from "@/pages/settings";
+import AdminUsersPage from "@/pages/admin/users";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -100,6 +101,7 @@ function AppRoutes() {
         <Route path="/data/deals" component={DealsPage} />
         <Route path="/extraction" component={ExtractionPage} />
         <Route path="/intelligence" component={IntelligencePage} />
+        <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
