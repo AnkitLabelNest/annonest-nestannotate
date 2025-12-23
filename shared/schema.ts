@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -21,8 +21,19 @@ export type AnnotationType = typeof annotationTypes[number];
 export const monitoringStatuses = ["running", "changed", "no_change", "error"] as const;
 export type MonitoringStatus = typeof monitoringStatuses[number];
 
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  isGuestOrg: boolean("is_guest_org").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull(),
@@ -37,10 +48,13 @@ export const users = pgTable("users", {
   approvalStatus: text("approval_status").$type<ApprovalStatus>(),
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
-});
+}, (table) => [
+  index("users_org_id_idx").on(table.orgId),
+]);
 
 export const firms = pgTable("firms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   name: text("name").notNull(),
   type: text("type").notNull().$type<FirmType>(),
   website: text("website"),
@@ -51,10 +65,13 @@ export const firms = pgTable("firms", {
   createdBy: varchar("created_by").references(() => users.id),
   lastEditedBy: varchar("last_edited_by").references(() => users.id),
   viewedBy: jsonb("viewed_by").$type<string[]>().default([]),
-});
+}, (table) => [
+  index("firms_org_id_idx").on(table.orgId),
+]);
 
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   firmId: varchar("firm_id").references(() => firms.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -64,10 +81,13 @@ export const contacts = pgTable("contacts", {
   linkedIn: text("linkedin"),
   createdBy: varchar("created_by").references(() => users.id),
   lastEditedBy: varchar("last_edited_by").references(() => users.id),
-});
+}, (table) => [
+  index("contacts_org_id_idx").on(table.orgId),
+]);
 
 export const funds = pgTable("funds", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   firmId: varchar("firm_id").references(() => firms.id),
   name: text("name").notNull(),
   vintage: integer("vintage"),
@@ -76,10 +96,13 @@ export const funds = pgTable("funds", {
   status: text("status"),
   createdBy: varchar("created_by").references(() => users.id),
   lastEditedBy: varchar("last_edited_by").references(() => users.id),
-});
+}, (table) => [
+  index("funds_org_id_idx").on(table.orgId),
+]);
 
 export const deals = pgTable("deals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   firmId: varchar("firm_id").references(() => firms.id),
   fundId: varchar("fund_id").references(() => funds.id),
   companyName: text("company_name").notNull(),
@@ -89,20 +112,26 @@ export const deals = pgTable("deals", {
   status: text("status"),
   createdBy: varchar("created_by").references(() => users.id),
   lastEditedBy: varchar("last_edited_by").references(() => users.id),
-});
+}, (table) => [
+  index("deals_org_id_idx").on(table.orgId),
+]);
 
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   type: text("type").notNull().$type<AnnotationType>(),
   status: text("status").default("active"),
   createdBy: varchar("created_by").references(() => users.id),
   assignedTo: jsonb("assigned_to").$type<string[]>().default([]),
-});
+}, (table) => [
+  index("projects_org_id_idx").on(table.orgId),
+]);
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   projectId: varchar("project_id").references(() => projects.id),
   title: text("title").notNull(),
   description: text("description"),
@@ -115,10 +144,13 @@ export const tasks = pgTable("tasks", {
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   confidenceScore: integer("confidence_score"),
   pipelineStep: text("pipeline_step").default("input"),
-});
+}, (table) => [
+  index("tasks_org_id_idx").on(table.orgId),
+]);
 
 export const annotations = pgTable("annotations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   taskId: varchar("task_id").references(() => tasks.id),
   type: text("type").notNull().$type<AnnotationType>(),
   data: jsonb("data"),
@@ -129,20 +161,26 @@ export const annotations = pgTable("annotations", {
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewStatus: text("review_status"),
   reviewNotes: text("review_notes"),
-});
+}, (table) => [
+  index("annotations_org_id_idx").on(table.orgId),
+]);
 
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   userId: varchar("user_id").references(() => users.id),
   action: text("action").notNull(),
   entityType: text("entity_type").notNull(),
   entityId: varchar("entity_id"),
   details: jsonb("details"),
   timestamp: timestamp("timestamp").defaultNow(),
-});
+}, (table) => [
+  index("audit_logs_org_id_idx").on(table.orgId),
+]);
 
 export const monitoredUrls = pgTable("monitored_urls", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
   url: text("url").notNull(),
   entityType: text("entity_type").notNull(),
   entityId: varchar("entity_id"),
@@ -151,8 +189,11 @@ export const monitoredUrls = pgTable("monitored_urls", {
   lastChangeDate: timestamp("last_change_date"),
   changeDetails: jsonb("change_details"),
   createdBy: varchar("created_by").references(() => users.id),
-});
+}, (table) => [
+  index("monitored_urls_org_id_idx").on(table.orgId),
+]);
 
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertFirmSchema = createInsertSchema(firms).omit({ id: true });
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true });
@@ -164,6 +205,8 @@ export const insertAnnotationSchema = createInsertSchema(annotations).omit({ id:
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true });
 export const insertMonitoredUrlSchema = createInsertSchema(monitoredUrls).omit({ id: true });
 
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertFirm = z.infer<typeof insertFirmSchema>;
