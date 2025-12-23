@@ -953,6 +953,10 @@ export async function registerRoutes(
         UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
         UNION ALL SELECT 'public_company_snapshot', count(*)::int FROM public_company_snapshot
         UNION ALL SELECT 'relationships', count(*)::int FROM relationships
+        UNION ALL SELECT 'ext_agritech', COALESCE((SELECT count(*)::int FROM ext_agritech_portfolio_company), 0)
+        UNION ALL SELECT 'ext_blockchain', COALESCE((SELECT count(*)::int FROM ext_blockchain_portfolio_company), 0)
+        UNION ALL SELECT 'ext_healthcare', COALESCE((SELECT count(*)::int FROM ext_healthcare_portfolio_company), 0)
+        UNION ALL SELECT 'entities_public_market', COALESCE((SELECT count(*)::int FROM entities_public_market), 0)
       `);
       
       return res.json(counts.rows);
@@ -1151,6 +1155,300 @@ export async function registerRoutes(
       return res.json(result.rows);
     } catch (error) {
       console.error("Error fetching public companies:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ==========================================
+  // Sector Entity Routes - Extensions to Portfolio Companies
+  // ==========================================
+
+  // Initialize sector tables if they don't exist
+  app.post("/api/crm/init-sector-tables", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      // Create ext_agritech_portfolio_company
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ext_agritech_portfolio_company (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          portfolio_company_id UUID REFERENCES entities_portfolio_company(id) ON DELETE CASCADE,
+          crop_types TEXT,
+          farming_method TEXT,
+          tech_stack TEXT,
+          sustainability_certifications TEXT,
+          geographic_focus TEXT,
+          target_market TEXT,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      // Create ext_blockchain_portfolio_company
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ext_blockchain_portfolio_company (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          portfolio_company_id UUID REFERENCES entities_portfolio_company(id) ON DELETE CASCADE,
+          blockchain_platform TEXT,
+          token_ticker TEXT,
+          consensus_mechanism TEXT,
+          smart_contract_language TEXT,
+          defi_category TEXT,
+          tvl_usd NUMERIC,
+          audit_status TEXT,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      // Create ext_healthcare_portfolio_company
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ext_healthcare_portfolio_company (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          portfolio_company_id UUID REFERENCES entities_portfolio_company(id) ON DELETE CASCADE,
+          healthcare_segment TEXT,
+          therapeutic_area TEXT,
+          regulatory_status TEXT,
+          fda_approval_stage TEXT,
+          clinical_trial_phase TEXT,
+          target_patient_population TEXT,
+          reimbursement_model TEXT,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      // Create entities_public_market (standalone)
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS entities_public_market (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          company_name TEXT NOT NULL,
+          ticker TEXT,
+          exchange TEXT,
+          isin TEXT,
+          cusip TEXT,
+          sector TEXT,
+          industry TEXT,
+          market_cap NUMERIC,
+          enterprise_value NUMERIC,
+          revenue_ttm NUMERIC,
+          ebitda_ttm NUMERIC,
+          pe_ratio NUMERIC,
+          headquarters_country TEXT,
+          headquarters_city TEXT,
+          website TEXT,
+          description TEXT,
+          snapshot_date DATE DEFAULT CURRENT_DATE,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      // Create link_public_market_entity (polymorphic link)
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS link_public_market_entity (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          public_market_id UUID REFERENCES entities_public_market(id) ON DELETE CASCADE,
+          entity_type TEXT NOT NULL,
+          entity_id UUID NOT NULL,
+          relationship_type TEXT DEFAULT 'related',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      return res.json({ message: "Sector tables initialized successfully" });
+    } catch (error) {
+      console.error("Error initializing sector tables:", error);
+      return res.status(500).json({ message: "Error initializing sector tables" });
+    }
+  });
+
+  // Agritech Routes
+  app.get("/api/crm/agritech", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT a.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
+        FROM ext_agritech_portfolio_company a
+        LEFT JOIN entities_portfolio_company p ON a.portfolio_company_id = p.id
+        ORDER BY a.created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching agritech:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/agritech", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ext_agritech_portfolio_company 
+        (portfolio_company_id, crop_types, farming_method, tech_stack, sustainability_certifications, geographic_focus, target_market, notes)
+        VALUES (${data.portfolio_company_id || null}, ${data.crop_types || null}, ${data.farming_method || null}, ${data.tech_stack || null}, ${data.sustainability_certifications || null}, ${data.geographic_focus || null}, ${data.target_market || null}, ${data.notes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating agritech:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Blockchain Routes
+  app.get("/api/crm/blockchain", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT b.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
+        FROM ext_blockchain_portfolio_company b
+        LEFT JOIN entities_portfolio_company p ON b.portfolio_company_id = p.id
+        ORDER BY b.created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching blockchain:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/blockchain", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ext_blockchain_portfolio_company 
+        (portfolio_company_id, blockchain_platform, token_ticker, consensus_mechanism, smart_contract_language, defi_category, tvl_usd, audit_status, notes)
+        VALUES (${data.portfolio_company_id || null}, ${data.blockchain_platform || null}, ${data.token_ticker || null}, ${data.consensus_mechanism || null}, ${data.smart_contract_language || null}, ${data.defi_category || null}, ${data.tvl_usd || null}, ${data.audit_status || null}, ${data.notes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating blockchain:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Healthcare Routes
+  app.get("/api/crm/healthcare", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT h.*, p.company_name, p.headquarters_country, p.headquarters_city, p.website
+        FROM ext_healthcare_portfolio_company h
+        LEFT JOIN entities_portfolio_company p ON h.portfolio_company_id = p.id
+        ORDER BY h.created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching healthcare:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/healthcare", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO ext_healthcare_portfolio_company 
+        (portfolio_company_id, healthcare_segment, therapeutic_area, regulatory_status, fda_approval_stage, clinical_trial_phase, target_patient_population, reimbursement_model, notes)
+        VALUES (${data.portfolio_company_id || null}, ${data.healthcare_segment || null}, ${data.therapeutic_area || null}, ${data.regulatory_status || null}, ${data.fda_approval_stage || null}, ${data.clinical_trial_phase || null}, ${data.target_patient_population || null}, ${data.reimbursement_model || null}, ${data.notes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating healthcare:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Public Market Routes (standalone entity)
+  app.get("/api/crm/public-market", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT * FROM entities_public_market ORDER BY created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching public market:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/public-market", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_public_market 
+        (company_name, ticker, exchange, isin, cusip, sector, industry, market_cap, enterprise_value, revenue_ttm, ebitda_ttm, pe_ratio, headquarters_country, headquarters_city, website, description, notes)
+        VALUES (${data.company_name}, ${data.ticker || null}, ${data.exchange || null}, ${data.isin || null}, ${data.cusip || null}, ${data.sector || null}, ${data.industry || null}, ${data.market_cap || null}, ${data.enterprise_value || null}, ${data.revenue_ttm || null}, ${data.ebitda_ttm || null}, ${data.pe_ratio || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.website || null}, ${data.description || null}, ${data.notes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating public market:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Public Market Entity Links
+  app.get("/api/crm/public-market/:id/links", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT * FROM link_public_market_entity WHERE public_market_id = ${req.params.id}
+      `);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching public market links:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/public-market/:id/links", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO link_public_market_entity 
+        (public_market_id, entity_type, entity_id, relationship_type, notes)
+        VALUES (${req.params.id}, ${data.entity_type}, ${data.entity_id}, ${data.relationship_type || 'related'}, ${data.notes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating public market link:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
