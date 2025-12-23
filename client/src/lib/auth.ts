@@ -1,16 +1,33 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Lazily initialized Supabase client
+let supabase: SupabaseClient | null = null;
+let supabaseInitialized = false;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase credentials in environment variables");
+function getSupabaseClient(): SupabaseClient | null {
+  if (!supabaseInitialized) {
+    supabaseInitialized = true;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseAnonKey) {
+      supabase = createClient(supabaseUrl, supabaseAnonKey);
+    }
+  }
+  return supabase;
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function isSupabaseConfigured(): boolean {
+  return getSupabaseClient() !== null;
+}
 
 export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error("Supabase is not configured. Using local authentication only.");
+  }
+  
+  const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
   });
@@ -26,14 +43,24 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  const client = getSupabaseClient();
+  if (!client) {
+    return;
+  }
+  
+  const { error } = await client.auth.signOut();
   if (error) {
     throw new Error(error.message);
   }
 }
 
 export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+  
+  const { data, error } = await client.auth.getUser();
   if (error) {
     return null;
   }
@@ -41,7 +68,12 @@ export async function getCurrentUser() {
 }
 
 export async function getCurrentSession() {
-  const { data, error } = await supabase.auth.getSession();
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+  
+  const { data, error } = await client.auth.getSession();
   if (error) {
     return null;
   }

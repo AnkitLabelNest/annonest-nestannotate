@@ -14,10 +14,25 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth-context";
-import { signIn } from "@/lib/auth";
+import { isSupabaseConfigured, signIn as supabaseSignIn } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema, type LoginInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
+
+async function loginWithBackend(data: LoginInput) {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Invalid credentials" }));
+    throw new Error(error.message || "Authentication failed");
+  }
+  
+  return response.json();
+}
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -36,25 +51,41 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      const { user, session } = await signIn(data.username, data.password);
-      
-      if (!user) {
-        form.setError("root", { message: "Authentication failed" });
-        setIsLoading(false);
-        return;
-      }
+      if (isSupabaseConfigured()) {
+        const { user } = await supabaseSignIn(data.username, data.password);
+        
+        if (!user) {
+          form.setError("root", { message: "Authentication failed" });
+          setIsLoading(false);
+          return;
+        }
 
-      login({
-        id: user.id,
-        username: data.username,
-        password: data.password,
-        email: user.email || "",
-        role: "annotator",
-        displayName: user.user_metadata?.displayName || "User",
-        avatar: user.user_metadata?.avatar || null,
-        qaPercentage: 20,
-        isActive: true,
-      });
+        login({
+          id: user.id,
+          username: data.username,
+          password: data.password,
+          email: user.email || "",
+          role: "annotator",
+          displayName: user.user_metadata?.displayName || "User",
+          avatar: user.user_metadata?.avatar || null,
+          qaPercentage: 20,
+          isActive: true,
+        });
+      } else {
+        const { user } = await loginWithBackend(data);
+        
+        login({
+          id: user.id,
+          username: user.username,
+          password: data.password,
+          email: user.email || "",
+          role: user.role,
+          displayName: user.displayName || user.username,
+          avatar: user.avatar || null,
+          qaPercentage: user.qaPercentage || 20,
+          isActive: user.isActive,
+        });
+      }
       
       setLocation("/dashboard");
     } catch (error) {
