@@ -20,64 +20,64 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserBySupabaseId(supabaseId: string): Promise<User | undefined>;
-  getUsers(): Promise<User[]>;
-  getPendingGuests(): Promise<User[]>;
+  getUsers(orgId?: string): Promise<User[]>;
+  getPendingGuests(orgId?: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   createUserWithId(id: string | undefined, user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined>;
   rejectUser(id: string, approvedById: string): Promise<User | undefined>;
 
-  getFirms(): Promise<Firm[]>;
-  getFirm(id: string): Promise<Firm | undefined>;
-  createFirm(firm: InsertFirm): Promise<Firm>;
-  updateFirm(id: string, firm: Partial<InsertFirm>): Promise<Firm | undefined>;
-  deleteFirm(id: string): Promise<boolean>;
-  findDuplicateFirms(name: string, excludeId?: string): Promise<Firm[]>;
+  getFirms(orgId: string): Promise<Firm[]>;
+  getFirm(id: string, orgId: string): Promise<Firm | undefined>;
+  createFirm(firm: InsertFirm & { orgId: string }): Promise<Firm>;
+  updateFirm(id: string, orgId: string, firm: Partial<InsertFirm>): Promise<Firm | undefined>;
+  deleteFirm(id: string, orgId: string): Promise<boolean>;
+  findDuplicateFirms(orgId: string, name: string, excludeId?: string): Promise<Firm[]>;
 
-  getContacts(firmId?: string): Promise<Contact[]>;
-  getContact(id: string): Promise<Contact | undefined>;
-  createContact(contact: InsertContact): Promise<Contact>;
-  updateContact(id: string, contact: Partial<InsertContact>): Promise<Contact | undefined>;
-  deleteContact(id: string): Promise<boolean>;
+  getContacts(orgId: string, firmId?: string): Promise<Contact[]>;
+  getContact(id: string, orgId: string): Promise<Contact | undefined>;
+  createContact(contact: InsertContact & { orgId: string }): Promise<Contact>;
+  updateContact(id: string, orgId: string, contact: Partial<InsertContact>): Promise<Contact | undefined>;
+  deleteContact(id: string, orgId: string): Promise<boolean>;
 
-  getFunds(firmId?: string): Promise<Fund[]>;
-  getFund(id: string): Promise<Fund | undefined>;
-  createFund(fund: InsertFund): Promise<Fund>;
-  updateFund(id: string, fund: Partial<InsertFund>): Promise<Fund | undefined>;
-  deleteFund(id: string): Promise<boolean>;
+  getFunds(orgId: string, firmId?: string): Promise<Fund[]>;
+  getFund(id: string, orgId: string): Promise<Fund | undefined>;
+  createFund(fund: InsertFund & { orgId: string }): Promise<Fund>;
+  updateFund(id: string, orgId: string, fund: Partial<InsertFund>): Promise<Fund | undefined>;
+  deleteFund(id: string, orgId: string): Promise<boolean>;
 
-  getDeals(firmId?: string, fundId?: string): Promise<Deal[]>;
-  getDeal(id: string): Promise<Deal | undefined>;
-  createDeal(deal: InsertDeal): Promise<Deal>;
-  updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
-  deleteDeal(id: string): Promise<boolean>;
+  getDeals(orgId: string, firmId?: string, fundId?: string): Promise<Deal[]>;
+  getDeal(id: string, orgId: string): Promise<Deal | undefined>;
+  createDeal(deal: InsertDeal & { orgId: string }): Promise<Deal>;
+  updateDeal(id: string, orgId: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
+  deleteDeal(id: string, orgId: string): Promise<boolean>;
 
-  getProjects(): Promise<Project[]>;
-  getProject(id: string): Promise<Project | undefined>;
-  createProject(project: InsertProject): Promise<Project>;
-  updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
-  deleteProject(id: string): Promise<boolean>;
+  getProjects(orgId: string): Promise<Project[]>;
+  getProject(id: string, orgId: string): Promise<Project | undefined>;
+  createProject(project: InsertProject & { orgId: string }): Promise<Project>;
+  updateProject(id: string, orgId: string, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: string, orgId: string): Promise<boolean>;
 
-  getTasks(projectId?: string, assignedTo?: string, status?: string): Promise<Task[]>;
-  getTask(id: string): Promise<Task | undefined>;
-  createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
-  deleteTask(id: string): Promise<boolean>;
+  getTasks(orgId: string, projectId?: string, assignedTo?: string, status?: string): Promise<Task[]>;
+  getTask(id: string, orgId: string): Promise<Task | undefined>;
+  createTask(task: InsertTask & { orgId: string }): Promise<Task>;
+  updateTask(id: string, orgId: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: string, orgId: string): Promise<boolean>;
 
-  getAnnotations(taskId?: string): Promise<Annotation[]>;
-  getAnnotation(id: string): Promise<Annotation | undefined>;
-  createAnnotation(annotation: InsertAnnotation): Promise<Annotation>;
-  updateAnnotation(id: string, annotation: Partial<InsertAnnotation>): Promise<Annotation | undefined>;
+  getAnnotations(orgId: string, taskId?: string): Promise<Annotation[]>;
+  getAnnotation(id: string, orgId: string): Promise<Annotation | undefined>;
+  createAnnotation(annotation: InsertAnnotation & { orgId: string }): Promise<Annotation>;
+  updateAnnotation(id: string, orgId: string, annotation: Partial<InsertAnnotation>): Promise<Annotation | undefined>;
 
-  getAuditLogs(entityType?: string, entityId?: string): Promise<AuditLog[]>;
-  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(orgId: string, entityType?: string, entityId?: string): Promise<AuditLog[]>;
+  createAuditLog(log: InsertAuditLog & { orgId: string }): Promise<AuditLog>;
 
-  getMonitoredUrls(): Promise<MonitoredUrl[]>;
-  getMonitoredUrl(id: string): Promise<MonitoredUrl | undefined>;
-  createMonitoredUrl(url: InsertMonitoredUrl): Promise<MonitoredUrl>;
-  updateMonitoredUrl(id: string, url: Partial<InsertMonitoredUrl>): Promise<MonitoredUrl | undefined>;
-  deleteMonitoredUrl(id: string): Promise<boolean>;
+  getMonitoredUrls(orgId: string): Promise<MonitoredUrl[]>;
+  getMonitoredUrl(id: string, orgId: string): Promise<MonitoredUrl | undefined>;
+  createMonitoredUrl(url: InsertMonitoredUrl & { orgId: string }): Promise<MonitoredUrl>;
+  updateMonitoredUrl(id: string, orgId: string, url: Partial<InsertMonitoredUrl>): Promise<MonitoredUrl | undefined>;
+  deleteMonitoredUrl(id: string, orgId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -293,13 +293,15 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+  async getUsers(orgId?: string): Promise<User[]> {
+    const users = Array.from(this.users.values());
+    if (orgId) return users.filter(u => u.orgId === orgId);
+    return users;
   }
 
-  async getPendingGuests(): Promise<User[]> {
+  async getPendingGuests(orgId?: string): Promise<User[]> {
     return Array.from(this.users.values()).filter(
-      (user) => user.role === "guest" && user.approvalStatus === "pending"
+      (user) => user.role === "guest" && user.approvalStatus === "pending" && (!orgId || user.orgId === orgId)
     );
   }
 
@@ -383,15 +385,17 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async getFirms(): Promise<Firm[]> {
-    return Array.from(this.firms.values());
+  async getFirms(orgId: string): Promise<Firm[]> {
+    return Array.from(this.firms.values()).filter(f => f.orgId === orgId);
   }
 
-  async getFirm(id: string): Promise<Firm | undefined> {
-    return this.firms.get(id);
+  async getFirm(id: string, orgId: string): Promise<Firm | undefined> {
+    const firm = this.firms.get(id);
+    if (!firm || firm.orgId !== orgId) return undefined;
+    return firm;
   }
 
-  async createFirm(insertFirm: InsertFirm): Promise<Firm> {
+  async createFirm(insertFirm: InsertFirm & { orgId: string }): Promise<Firm> {
     const id = randomUUID();
     const firm: Firm = { 
       id,
@@ -409,21 +413,24 @@ export class MemStorage implements IStorage {
     return firm;
   }
 
-  async updateFirm(id: string, updates: Partial<InsertFirm>): Promise<Firm | undefined> {
+  async updateFirm(id: string, orgId: string, updates: Partial<InsertFirm>): Promise<Firm | undefined> {
     const firm = this.firms.get(id);
-    if (!firm) return undefined;
+    if (!firm || firm.orgId !== orgId) return undefined;
     const updated = { ...firm, ...updates };
     this.firms.set(id, updated);
     return updated;
   }
 
-  async deleteFirm(id: string): Promise<boolean> {
+  async deleteFirm(id: string, orgId: string): Promise<boolean> {
+    const firm = this.firms.get(id);
+    if (!firm || firm.orgId !== orgId) return false;
     return this.firms.delete(id);
   }
 
-  async findDuplicateFirms(name: string, excludeId?: string): Promise<Firm[]> {
+  async findDuplicateFirms(orgId: string, name: string, excludeId?: string): Promise<Firm[]> {
     const normalizedName = name.toLowerCase().trim();
     return Array.from(this.firms.values()).filter(firm => {
+      if (firm.orgId !== orgId) return false;
       if (excludeId && firm.id === excludeId) return false;
       const firmName = firm.name.toLowerCase().trim();
       return firmName === normalizedName || 
@@ -432,17 +439,19 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getContacts(firmId?: string): Promise<Contact[]> {
-    const contacts = Array.from(this.contacts.values());
+  async getContacts(orgId: string, firmId?: string): Promise<Contact[]> {
+    const contacts = Array.from(this.contacts.values()).filter(c => c.orgId === orgId);
     if (firmId) return contacts.filter(c => c.firmId === firmId);
     return contacts;
   }
 
-  async getContact(id: string): Promise<Contact | undefined> {
-    return this.contacts.get(id);
+  async getContact(id: string, orgId: string): Promise<Contact | undefined> {
+    const contact = this.contacts.get(id);
+    if (!contact || contact.orgId !== orgId) return undefined;
+    return contact;
   }
 
-  async createContact(insertContact: InsertContact): Promise<Contact> {
+  async createContact(insertContact: InsertContact & { orgId: string }): Promise<Contact> {
     const id = randomUUID();
     const contact: Contact = { 
       id,
@@ -459,29 +468,33 @@ export class MemStorage implements IStorage {
     return contact;
   }
 
-  async updateContact(id: string, updates: Partial<InsertContact>): Promise<Contact | undefined> {
+  async updateContact(id: string, orgId: string, updates: Partial<InsertContact>): Promise<Contact | undefined> {
     const contact = this.contacts.get(id);
-    if (!contact) return undefined;
+    if (!contact || contact.orgId !== orgId) return undefined;
     const updated = { ...contact, ...updates };
     this.contacts.set(id, updated);
     return updated;
   }
 
-  async deleteContact(id: string): Promise<boolean> {
+  async deleteContact(id: string, orgId: string): Promise<boolean> {
+    const contact = this.contacts.get(id);
+    if (!contact || contact.orgId !== orgId) return false;
     return this.contacts.delete(id);
   }
 
-  async getFunds(firmId?: string): Promise<Fund[]> {
-    const funds = Array.from(this.funds.values());
+  async getFunds(orgId: string, firmId?: string): Promise<Fund[]> {
+    const funds = Array.from(this.funds.values()).filter(f => f.orgId === orgId);
     if (firmId) return funds.filter(f => f.firmId === firmId);
     return funds;
   }
 
-  async getFund(id: string): Promise<Fund | undefined> {
-    return this.funds.get(id);
+  async getFund(id: string, orgId: string): Promise<Fund | undefined> {
+    const fund = this.funds.get(id);
+    if (!fund || fund.orgId !== orgId) return undefined;
+    return fund;
   }
 
-  async createFund(insertFund: InsertFund): Promise<Fund> {
+  async createFund(insertFund: InsertFund & { orgId: string }): Promise<Fund> {
     const id = randomUUID();
     const fund: Fund = { 
       id,
@@ -498,30 +511,34 @@ export class MemStorage implements IStorage {
     return fund;
   }
 
-  async updateFund(id: string, updates: Partial<InsertFund>): Promise<Fund | undefined> {
+  async updateFund(id: string, orgId: string, updates: Partial<InsertFund>): Promise<Fund | undefined> {
     const fund = this.funds.get(id);
-    if (!fund) return undefined;
+    if (!fund || fund.orgId !== orgId) return undefined;
     const updated = { ...fund, ...updates };
     this.funds.set(id, updated);
     return updated;
   }
 
-  async deleteFund(id: string): Promise<boolean> {
+  async deleteFund(id: string, orgId: string): Promise<boolean> {
+    const fund = this.funds.get(id);
+    if (!fund || fund.orgId !== orgId) return false;
     return this.funds.delete(id);
   }
 
-  async getDeals(firmId?: string, fundId?: string): Promise<Deal[]> {
-    let deals = Array.from(this.deals.values());
+  async getDeals(orgId: string, firmId?: string, fundId?: string): Promise<Deal[]> {
+    let deals = Array.from(this.deals.values()).filter(d => d.orgId === orgId);
     if (firmId) deals = deals.filter(d => d.firmId === firmId);
     if (fundId) deals = deals.filter(d => d.fundId === fundId);
     return deals;
   }
 
-  async getDeal(id: string): Promise<Deal | undefined> {
-    return this.deals.get(id);
+  async getDeal(id: string, orgId: string): Promise<Deal | undefined> {
+    const deal = this.deals.get(id);
+    if (!deal || deal.orgId !== orgId) return undefined;
+    return deal;
   }
 
-  async createDeal(insertDeal: InsertDeal): Promise<Deal> {
+  async createDeal(insertDeal: InsertDeal & { orgId: string }): Promise<Deal> {
     const id = randomUUID();
     const deal: Deal = { 
       id,
@@ -539,27 +556,31 @@ export class MemStorage implements IStorage {
     return deal;
   }
 
-  async updateDeal(id: string, updates: Partial<InsertDeal>): Promise<Deal | undefined> {
+  async updateDeal(id: string, orgId: string, updates: Partial<InsertDeal>): Promise<Deal | undefined> {
     const deal = this.deals.get(id);
-    if (!deal) return undefined;
+    if (!deal || deal.orgId !== orgId) return undefined;
     const updated = { ...deal, ...updates };
     this.deals.set(id, updated);
     return updated;
   }
 
-  async deleteDeal(id: string): Promise<boolean> {
+  async deleteDeal(id: string, orgId: string): Promise<boolean> {
+    const deal = this.deals.get(id);
+    if (!deal || deal.orgId !== orgId) return false;
     return this.deals.delete(id);
   }
 
-  async getProjects(): Promise<Project[]> {
-    return Array.from(this.projects.values());
+  async getProjects(orgId: string): Promise<Project[]> {
+    return Array.from(this.projects.values()).filter(p => p.orgId === orgId);
   }
 
-  async getProject(id: string): Promise<Project | undefined> {
-    return this.projects.get(id);
+  async getProject(id: string, orgId: string): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (!project || project.orgId !== orgId) return undefined;
+    return project;
   }
 
-  async createProject(insertProject: InsertProject): Promise<Project> {
+  async createProject(insertProject: InsertProject & { orgId: string }): Promise<Project> {
     const id = randomUUID();
     const project: Project = { 
       id,
@@ -573,31 +594,35 @@ export class MemStorage implements IStorage {
     return project;
   }
 
-  async updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined> {
+  async updateProject(id: string, orgId: string, updates: Partial<InsertProject>): Promise<Project | undefined> {
     const project = this.projects.get(id);
-    if (!project) return undefined;
+    if (!project || project.orgId !== orgId) return undefined;
     const updated = { ...project, ...updates };
     this.projects.set(id, updated);
     return updated;
   }
 
-  async deleteProject(id: string): Promise<boolean> {
+  async deleteProject(id: string, orgId: string): Promise<boolean> {
+    const project = this.projects.get(id);
+    if (!project || project.orgId !== orgId) return false;
     return this.projects.delete(id);
   }
 
-  async getTasks(projectId?: string, assignedTo?: string, status?: string): Promise<Task[]> {
-    let tasks = Array.from(this.tasks.values());
+  async getTasks(orgId: string, projectId?: string, assignedTo?: string, status?: string): Promise<Task[]> {
+    let tasks = Array.from(this.tasks.values()).filter(t => t.orgId === orgId);
     if (projectId) tasks = tasks.filter(t => t.projectId === projectId);
     if (assignedTo) tasks = tasks.filter(t => t.assignedTo === assignedTo);
     if (status) tasks = tasks.filter(t => t.status === status);
     return tasks;
   }
 
-  async getTask(id: string): Promise<Task | undefined> {
-    return this.tasks.get(id);
+  async getTask(id: string, orgId: string): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task || task.orgId !== orgId) return undefined;
+    return task;
   }
 
-  async createTask(insertTask: InsertTask): Promise<Task> {
+  async createTask(insertTask: InsertTask & { orgId: string }): Promise<Task> {
     const id = randomUUID();
     const task: Task = { 
       id,
@@ -618,29 +643,33 @@ export class MemStorage implements IStorage {
     return task;
   }
 
-  async updateTask(id: string, updates: Partial<InsertTask>): Promise<Task | undefined> {
+  async updateTask(id: string, orgId: string, updates: Partial<InsertTask>): Promise<Task | undefined> {
     const task = this.tasks.get(id);
-    if (!task) return undefined;
+    if (!task || task.orgId !== orgId) return undefined;
     const updated = { ...task, ...updates };
     this.tasks.set(id, updated);
     return updated;
   }
 
-  async deleteTask(id: string): Promise<boolean> {
+  async deleteTask(id: string, orgId: string): Promise<boolean> {
+    const task = this.tasks.get(id);
+    if (!task || task.orgId !== orgId) return false;
     return this.tasks.delete(id);
   }
 
-  async getAnnotations(taskId?: string): Promise<Annotation[]> {
-    const annotations = Array.from(this.annotations.values());
+  async getAnnotations(orgId: string, taskId?: string): Promise<Annotation[]> {
+    const annotations = Array.from(this.annotations.values()).filter(a => a.orgId === orgId);
     if (taskId) return annotations.filter(a => a.taskId === taskId);
     return annotations;
   }
 
-  async getAnnotation(id: string): Promise<Annotation | undefined> {
-    return this.annotations.get(id);
+  async getAnnotation(id: string, orgId: string): Promise<Annotation | undefined> {
+    const annotation = this.annotations.get(id);
+    if (!annotation || annotation.orgId !== orgId) return undefined;
+    return annotation;
   }
 
-  async createAnnotation(insertAnnotation: InsertAnnotation): Promise<Annotation> {
+  async createAnnotation(insertAnnotation: InsertAnnotation & { orgId: string }): Promise<Annotation> {
     const id = randomUUID();
     const annotation: Annotation = { 
       id,
@@ -659,16 +688,16 @@ export class MemStorage implements IStorage {
     return annotation;
   }
 
-  async updateAnnotation(id: string, updates: Partial<InsertAnnotation>): Promise<Annotation | undefined> {
+  async updateAnnotation(id: string, orgId: string, updates: Partial<InsertAnnotation>): Promise<Annotation | undefined> {
     const annotation = this.annotations.get(id);
-    if (!annotation) return undefined;
+    if (!annotation || annotation.orgId !== orgId) return undefined;
     const updated = { ...annotation, ...updates };
     this.annotations.set(id, updated);
     return updated;
   }
 
-  async getAuditLogs(entityType?: string, entityId?: string): Promise<AuditLog[]> {
-    let logs = Array.from(this.auditLogs.values());
+  async getAuditLogs(orgId: string, entityType?: string, entityId?: string): Promise<AuditLog[]> {
+    let logs = Array.from(this.auditLogs.values()).filter(l => l.orgId === orgId);
     if (entityType) logs = logs.filter(l => l.entityType === entityType);
     if (entityId) logs = logs.filter(l => l.entityId === entityId);
     return logs.sort((a, b) => {
@@ -678,7 +707,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
+  async createAuditLog(insertLog: InsertAuditLog & { orgId: string }): Promise<AuditLog> {
     const id = randomUUID();
     const log: AuditLog = { 
       id,
@@ -692,15 +721,17 @@ export class MemStorage implements IStorage {
     return log;
   }
 
-  async getMonitoredUrls(): Promise<MonitoredUrl[]> {
-    return Array.from(this.monitoredUrls.values());
+  async getMonitoredUrls(orgId: string): Promise<MonitoredUrl[]> {
+    return Array.from(this.monitoredUrls.values()).filter(u => u.orgId === orgId);
   }
 
-  async getMonitoredUrl(id: string): Promise<MonitoredUrl | undefined> {
-    return this.monitoredUrls.get(id);
+  async getMonitoredUrl(id: string, orgId: string): Promise<MonitoredUrl | undefined> {
+    const url = this.monitoredUrls.get(id);
+    if (!url || url.orgId !== orgId) return undefined;
+    return url;
   }
 
-  async createMonitoredUrl(insertUrl: InsertMonitoredUrl): Promise<MonitoredUrl> {
+  async createMonitoredUrl(insertUrl: InsertMonitoredUrl & { orgId: string }): Promise<MonitoredUrl> {
     const id = randomUUID();
     const url: MonitoredUrl = { 
       id,
@@ -717,15 +748,17 @@ export class MemStorage implements IStorage {
     return url;
   }
 
-  async updateMonitoredUrl(id: string, updates: Partial<InsertMonitoredUrl>): Promise<MonitoredUrl | undefined> {
+  async updateMonitoredUrl(id: string, orgId: string, updates: Partial<InsertMonitoredUrl>): Promise<MonitoredUrl | undefined> {
     const url = this.monitoredUrls.get(id);
-    if (!url) return undefined;
+    if (!url || url.orgId !== orgId) return undefined;
     const updated = { ...url, ...updates };
     this.monitoredUrls.set(id, updated);
     return updated;
   }
 
-  async deleteMonitoredUrl(id: string): Promise<boolean> {
+  async deleteMonitoredUrl(id: string, orgId: string): Promise<boolean> {
+    const url = this.monitoredUrls.get(id);
+    if (!url || url.orgId !== orgId) return false;
     return this.monitoredUrls.delete(id);
   }
 }

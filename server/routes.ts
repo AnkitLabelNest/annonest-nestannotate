@@ -69,9 +69,23 @@ export async function registerRoutes(
 
   async function getUserOrgId(req: Request): Promise<string> {
     const userId = req.headers["x-user-id"] as string;
-    if (!userId) return "default-org-001";
+    if (!userId) {
+      throw new Error("UNAUTHORIZED");
+    }
     const user = await storage.getUser(userId);
-    return user?.orgId || "default-org-001";
+    if (!user) {
+      throw new Error("UNAUTHORIZED");
+    }
+    return user.orgId;
+  }
+  
+  async function getUserOrgIdSafe(req: Request, res: Response): Promise<string | null> {
+    try {
+      return await getUserOrgId(req);
+    } catch {
+      res.status(401).json({ message: "Authentication required" });
+      return null;
+    }
   }
 
   // Auth routes
@@ -395,14 +409,16 @@ export async function registerRoutes(
     return res.json(userWithoutPassword);
   });
 
-  // Firms routes - using in-memory storage
-  app.get("/api/firms", async (_req: Request, res: Response) => {
-    const firms = await storage.getFirms();
+  // Firms routes - using in-memory storage with org scoping
+  app.get("/api/firms", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
+    const firms = await storage.getFirms(orgId);
     return res.json(firms);
   });
 
   app.get("/api/firms/:id", async (req: Request, res: Response) => {
-    const firm = await storage.getFirm(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const firm = await storage.getFirm(req.params.id, orgId);
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
@@ -411,12 +427,10 @@ export async function registerRoutes(
 
   app.post("/api/firms", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const parsed = insertFirmSchema.parse(req.body);
       
-      const allFirms = await storage.getFirms();
-      const duplicates = allFirms.filter(f => 
-        f.name.toLowerCase().includes(parsed.name.toLowerCase())
-      );
+      const duplicates = await storage.findDuplicateFirms(orgId, parsed.name);
       
       if (duplicates.length > 0) {
         return res.status(409).json({ 
@@ -425,9 +439,8 @@ export async function registerRoutes(
         });
       }
       
-      const firm = await storage.createFirm(parsed);
+      const firm = await storage.createFirm({ ...parsed, orgId });
       
-      const orgId = await getUserOrgId(req);
       await storage.createAuditLog({
         orgId,
         userId: req.headers["x-user-id"] as string || null,
@@ -448,10 +461,10 @@ export async function registerRoutes(
 
   app.post("/api/firms/force", async (req: Request, res: Response) => {
     try {
-      const parsed = insertFirmSchema.parse(req.body);
-      const firm = await storage.createFirm(parsed);
-      
       const orgId = await getUserOrgId(req);
+      const parsed = insertFirmSchema.parse(req.body);
+      const firm = await storage.createFirm({ ...parsed, orgId });
+      
       await storage.createAuditLog({
         orgId,
         userId: req.headers["x-user-id"] as string || null,
@@ -471,7 +484,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/firms/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateFirm(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateFirm(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Firm not found" });
     }
@@ -479,7 +493,8 @@ export async function registerRoutes(
   });
 
   app.delete("/api/firms/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteFirm(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteFirm(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Firm not found" });
     }
@@ -487,28 +502,28 @@ export async function registerRoutes(
   });
 
   app.get("/api/firms/:id/duplicates", async (req: Request, res: Response) => {
-    const firm = await storage.getFirm(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const firm = await storage.getFirm(req.params.id, orgId);
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
     
-    const allFirms = await storage.getFirms();
-    const duplicates = allFirms.filter(f => 
-      f.id !== firm.id && f.name.toLowerCase().includes(firm.name.toLowerCase())
-    );
+    const duplicates = await storage.findDuplicateFirms(orgId, firm.name, firm.id);
     
     return res.json(duplicates);
   });
 
-  // Contacts routes
+  // Contacts routes with org scoping
   app.get("/api/contacts", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const firmId = req.query.firmId as string | undefined;
-    const contacts = await storage.getContacts(firmId);
+    const contacts = await storage.getContacts(orgId, firmId);
     return res.json(contacts);
   });
 
   app.get("/api/contacts/:id", async (req: Request, res: Response) => {
-    const contact = await storage.getContact(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const contact = await storage.getContact(req.params.id, orgId);
     if (!contact) {
       return res.status(404).json({ message: "Contact not found" });
     }
@@ -517,10 +532,10 @@ export async function registerRoutes(
 
   app.post("/api/contacts", async (req: Request, res: Response) => {
     try {
-      const parsed = insertContactSchema.parse(req.body);
-      const contact = await storage.createContact(parsed);
-      
       const orgId = await getUserOrgId(req);
+      const parsed = insertContactSchema.parse(req.body);
+      const contact = await storage.createContact({ ...parsed, orgId });
+      
       await storage.createAuditLog({
         orgId,
         userId: req.headers["x-user-id"] as string || null,
@@ -540,7 +555,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/contacts/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateContact(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateContact(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Contact not found" });
     }
@@ -548,22 +564,25 @@ export async function registerRoutes(
   });
 
   app.delete("/api/contacts/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteContact(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteContact(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Contact not found" });
     }
     return res.status(204).send();
   });
 
-  // Funds routes
+  // Funds routes with org scoping
   app.get("/api/funds", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const firmId = req.query.firmId as string | undefined;
-    const funds = await storage.getFunds(firmId);
+    const funds = await storage.getFunds(orgId, firmId);
     return res.json(funds);
   });
 
   app.get("/api/funds/:id", async (req: Request, res: Response) => {
-    const fund = await storage.getFund(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const fund = await storage.getFund(req.params.id, orgId);
     if (!fund) {
       return res.status(404).json({ message: "Fund not found" });
     }
@@ -572,10 +591,10 @@ export async function registerRoutes(
 
   app.post("/api/funds", async (req: Request, res: Response) => {
     try {
-      const parsed = insertFundSchema.parse(req.body);
-      const fund = await storage.createFund(parsed);
-      
       const orgId = await getUserOrgId(req);
+      const parsed = insertFundSchema.parse(req.body);
+      const fund = await storage.createFund({ ...parsed, orgId });
+      
       await storage.createAuditLog({
         orgId,
         userId: req.headers["x-user-id"] as string || null,
@@ -595,7 +614,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/funds/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateFund(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateFund(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Fund not found" });
     }
@@ -603,23 +623,26 @@ export async function registerRoutes(
   });
 
   app.delete("/api/funds/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteFund(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteFund(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Fund not found" });
     }
     return res.status(204).send();
   });
 
-  // Deals routes
+  // Deals routes with org scoping
   app.get("/api/deals", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const firmId = req.query.firmId as string | undefined;
     const fundId = req.query.fundId as string | undefined;
-    const deals = await storage.getDeals(firmId, fundId);
+    const deals = await storage.getDeals(orgId, firmId, fundId);
     return res.json(deals);
   });
 
   app.get("/api/deals/:id", async (req: Request, res: Response) => {
-    const deal = await storage.getDeal(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deal = await storage.getDeal(req.params.id, orgId);
     if (!deal) {
       return res.status(404).json({ message: "Deal not found" });
     }
@@ -628,10 +651,10 @@ export async function registerRoutes(
 
   app.post("/api/deals", async (req: Request, res: Response) => {
     try {
-      const parsed = insertDealSchema.parse(req.body);
-      const deal = await storage.createDeal(parsed);
-      
       const orgId = await getUserOrgId(req);
+      const parsed = insertDealSchema.parse(req.body);
+      const deal = await storage.createDeal({ ...parsed, orgId });
+      
       await storage.createAuditLog({
         orgId,
         userId: req.headers["x-user-id"] as string || null,
@@ -651,7 +674,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/deals/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateDeal(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateDeal(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Deal not found" });
     }
@@ -659,21 +683,24 @@ export async function registerRoutes(
   });
 
   app.delete("/api/deals/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteDeal(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteDeal(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Deal not found" });
     }
     return res.status(204).send();
   });
 
-  // Projects routes
-  app.get("/api/projects", async (_req: Request, res: Response) => {
-    const projects = await storage.getProjects();
+  // Projects routes with org scoping
+  app.get("/api/projects", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
+    const projects = await storage.getProjects(orgId);
     return res.json(projects);
   });
 
   app.get("/api/projects/:id", async (req: Request, res: Response) => {
-    const project = await storage.getProject(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const project = await storage.getProject(req.params.id, orgId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
@@ -682,8 +709,9 @@ export async function registerRoutes(
 
   app.post("/api/projects", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const parsed = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(parsed);
+      const project = await storage.createProject({ ...parsed, orgId });
       return res.status(201).json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -694,7 +722,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/projects/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateProject(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateProject(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Project not found" });
     }
@@ -702,24 +731,27 @@ export async function registerRoutes(
   });
 
   app.delete("/api/projects/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteProject(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteProject(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Project not found" });
     }
     return res.status(204).send();
   });
 
-  // Tasks routes
+  // Tasks routes with org scoping
   app.get("/api/tasks", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const projectId = req.query.projectId as string | undefined;
     const assignedTo = req.query.assignedTo as string | undefined;
     const status = req.query.status as string | undefined;
-    const tasks = await storage.getTasks(projectId, assignedTo, status);
+    const tasks = await storage.getTasks(orgId, projectId, assignedTo, status);
     return res.json(tasks);
   });
 
   app.get("/api/tasks/:id", async (req: Request, res: Response) => {
-    const task = await storage.getTask(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const task = await storage.getTask(req.params.id, orgId);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -728,8 +760,9 @@ export async function registerRoutes(
 
   app.post("/api/tasks", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const parsed = insertTaskSchema.parse(req.body);
-      const task = await storage.createTask(parsed);
+      const task = await storage.createTask({ ...parsed, orgId });
       return res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -740,7 +773,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/tasks/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateTask(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateTask(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -748,22 +782,25 @@ export async function registerRoutes(
   });
 
   app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteTask(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteTask(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Task not found" });
     }
     return res.status(204).send();
   });
 
-  // Annotations routes
+  // Annotations routes with org scoping
   app.get("/api/annotations", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const taskId = req.query.taskId as string | undefined;
-    const annotations = await storage.getAnnotations(taskId);
+    const annotations = await storage.getAnnotations(orgId, taskId);
     return res.json(annotations);
   });
 
   app.get("/api/annotations/:id", async (req: Request, res: Response) => {
-    const annotation = await storage.getAnnotation(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const annotation = await storage.getAnnotation(req.params.id, orgId);
     if (!annotation) {
       return res.status(404).json({ message: "Annotation not found" });
     }
@@ -772,8 +809,9 @@ export async function registerRoutes(
 
   app.post("/api/annotations", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const parsed = insertAnnotationSchema.parse(req.body);
-      const annotation = await storage.createAnnotation(parsed);
+      const annotation = await storage.createAnnotation({ ...parsed, orgId });
       return res.status(201).json(annotation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -784,29 +822,33 @@ export async function registerRoutes(
   });
 
   app.patch("/api/annotations/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateAnnotation(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateAnnotation(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Annotation not found" });
     }
     return res.json(updated);
   });
 
-  // Audit logs routes
+  // Audit logs routes with org scoping
   app.get("/api/audit-logs", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
     const entityType = req.query.entityType as string | undefined;
     const entityId = req.query.entityId as string | undefined;
-    const logs = await storage.getAuditLogs(entityType, entityId);
+    const logs = await storage.getAuditLogs(orgId, entityType, entityId);
     return res.json(logs);
   });
 
-  // Monitored URLs routes
-  app.get("/api/monitored-urls", async (_req: Request, res: Response) => {
-    const urls = await storage.getMonitoredUrls();
+  // Monitored URLs routes with org scoping
+  app.get("/api/monitored-urls", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgId(req);
+    const urls = await storage.getMonitoredUrls(orgId);
     return res.json(urls);
   });
 
   app.get("/api/monitored-urls/:id", async (req: Request, res: Response) => {
-    const url = await storage.getMonitoredUrl(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const url = await storage.getMonitoredUrl(req.params.id, orgId);
     if (!url) {
       return res.status(404).json({ message: "Monitored URL not found" });
     }
@@ -815,8 +857,9 @@ export async function registerRoutes(
 
   app.post("/api/monitored-urls", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const parsed = insertMonitoredUrlSchema.parse(req.body);
-      const url = await storage.createMonitoredUrl(parsed);
+      const url = await storage.createMonitoredUrl({ ...parsed, orgId });
       return res.status(201).json(url);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -827,7 +870,8 @@ export async function registerRoutes(
   });
 
   app.patch("/api/monitored-urls/:id", async (req: Request, res: Response) => {
-    const updated = await storage.updateMonitoredUrl(req.params.id, req.body);
+    const orgId = await getUserOrgId(req);
+    const updated = await storage.updateMonitoredUrl(req.params.id, orgId, req.body);
     if (!updated) {
       return res.status(404).json({ message: "Monitored URL not found" });
     }
@@ -835,22 +879,24 @@ export async function registerRoutes(
   });
 
   app.delete("/api/monitored-urls/:id", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteMonitoredUrl(req.params.id);
+    const orgId = await getUserOrgId(req);
+    const deleted = await storage.deleteMonitoredUrl(req.params.id, orgId);
     if (!deleted) {
       return res.status(404).json({ message: "Monitored URL not found" });
     }
     return res.status(204).send();
   });
 
-  // AI Annotation Suggestions
+  // AI Annotation Suggestions with org scoping
   app.get("/api/suggestions/:taskId", async (req: Request, res: Response) => {
     try {
-      const task = await storage.getTask(req.params.taskId);
+      const orgId = await getUserOrgId(req);
+      const task = await storage.getTask(req.params.taskId, orgId);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
 
-      const allAnnotations = await storage.getAnnotations();
+      const allAnnotations = await storage.getAnnotations(orgId);
       const completedAnnotations = allAnnotations.filter(a => 
         a.reviewStatus === "approved" || a.labels?.length > 0
       );
@@ -912,9 +958,10 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/patterns", async (_req: Request, res: Response) => {
+  app.get("/api/patterns", async (req: Request, res: Response) => {
     try {
-      const allAnnotations = await storage.getAnnotations();
+      const orgId = await getUserOrgId(req);
+      const allAnnotations = await storage.getAnnotations(orgId);
       const completedAnnotations = allAnnotations.filter(a => 
         a.reviewStatus === "approved" || a.labels?.length > 0
       );
