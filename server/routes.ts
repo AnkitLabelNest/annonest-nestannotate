@@ -933,6 +933,228 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // CRM Routes - New Entity Tables
+  // ==========================================
+  
+  // CRM entity counts
+  app.get("/api/crm/counts", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      const counts = await db.execute(sql`
+        SELECT 'entities_gp' as entity, count(*)::int as count FROM entities_gp
+        UNION ALL SELECT 'entities_fund', count(*)::int FROM entities_fund
+        UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp
+        UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider
+        UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal
+        UNION ALL SELECT 'entities_contact', count(*)::int FROM entities_contact
+        UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
+        UNION ALL SELECT 'public_company_snapshot', count(*)::int FROM public_company_snapshot
+        UNION ALL SELECT 'relationships', count(*)::int FROM relationships
+      `);
+      
+      return res.json(counts.rows);
+    } catch (error) {
+      console.error("Error fetching CRM counts:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // GP Routes
+  app.get("/api/crm/gps", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_gp ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching GPs:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/gps", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_gp (gp_name, gp_legal_name, firm_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, primary_asset_classes)
+        VALUES (${data.gp_name}, ${data.gp_legal_name || null}, ${data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.primary_asset_classes || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating GP:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // LP Routes
+  app.get("/api/crm/lps", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_lp ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching LPs:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/lps", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_lp (lp_name, lp_type, headquarters_country, headquarters_city, total_aum, aum_currency, private_markets_allocation_percent)
+        VALUES (${data.lp_name}, ${data.lp_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.private_markets_allocation_percent || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating LP:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Fund Routes
+  app.get("/api/crm/funds", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_fund ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching funds:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Portfolio Company Routes
+  app.get("/api/crm/portfolio-companies", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_portfolio_company ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching portfolio companies:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/portfolio-companies", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_portfolio_company (company_name, company_type, headquarters_country, headquarters_city, primary_industry, business_model, website, business_description)
+        VALUES (${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating portfolio company:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Service Provider Routes
+  app.get("/api/crm/service-providers", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_service_provider ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Contact Routes (CRM version)
+  app.get("/api/crm/contacts", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_contact ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching CRM contacts:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Deal Routes (CRM version)
+  app.get("/api/crm/deals", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM entities_deal ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching CRM deals:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Relationships Routes
+  app.get("/api/crm/relationships", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM relationships ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching relationships:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/relationships", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO relationships (from_entity_type, from_entity_id, from_entity_name_snapshot, to_entity_type, to_entity_id, to_entity_name_snapshot, relationship_type, relationship_subtype, relationship_status)
+        VALUES (${data.from_entity_type}, ${data.from_entity_id}, ${data.from_entity_name_snapshot || null}, ${data.to_entity_type}, ${data.to_entity_id}, ${data.to_entity_name_snapshot || null}, ${data.relationship_type}, ${data.relationship_subtype || null}, ${data.relationship_status || 'Active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating relationship:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Public Company Snapshots
+  app.get("/api/crm/public-companies", async (_req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`SELECT * FROM public_company_snapshot ORDER BY created_at DESC`);
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching public companies:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/stats", async (_req: Request, res: Response) => {
     const [firms, contacts, funds, deals, tasks, projects, urls] = await Promise.all([

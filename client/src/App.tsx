@@ -28,6 +28,16 @@ import ExtractionPage from "@/pages/extraction";
 import IntelligencePage from "@/pages/intelligence";
 import SettingsPage from "@/pages/settings";
 import AdminUsersPage from "@/pages/admin/users";
+import CRMDashboard from "@/pages/crm/index";
+import GPsPage from "@/pages/crm/gps";
+import LPsPage from "@/pages/crm/lps";
+import CRMFundsPage from "@/pages/crm/funds";
+import PortfolioCompaniesPage from "@/pages/crm/portfolio-companies";
+import ServiceProvidersPage from "@/pages/crm/service-providers";
+import CRMContactsPage from "@/pages/crm/contacts";
+import CRMDealsPage from "@/pages/crm/deals";
+import PublicCompaniesPage from "@/pages/crm/public-companies";
+import RelationshipsPage from "@/pages/crm/relationships";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -101,6 +111,16 @@ function AppRoutes() {
         <Route path="/data/deals" component={DealsPage} />
         <Route path="/extraction" component={ExtractionPage} />
         <Route path="/intelligence" component={IntelligencePage} />
+        <Route path="/crm" component={CRMDashboard} />
+        <Route path="/crm/gps" component={GPsPage} />
+        <Route path="/crm/lps" component={LPsPage} />
+        <Route path="/crm/funds" component={CRMFundsPage} />
+        <Route path="/crm/portfolio-companies" component={PortfolioCompaniesPage} />
+        <Route path="/crm/service-providers" component={ServiceProvidersPage} />
+        <Route path="/crm/contacts" component={CRMContactsPage} />
+        <Route path="/crm/deals" component={CRMDealsPage} />
+        <Route path="/crm/public-companies" component={PublicCompaniesPage} />
+        <Route path="/crm/relationships" component={RelationshipsPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />

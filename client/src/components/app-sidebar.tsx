@@ -34,6 +34,10 @@ import {
   Briefcase,
   Link as LinkIcon,
   ShieldCheck,
+  PieChart,
+  Factory,
+  Handshake,
+  TrendingUp,
 } from "lucide-react";
 import type { UserRole } from "@shared/schema";
 
@@ -85,6 +89,23 @@ const modules = [
     icon: Users,
     path: "/intelligence",
     requiresRole: ["admin"],
+  },
+  {
+    id: "crm",
+    title: "CRM",
+    icon: PieChart,
+    path: "/crm",
+    requiresRole: ["admin", "manager", "researcher"],
+    subItems: [
+      { id: "gps", title: "General Partners", icon: Building2, path: "/crm/gps" },
+      { id: "lps", title: "Limited Partners", icon: Wallet, path: "/crm/lps" },
+      { id: "funds", title: "Funds", icon: TrendingUp, path: "/crm/funds" },
+      { id: "portfolio", title: "Portfolio Companies", icon: Factory, path: "/crm/portfolio-companies" },
+      { id: "service-providers", title: "Service Providers", icon: Handshake, path: "/crm/service-providers" },
+      { id: "crm-contacts", title: "Contacts", icon: Users, path: "/crm/contacts" },
+      { id: "crm-deals", title: "Deals", icon: Briefcase, path: "/crm/deals" },
+      { id: "relationships", title: "Relationships", icon: LinkIcon, path: "/crm/relationships" },
+    ],
   },
 ];
 
