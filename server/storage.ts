@@ -9,17 +9,23 @@ import {
   type Annotation, type InsertAnnotation,
   type AuditLog, type InsertAuditLog,
   type MonitoredUrl, type InsertMonitoredUrl,
+  users,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
+  getPendingGuests(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   createUserWithId(id: string | undefined, user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined>;
+  rejectUser(id: string, approvedById: string): Promise<User | undefined>;
 
   getFirms(): Promise<Firm[]>;
   getFirm(id: string): Promise<Firm | undefined>;
@@ -116,6 +122,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 100,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: "approved",
+      approvedBy: null,
+      approvedAt: null,
     });
 
     this.users.set(managerId, {
@@ -128,6 +139,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 50,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: "approved",
+      approvedBy: null,
+      approvedAt: null,
     });
 
     this.users.set(annotatorId, {
@@ -140,6 +156,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 20,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: "approved",
+      approvedBy: null,
+      approvedAt: null,
     });
 
     this.users.set(qaId, {
@@ -152,6 +173,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 100,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: "approved",
+      approvedBy: null,
+      approvedAt: null,
     });
 
     const project1Id = randomUUID();
@@ -250,6 +276,12 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values());
   }
 
+  async getPendingGuests(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(
+      (user) => user.role === "guest" && user.approvalStatus === "pending"
+    );
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
@@ -257,6 +289,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 20,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: null,
+      approvedBy: null,
+      approvedAt: null,
       ...insertUser,
     };
     this.users.set(id, user);
@@ -275,6 +312,11 @@ export class MemStorage implements IStorage {
       avatar: null,
       qaPercentage: 20,
       isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: null,
+      approvedBy: null,
+      approvedAt: null,
       ...insertUser,
     };
     this.users.set(id, user);
@@ -285,6 +327,37 @@ export class MemStorage implements IStorage {
     const user = this.users.get(id);
     if (!user) return undefined;
     const updated = { ...user, ...updates };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updated: User = {
+      ...user,
+      role: (newRole || "annotator") as User["role"],
+      approvalStatus: "approved",
+      approvedBy: approvedById,
+      approvedAt: new Date(),
+      trialEndsAt: null,
+    };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async rejectUser(id: string, approvedById: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updated: User = {
+      ...user,
+      approvalStatus: "rejected",
+      approvedBy: approvedById,
+      approvedAt: new Date(),
+      isActive: false,
+    };
     this.users.set(id, updated);
     return updated;
   }
@@ -636,4 +709,113 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage extends MemStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async getPendingGuests(): Promise<User[]> {
+    return await db.select().from(users).where(
+      and(
+        eq(users.role, "guest"),
+        eq(users.approvalStatus, "pending")
+      )
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const userToInsert = {
+      id,
+      avatar: null,
+      qaPercentage: 20,
+      isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: null,
+      approvedBy: null,
+      approvedAt: null,
+      ...insertUser,
+    };
+    
+    const result = await db.insert(users).values(userToInsert).returning();
+    return result[0];
+  }
+
+  async createUserWithId(providedId: string | undefined, insertUser: InsertUser): Promise<User> {
+    const id = providedId || randomUUID();
+    
+    const existing = await this.getUser(id);
+    if (existing) {
+      throw new Error("User with this ID already exists");
+    }
+    
+    const userToInsert = {
+      id,
+      avatar: null,
+      qaPercentage: 20,
+      isActive: true,
+      createdAt: new Date(),
+      trialEndsAt: null,
+      approvalStatus: null,
+      approvedBy: null,
+      approvedAt: null,
+      ...insertUser,
+    };
+    
+    const result = await db.insert(users).values(userToInsert).returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const result = await db.update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined> {
+    const result = await db.update(users)
+      .set({
+        role: (newRole || "annotator") as User["role"],
+        approvalStatus: "approved",
+        approvedBy: approvedById,
+        approvedAt: new Date(),
+        trialEndsAt: null,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async rejectUser(id: string, approvedById: string): Promise<User | undefined> {
+    const result = await db.update(users)
+      .set({
+        approvalStatus: "rejected",
+        approvedBy: approvedById,
+        approvedAt: new Date(),
+        isActive: false,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+}
+
+export const storage = new DatabaseStorage();

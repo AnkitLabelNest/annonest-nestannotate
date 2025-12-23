@@ -11,12 +11,51 @@ import { RoleBadge } from "@/components/role-badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
-import { User, Bell, Shield, Palette, Save, Moon, Sun } from "lucide-react";
-import type { UserRole } from "@shared/schema";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { User as UserIcon, Bell, Shield, Palette, Save, Moon, Sun, Users, Check, X, Clock } from "lucide-react";
+import type { UserRole, User } from "@shared/schema";
+
+type PendingGuest = Omit<User, "password">;
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
+
+  const { data: pendingGuests = [], isLoading: loadingGuests } = useQuery<PendingGuest[]>({
+    queryKey: ["/api/admin/pending-guests"],
+    enabled: user?.role === "admin" || user?.role === "manager",
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/approve`, { newRole });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-guests"] });
+      toast({ title: "User approved", description: "The user has been approved and can now access the platform." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to approve user", variant: "destructive" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/reject`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-guests"] });
+      toast({ title: "User rejected", description: "The user's access request has been rejected." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reject user", variant: "destructive" });
+    },
+  });
 
   const getInitials = (name: string) => {
     return name
@@ -37,7 +76,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <UserIcon className="h-5 w-5" />
             Profile
           </CardTitle>
           <CardDescription>Your personal information and role</CardDescription>
@@ -190,6 +229,85 @@ export default function SettingsPage() {
               </div>
               <Switch data-testid="switch-auto-approve" />
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(user?.role === "admin" || user?.role === "manager") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Pending User Approvals
+              {pendingGuests.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {pendingGuests.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription>
+              Review and approve new users who signed up for a trial
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingGuests ? (
+              <div className="text-center py-4 text-muted-foreground">Loading...</div>
+            ) : pendingGuests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No pending approvals</p>
+                <p className="text-sm">New user signups will appear here for review</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingGuests.map((guest) => (
+                  <div
+                    key={guest.id}
+                    className="flex items-center justify-between p-4 rounded-lg border"
+                    data-testid={`pending-guest-${guest.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-muted">
+                          {getInitials(guest.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{guest.displayName}</div>
+                        <div className="text-sm text-muted-foreground">{guest.email}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Signed up {guest.createdAt ? new Date(guest.createdAt).toLocaleDateString() : "recently"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => rejectMutation.mutate(guest.id)}
+                        disabled={rejectMutation.isPending}
+                        data-testid={`button-reject-${guest.id}`}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => approveMutation.mutate({ userId: guest.id, newRole: "annotator" })}
+                        disabled={approveMutation.isPending}
+                        data-testid={`button-approve-${guest.id}`}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

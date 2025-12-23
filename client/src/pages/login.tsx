@@ -19,19 +19,27 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema, type LoginInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
 
-async function loginWithBackend(data: LoginInput) {
-  const response = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Invalid credentials" }));
-    throw new Error(error.message || "Authentication failed");
-  }
-  
-  return response.json();
+interface LoginResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    displayName: string;
+    avatar: string | null;
+    qaPercentage: number;
+    isActive: boolean;
+    createdAt?: string | null;
+    trialEndsAt?: string | null;
+    approvalStatus?: string | null;
+    approvedBy?: string | null;
+    approvedAt?: string | null;
+  };
+  trialStatus?: {
+    isTrialExpired: boolean;
+    isApproved: boolean;
+    trialEndsAt: string | null;
+  } | null;
 }
 
 export default function LoginPage() {
@@ -70,21 +78,80 @@ export default function LoginPage() {
           avatar: user.user_metadata?.avatar || null,
           qaPercentage: 20,
           isActive: true,
+          createdAt: new Date(),
+          trialEndsAt: null,
+          approvalStatus: "approved",
+          approvedBy: null,
+          approvedAt: null,
         });
       } else {
-        const { user } = await loginWithBackend(data);
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        
+        let result;
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error("Authentication failed");
+        }
+        
+        if (!response.ok) {
+          if (response.status === 403 && result?.trialExpired && result?.user) {
+            const expiredUser = result.user;
+            const expiredTrialStatus = result.trialStatus;
+            
+            login({
+              id: expiredUser.id,
+              username: expiredUser.username,
+              password: data.password,
+              email: expiredUser.email || "",
+              role: expiredUser.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
+              displayName: expiredUser.displayName || expiredUser.username,
+              avatar: expiredUser.avatar || null,
+              qaPercentage: expiredUser.qaPercentage || 20,
+              isActive: expiredUser.isActive,
+              createdAt: expiredUser.createdAt ? new Date(expiredUser.createdAt) : new Date(),
+              trialEndsAt: expiredUser.trialEndsAt ? new Date(expiredUser.trialEndsAt) : null,
+              approvalStatus: expiredUser.approvalStatus || "pending",
+              approvedBy: expiredUser.approvedBy || null,
+              approvedAt: expiredUser.approvedAt ? new Date(expiredUser.approvedAt) : null,
+            }, expiredTrialStatus ? {
+              isTrialExpired: expiredTrialStatus.isTrialExpired,
+              isApproved: expiredTrialStatus.isApproved,
+              trialEndsAt: expiredTrialStatus.trialEndsAt ? new Date(expiredTrialStatus.trialEndsAt) : null,
+            } : { isTrialExpired: true, isApproved: false, trialEndsAt: null });
+            
+            setLocation("/dashboard");
+            return;
+          }
+          throw new Error(result?.message || "Authentication failed");
+        }
+        
+        const { user, trialStatus } = result as LoginResponse;
         
         login({
           id: user.id,
           username: user.username,
           password: data.password,
           email: user.email || "",
-          role: user.role,
+          role: user.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
           displayName: user.displayName || user.username,
           avatar: user.avatar || null,
           qaPercentage: user.qaPercentage || 20,
           isActive: user.isActive,
-        });
+          createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+          trialEndsAt: user.trialEndsAt ? new Date(user.trialEndsAt) : null,
+          approvalStatus: user.approvalStatus as "pending" | "approved" | "rejected" | null,
+          approvedBy: user.approvedBy || null,
+          approvedAt: user.approvedAt ? new Date(user.approvedAt) : null,
+        }, trialStatus ? {
+          isTrialExpired: trialStatus.isTrialExpired,
+          isApproved: trialStatus.isApproved,
+          trialEndsAt: trialStatus.trialEndsAt ? new Date(trialStatus.trialEndsAt) : null,
+        } : null);
       }
       
       setLocation("/dashboard");

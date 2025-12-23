@@ -19,7 +19,30 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { signupSchema, type SignupInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight, User } from "lucide-react";
 
-async function signUpWithBackend(data: SignupInput, accessToken?: string) {
+interface SignupResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    displayName: string;
+    avatar: string | null;
+    qaPercentage: number;
+    isActive: boolean;
+    createdAt?: string | null;
+    trialEndsAt?: string | null;
+    approvalStatus?: string | null;
+    approvedBy?: string | null;
+    approvedAt?: string | null;
+  };
+  trialStatus?: {
+    isTrialExpired: boolean;
+    isApproved: boolean;
+    trialEndsAt: string | null;
+  } | null;
+}
+
+async function signUpWithBackend(data: SignupInput, accessToken?: string): Promise<SignupResponse> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
@@ -85,19 +108,28 @@ export default function SignupPage() {
         });
       }
       
-      const { user } = backendResponse;
+      const { user, trialStatus } = backendResponse;
       
       login({
         id: user.id,
         username: user.username || data.email,
         password: data.password,
         email: user.email || data.email,
-        role: user.role || "annotator",
+        role: (user.role || "annotator") as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
         displayName: user.displayName || data.displayName,
         avatar: user.avatar || null,
         qaPercentage: user.qaPercentage || 20,
         isActive: user.isActive ?? true,
-      });
+        createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+        trialEndsAt: user.trialEndsAt ? new Date(user.trialEndsAt) : null,
+        approvalStatus: user.approvalStatus as "pending" | "approved" | "rejected" | null,
+        approvedBy: user.approvedBy || null,
+        approvedAt: user.approvedAt ? new Date(user.approvedAt) : null,
+      }, trialStatus ? {
+        isTrialExpired: trialStatus.isTrialExpired,
+        isApproved: trialStatus.isApproved,
+        trialEndsAt: trialStatus.trialEndsAt ? new Date(trialStatus.trialEndsAt) : null,
+      } : null);
       
       setLocation("/dashboard");
     } catch (error) {

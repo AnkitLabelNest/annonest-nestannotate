@@ -3,8 +3,11 @@ import { pgTable, text, varchar, timestamp, boolean, integer, jsonb } from "driz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoles = ["admin", "manager", "researcher", "annotator", "qa"] as const;
+export const userRoles = ["admin", "manager", "researcher", "annotator", "qa", "guest"] as const;
 export type UserRole = typeof userRoles[number];
+
+export const approvalStatuses = ["pending", "approved", "rejected"] as const;
+export type ApprovalStatus = typeof approvalStatuses[number];
 
 export const firmTypes = ["gp", "lp", "service_provider", "company"] as const;
 export type FirmType = typeof firmTypes[number];
@@ -28,6 +31,11 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   qaPercentage: integer("qa_percentage").default(20),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  trialEndsAt: timestamp("trial_ends_at"),
+  approvalStatus: text("approval_status").$type<ApprovalStatus>(),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
 });
 
 export const firms = pgTable("firms", {
@@ -182,6 +190,7 @@ export const moduleAccessByRole: Record<UserRole, string[]> = {
   researcher: ["nest_annotate", "data_nest", "extraction_engine"],
   annotator: ["nest_annotate"],
   qa: ["nest_annotate", "data_nest"],
+  guest: ["guest_preview"],
 };
 
 export interface SuggestedEntity {

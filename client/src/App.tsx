@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
+import TrialLockedPage from "@/pages/trial-locked";
 import DashboardPage from "@/pages/dashboard";
 import AnnotatePage from "@/pages/annotate/index";
 import TextLabelPage from "@/pages/annotate/text";
@@ -63,7 +64,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isTrialLocked } = useAuth();
 
   if (!isAuthenticated) {
     return (
@@ -75,6 +76,10 @@ function AppRoutes() {
         </Route>
       </Switch>
     );
+  }
+
+  if (isTrialLocked) {
+    return <TrialLockedPage />;
   }
 
   return (

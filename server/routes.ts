@@ -31,6 +31,17 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  function checkTrialStatus(user: { role: string; trialEndsAt: Date | null; approvalStatus: string | null }) {
+    if (user.role !== "guest") {
+      return { isTrialExpired: false, isApproved: true };
+    }
+    
+    const isApproved = user.approvalStatus === "approved";
+    const isTrialExpired = user.trialEndsAt ? new Date() > user.trialEndsAt : false;
+    
+    return { isTrialExpired, isApproved };
+  }
+
   // Auth routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
@@ -56,10 +67,23 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Account is deactivated" });
       }
 
+      const { isTrialExpired, isApproved } = checkTrialStatus(user);
+      
+      if (user.role === "guest" && isTrialExpired && !isApproved) {
+        const { password: _pw, ...userWithoutPassword } = user;
+        return res.status(403).json({ 
+          message: "Your trial has expired. Please wait for an administrator to approve your account.",
+          trialExpired: true,
+          user: userWithoutPassword,
+          trialStatus: { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt }
+        });
+      }
+
       const { password, ...userWithoutPassword } = user;
       return res.json({ 
         user: userWithoutPassword,
-        modules: moduleAccessByRole[user.role as UserRole] || []
+        modules: moduleAccessByRole[user.role as UserRole] || [],
+        trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -106,6 +130,9 @@ export async function registerRoutes(
 
       const hashedPassword = await bcrypt.hash(parsed.password, 10);
 
+      const isSupabaseUser = !!verifiedSupabaseId;
+      const trialDurationMs = 5 * 60 * 1000;
+      
       const newUser = await storage.createUserWithId(
         verifiedSupabaseId,
         {
@@ -113,16 +140,21 @@ export async function registerRoutes(
           password: hashedPassword,
           email: parsed.email,
           displayName: parsed.displayName,
-          role: "annotator",
+          role: isSupabaseUser ? "annotator" : "guest",
           isActive: true,
           qaPercentage: 20,
+          trialEndsAt: isSupabaseUser ? null : new Date(Date.now() + trialDurationMs),
+          approvalStatus: isSupabaseUser ? "approved" : "pending",
         }
       );
 
       const { password, ...userWithoutPassword } = newUser;
+      const { isTrialExpired, isApproved } = checkTrialStatus(newUser);
+      
       return res.status(201).json({ 
         user: userWithoutPassword,
-        modules: moduleAccessByRole[newUser.role as UserRole] || []
+        modules: moduleAccessByRole[newUser.role as UserRole] || [],
+        trialStatus: newUser.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: newUser.trialEndsAt } : null
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -144,10 +176,23 @@ export async function registerRoutes(
       return res.status(404).json({ message: "User not found" });
     }
     
+    const { isTrialExpired, isApproved } = checkTrialStatus(user);
+    
+    if (user.role === "guest" && isTrialExpired && !isApproved) {
+      const { password: _pw, ...userWithoutPassword } = user;
+      return res.status(403).json({ 
+        message: "Your trial has expired. Please wait for an administrator to approve your account.",
+        trialExpired: true,
+        user: userWithoutPassword,
+        trialStatus: { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt }
+      });
+    }
+    
     const { password, ...userWithoutPassword } = user;
     return res.json({ 
       user: userWithoutPassword,
-      modules: moduleAccessByRole[user.role as UserRole] || []
+      modules: moduleAccessByRole[user.role as UserRole] || [],
+      trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
     });
   });
 
@@ -173,6 +218,56 @@ export async function registerRoutes(
       return res.status(404).json({ message: "User not found" });
     }
     const { password, ...userWithoutPassword } = updated;
+    return res.json(userWithoutPassword);
+  });
+
+  // Admin routes for guest management
+  app.get("/api/admin/pending-guests", async (_req: Request, res: Response) => {
+    const pendingGuests = await storage.getPendingGuests();
+    const guestsWithoutPasswords = pendingGuests.map(({ password, ...user }) => user);
+    return res.json(guestsWithoutPasswords);
+  });
+
+  app.post("/api/admin/users/:id/approve", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
+      return res.status(403).json({ message: "Only admins and managers can approve users" });
+    }
+    
+    const { newRole } = req.body;
+    const approved = await storage.approveUser(req.params.id, adminId, newRole);
+    
+    if (!approved) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const { password, ...userWithoutPassword } = approved;
+    return res.json(userWithoutPassword);
+  });
+
+  app.post("/api/admin/users/:id/reject", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
+      return res.status(403).json({ message: "Only admins and managers can reject users" });
+    }
+    
+    const rejected = await storage.rejectUser(req.params.id, adminId);
+    
+    if (!rejected) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const { password, ...userWithoutPassword } = rejected;
     return res.json(userWithoutPassword);
   });
 
