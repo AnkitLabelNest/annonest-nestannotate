@@ -1,0 +1,99 @@
+-- =====================================================
+-- Table: entities_fund
+-- Description: Investment fund (PE / VC / Credit / Hedge / Infra)
+-- Standard: Preqin-equivalent + LabelNest add-ons
+-- =====================================================
+
+create table if not exists entities_fund (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Classification (CORE)
+    -- -------------------------
+    fund_name text not null,
+    fund_legal_name text,
+    fund_short_name text,
+
+    fund_type text,                    -- PE, VC, Hedge, Credit, Infra
+    strategy text,                     -- Buyout, Growth, Early Stage, Distressed, etc.
+    vintage_year integer,
+
+    fund_currency text,
+    fund_status text,                  -- Open, Closed, Liquidated, In Market
+
+    -- -------------------------
+    -- B. GP Linkage (CORE)
+    -- -------------------------
+    gp_id uuid,                        -- FK to entities_gp.id (logical link)
+    gp_name_snapshot text,             -- Snapshot for fast reads / history
+
+    -- -------------------------
+    -- C. Fund Size & Capital (CORE)
+    -- -------------------------
+    target_fund_size numeric,
+    hard_cap numeric,
+    fund_size_final numeric,
+
+    capital_called numeric,
+    capital_distributed numeric,
+    remaining_value numeric,
+
+    -- -------------------------
+    -- D. Fundraising Details (CORE)
+    -- -------------------------
+    first_close_date date,
+    final_close_date date,
+    fundraising_status text,           -- First close, Interim close, Final close
+
+    number_of_lps integer,
+    cornerstone_investor_flag boolean,
+
+    -- -------------------------
+    -- E. Investment Focus (CORE)
+    -- -------------------------
+    primary_asset_class text,
+    investment_stage text,
+    industry_focus text,
+    geographic_focus text,
+
+    -- -------------------------
+    -- F. Performance Snapshot (PREQIN-PLUS)
+    -- -------------------------
+    net_irr numeric,
+    gross_irr numeric,
+    tvpi numeric,
+    dpi numeric,
+    rvpi numeric,
+
+    performance_data_available boolean,
+    performance_as_of_date date,
+
+    -- -------------------------
+    -- G. Activity Snapshot (PREQIN-PLUS)
+    -- -------------------------
+    deal_count integer,
+    active_portfolio_companies_count integer,
+    realized_portfolio_companies_count integer,
+
+    -- -------------------------
+    -- H. ESG (FUND-LEVEL LIGHT)
+    -- -------------------------
+    esg_integration_flag boolean,
+    impact_fund_flag boolean,
+    sustainability_objective text,
+
+    -- -------------------------
+    -- I. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,      -- 0–100
+    verification_method text,           -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

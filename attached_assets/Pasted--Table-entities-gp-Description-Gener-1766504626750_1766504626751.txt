@@ -1,0 +1,106 @@
+-- =====================================================
+-- Table: entities_gp
+-- Description: General Partner / Fund Manager firm
+-- Standard: Preqin-equivalent + LabelNest add-ons
+-- =====================================================
+
+create table if not exists entities_gp (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Classification (CORE)
+    -- -------------------------
+    gp_name text not null,
+    gp_legal_name text,
+    gp_short_name text,
+
+    firm_type text,                  -- PE, VC, Hedge, Credit, Infra, Multi-strategy
+    year_founded integer,
+
+    headquarters_country text,
+    headquarters_city text,
+    operating_regions text,
+    website text,
+
+    -- -------------------------
+    -- B. Regulatory & Legal (CORE)
+    -- -------------------------
+    regulatory_status text,           -- Regulated / Exempt / Unregulated
+    primary_regulator text,            -- SEC, FCA, SEBI, etc.
+    registration_number text,          -- CRD, FCA ref, etc.
+    registration_jurisdiction text,
+
+    -- -------------------------
+    -- C. Assets & Strategy (CORE)
+    -- -------------------------
+    total_aum numeric,
+    aum_currency text,
+
+    primary_asset_classes text,
+    investment_stages text,
+    industry_focus text,
+    geographic_focus text,
+
+    -- -------------------------
+    -- D. Activity Snapshot (CORE)
+    -- -------------------------
+    number_of_funds integer,
+    active_funds_count integer,
+    total_capital_raised numeric,
+    first_fund_vintage integer,
+    latest_fund_vintage integer,
+    estimated_deal_count integer,
+
+    -- -------------------------
+    -- E. Organization & Ownership (PREQIN-PLUS)
+    -- -------------------------
+    ownership_type text,               -- Partner-owned, Corporate, Public
+    parent_company text,
+    advisory_arms text,
+    office_locations text,
+
+    -- -------------------------
+    -- F. Team Overview (PREQIN-PLUS)
+    -- -------------------------
+    employee_count_band text,          -- 1–10, 11–50, 51–100, 101–250, etc.
+    investment_professionals_count integer,
+    senior_investment_professionals_count integer,
+
+    -- -------------------------
+    -- G. Performance Signals (PREQIN-PLUS)
+    -- -------------------------
+    top_quartile_flag text,             -- Yes / No / Mixed / Unknown
+    track_record_years integer,
+    performance_data_available boolean,
+
+    -- -------------------------
+    -- H. ESG (LIGHT, GP-LEVEL)
+    -- -------------------------
+    esg_policy_available boolean,
+    pri_signatory boolean,
+    dei_policy_available boolean,
+    sustainability_report_url text,
+
+    -- -------------------------
+    -- I. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,      -- 0–100
+    verification_method text,           -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- J. Relationship Awareness (DERIVED / OPTIONAL)
+    -- -------------------------
+    linked_funds_count integer,
+    linked_lps_count integer,
+    linked_portfolio_companies_count integer,
+    linked_service_providers_count integer,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
