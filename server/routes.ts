@@ -31,43 +31,20 @@ export async function registerRoutes(
   
   // Health check endpoint for debugging
   app.get("/api/health", async (req: Request, res: Response) => {
-    const fs = await import("fs");
-    const replitDbPath = "/tmp/replitdb";
-    let replitDbExists = false;
-    let replitDbContent = "";
-    
-    try {
-      if (fs.existsSync(replitDbPath)) {
-        replitDbExists = true;
-        replitDbContent = fs.readFileSync(replitDbPath, "utf-8").substring(0, 50) + "...";
-      }
-    } catch (e) {}
-    
-    const pgHost = process.env.PGHOST || "not set";
-    const hasDbUrl = !!process.env.DATABASE_URL;
-    
     try {
       const dbCheck = await storage.getUserByUsername("admin");
       return res.json({
         status: "ok",
         database: dbCheck ? "connected" : "no admin user",
         supabase: supabase ? "configured" : "not configured",
-        environment: process.env.NODE_ENV || "unknown",
-        pgHost: pgHost,
-        hasDbUrl: hasDbUrl,
-        replitDbExists: replitDbExists,
-        replitDbContent: replitDbContent
+        environment: process.env.NODE_ENV || "unknown"
       });
     } catch (error: any) {
       return res.status(500).json({
         status: "error",
         message: error?.message,
         database: "error",
-        supabase: supabase ? "configured" : "not configured",
-        pgHost: pgHost,
-        hasDbUrl: hasDbUrl,
-        replitDbExists: replitDbExists,
-        replitDbContent: replitDbContent
+        supabase: supabase ? "configured" : "not configured"
       });
     }
   });
