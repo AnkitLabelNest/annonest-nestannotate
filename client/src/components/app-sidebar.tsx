@@ -208,7 +208,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {user?.role === "manager" && (
+              {(user?.role === "admin" || user?.role === "manager") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/settings/locations"}>
                     <Link href="/settings/locations" data-testid="nav-locations">

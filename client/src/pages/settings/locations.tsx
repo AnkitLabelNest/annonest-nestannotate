@@ -147,6 +147,7 @@ function CountriesTab({ countries, isLoading }: { countries: Country[]; isLoadin
     iso_code_3: "",
     phone_code: "",
     currency_code: "",
+    is_active: true,
   });
 
   const createMutation = useMutation({
@@ -188,7 +189,7 @@ function CountriesTab({ countries, isLoading }: { countries: Country[]; isLoadin
   });
 
   const resetForm = () => {
-    setFormData({ name: "", iso_code_2: "", iso_code_3: "", phone_code: "", currency_code: "" });
+    setFormData({ name: "", iso_code_2: "", iso_code_3: "", phone_code: "", currency_code: "", is_active: true });
   };
 
   const handleEdit = (country: Country) => {
@@ -199,6 +200,7 @@ function CountriesTab({ countries, isLoading }: { countries: Country[]; isLoadin
       iso_code_3: country.iso_code_3 || "",
       phone_code: country.phone_code || "",
       currency_code: country.currency_code || "",
+      is_active: country.is_active,
     });
     setDialogOpen(true);
   };
@@ -375,15 +377,15 @@ function StatesTab({
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingState, setEditingState] = useState<State | null>(null);
-  const [formData, setFormData] = useState({ name: "", state_code: "" });
+  const [formData, setFormData] = useState({ name: "", state_code: "", is_active: true });
 
   const createMutation = useMutation({
-    mutationFn: (data: { country_id: string; name: string; state_code: string }) => 
+    mutationFn: (data: { country_id: string; name: string; state_code: string; is_active: boolean }) => 
       apiRequest("POST", "/api/locations/states", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/locations/states", selectedCountryId] });
       setDialogOpen(false);
-      setFormData({ name: "", state_code: "" });
+      setFormData({ name: "", state_code: "", is_active: true });
       toast({ title: "State created successfully" });
     },
     onError: () => {
@@ -392,13 +394,13 @@ function StatesTab({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; state_code: string } }) => 
+    mutationFn: ({ id, data }: { id: string; data: { name: string; state_code: string; is_active: boolean } }) => 
       apiRequest("PUT", `/api/locations/states/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/locations/states", selectedCountryId] });
       setDialogOpen(false);
       setEditingState(null);
-      setFormData({ name: "", state_code: "" });
+      setFormData({ name: "", state_code: "", is_active: true });
       toast({ title: "State updated successfully" });
     },
     onError: () => {
@@ -419,13 +421,16 @@ function StatesTab({
 
   const handleEdit = (state: State) => {
     setEditingState(state);
-    setFormData({ name: state.name, state_code: state.state_code || "" });
+    setFormData({ name: state.name, state_code: state.state_code || "", is_active: state.is_active });
     setDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCountryId) return;
+    if (!selectedCountryId) {
+      toast({ title: "Please select a country first", variant: "destructive" });
+      return;
+    }
     if (editingState) {
       updateMutation.mutate({ id: editingState.id, data: formData });
     } else {
@@ -575,15 +580,15 @@ function CitiesTab({
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ name: "", is_active: true });
 
   const createMutation = useMutation({
-    mutationFn: (data: { state_id: string; name: string }) => 
+    mutationFn: (data: { state_id: string; name: string; is_active: boolean }) => 
       apiRequest("POST", "/api/locations/cities", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/locations/cities", selectedStateId] });
       setDialogOpen(false);
-      setFormData({ name: "" });
+      setFormData({ name: "", is_active: true });
       toast({ title: "City created successfully" });
     },
     onError: () => {
@@ -592,13 +597,13 @@ function CitiesTab({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string } }) => 
+    mutationFn: ({ id, data }: { id: string; data: { name: string; is_active: boolean } }) => 
       apiRequest("PUT", `/api/locations/cities/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/locations/cities", selectedStateId] });
       setDialogOpen(false);
       setEditingCity(null);
-      setFormData({ name: "" });
+      setFormData({ name: "", is_active: true });
       toast({ title: "City updated successfully" });
     },
     onError: () => {
@@ -619,13 +624,16 @@ function CitiesTab({
 
   const handleEdit = (city: City) => {
     setEditingCity(city);
-    setFormData({ name: city.name });
+    setFormData({ name: city.name, is_active: city.is_active });
     setDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStateId) return;
+    if (!selectedStateId) {
+      toast({ title: "Please select a state first", variant: "destructive" });
+      return;
+    }
     if (editingCity) {
       updateMutation.mutate({ id: editingCity.id, data: formData });
     } else {
@@ -668,7 +676,7 @@ function CitiesTab({
             setDialogOpen(open);
             if (!open) {
               setEditingCity(null);
-              setFormData({ name: "" });
+              setFormData({ name: "", is_active: true });
             }
           }}>
             <DialogTrigger asChild>
