@@ -22,9 +22,11 @@ import { z } from "zod";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+console.log("[Supabase] Initializing with URL:", supabaseUrl ? "configured" : "missing", "Key:", supabaseAnonKey ? "configured" : "missing");
 const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+console.log("[Supabase] Client initialized:", supabase ? "yes" : "no");
 
 export async function registerRoutes(
   httpServer: Server,
@@ -102,15 +104,19 @@ export async function registerRoutes(
       }
 
       if (!supabase) {
+        console.error("[Supabase Login] Supabase client not initialized. URL:", process.env.SUPABASE_URL ? "set" : "missing", "Key:", process.env.SUPABASE_ANON_KEY ? "set" : "missing");
         return res.status(500).json({ message: "Supabase not configured on server" });
       }
 
       const token = authHeader.substring(7);
+      console.log("[Supabase Login] Verifying token...");
       const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
 
       if (error || !supabaseUser) {
+        console.error("[Supabase Login] Token verification failed:", error?.message || "No user returned");
         return res.status(401).json({ message: "Invalid Supabase token" });
       }
+      console.log("[Supabase Login] Token verified for user:", supabaseUser.email);
 
       // Try to find user by supabaseId first, then by email
       let user = await storage.getUserBySupabaseId(supabaseUser.id);

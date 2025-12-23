@@ -10,8 +10,13 @@ function getSupabaseClient(): SupabaseClient | null {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
+    console.log("[Supabase Client] URL:", supabaseUrl ? "configured" : "missing", "Key:", supabaseAnonKey ? "configured" : "missing");
+    
     if (supabaseUrl && supabaseAnonKey) {
       supabase = createClient(supabaseUrl, supabaseAnonKey);
+      console.log("[Supabase Client] Initialized successfully");
+    } else {
+      console.log("[Supabase Client] Not initialized - missing configuration");
     }
   }
   return supabase;
