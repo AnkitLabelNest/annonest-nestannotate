@@ -1,0 +1,98 @@
+-- =====================================================
+-- Table: entities_contact
+-- Description: Individual professional linked to firms, funds, deals
+-- =====================================================
+
+create table if not exists entities_contact (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity (CORE)
+    -- -------------------------
+    first_name text not null,
+    middle_name text,
+    last_name text not null,
+
+    full_name text,
+    preferred_name text,
+
+    -- -------------------------
+    -- B. Professional Profile (CORE)
+    -- -------------------------
+    job_title text,
+    seniority_level text,               -- Analyst, Associate, VP, Director, Partner, CXO
+
+    department_category text,           -- Investments, IR, Finance, Legal, ESG, Ops, Tech
+
+    years_of_experience integer,
+    functional_expertise text,
+
+    -- -------------------------
+    -- C. Entity Linkage (CORE)
+    -- -------------------------
+    primary_entity_type text,            -- GP, LP, Fund, ServiceProvider, PortfolioCompany
+    primary_entity_id uuid,              -- Logical FK
+    primary_entity_name_snapshot text,
+
+    -- -------------------------
+    -- D. Asset Context (DERIVED, LOCKED)
+    -- -------------------------
+    asset_category_snapshot text,        -- Derived from linked firm/fund (PE, VC, Credit, etc.)
+    asset_source_entity_type text,       -- GP, Fund, LP
+    asset_source_entity_id uuid,         -- Where asset category actually comes from
+
+    -- -------------------------
+    -- E. Contact Details (CORE)
+    -- -------------------------
+    work_email text,
+    personal_email text,
+    phone_number text,
+    linkedin_url text,
+
+    location_country text,
+    location_city text,
+    time_zone text,
+
+    -- -------------------------
+    -- F. Role Status & History (PREQIN-PLUS)
+    -- -------------------------
+    employment_status text,              -- Active, Left, Unknown
+    role_start_year integer,
+    role_end_year integer,
+
+    previous_employers text,
+    board_membership_flag boolean,
+
+    -- -------------------------
+    -- G. Coverage & Access Signals
+    -- -------------------------
+    decision_maker_flag boolean,
+    investment_committee_member_flag boolean,
+    deal_involvement_flag boolean,
+
+    -- -------------------------
+    -- H. Contact Intelligence (LABELNEST)
+    -- -------------------------
+    verification_status text,
+    verification_method text,
+    last_verified_date date,
+
+    email_validated_flag boolean,
+    phone_validated_flag boolean,
+
+    contact_confidence_score numeric,    -- 0–100
+    intent_signal text,                  -- High, Medium, Low (internal)
+
+    -- -------------------------
+    -- I. Data Quality
+    -- -------------------------
+    source_coverage text,
+    data_confidence_score numeric,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

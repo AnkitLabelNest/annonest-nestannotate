@@ -1,0 +1,96 @@
+-- =====================================================
+-- Table: entities_lp
+-- Description: Limited Partner / Capital allocator organization
+-- Standard: Preqin-equivalent + LabelNest add-ons
+-- =====================================================
+
+create table if not exists entities_lp (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Classification (CORE)
+    -- -------------------------
+    lp_name text not null,
+    lp_legal_name text,
+    lp_short_name text,
+
+    lp_type text,                      -- Pension, Endowment, SWF, FoF, Family Office, Insurance, Corporate
+    year_established integer,
+
+    headquarters_country text,
+    headquarters_city text,
+    operating_regions text,
+    website text,
+
+    -- -------------------------
+    -- B. Assets & Allocation (CORE)
+    -- -------------------------
+    total_aum numeric,
+    aum_currency text,
+
+    private_markets_allocation_percent numeric,
+    target_allocation_percent numeric,
+
+    asset_class_preferences text,      -- PE, VC, Credit, Infra, Hedge
+    geographic_preferences text,
+    industry_preferences text,
+
+    -- -------------------------
+    -- C. Investment Activity (CORE)
+    -- -------------------------
+    active_fund_commitments_count integer,
+    total_fund_commitments_lifetime integer,
+    direct_investment_flag boolean,
+    co_investment_flag boolean,
+
+    average_commitment_size numeric,
+    commitment_size_currency text,
+
+    -- -------------------------
+    -- D. Organization Profile (PREQIN-PLUS)
+    -- -------------------------
+    ownership_type text,                -- Government, Private, Public, Trust
+    employee_count_band text,           -- 1–10, 11–50, 51–100, 101–250, etc.
+    investment_team_size integer,
+
+    internal_management_flag boolean,   -- Manages capital internally
+    outsourcing_flag boolean,           -- Uses OCIO / advisors
+
+    -- -------------------------
+    -- E. Preferences & Mandates (PREQIN-PLUS)
+    -- -------------------------
+    fund_stage_preference text,         -- Early, Growth, Buyout, Multi-stage
+    fund_size_preference text,          -- Small, Mid, Large, Mega
+    ticket_size_band text,              -- e.g. <10m, 10–25m, 25–50m, 50m+
+
+    -- -------------------------
+    -- F. ESG & Responsible Investing (LP-LEVEL)
+    -- -------------------------
+    esg_policy_available boolean,
+    pri_signatory boolean,
+    impact_investing_flag boolean,
+    exclusions_policy text,
+    sustainability_report_url text,
+
+    -- -------------------------
+    -- G. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,      -- 0–100
+    verification_method text,           -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- H. Relationship Awareness (DERIVED / OPTIONAL)
+    -- -------------------------
+    linked_gps_count integer,
+    linked_funds_count integer,
+    linked_service_providers_count integer,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

@@ -1,0 +1,89 @@
+-- =====================================================
+-- Table: entities_service_provider
+-- Description: Service providers supporting private market firms and funds
+-- Examples: Legal, Fund Admin, Audit, Tax, Custodian, Placement Agent, Tech
+-- Standard: Preqin-equivalent + LabelNest add-ons
+-- =====================================================
+
+create table if not exists entities_service_provider (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Classification (CORE)
+    -- -------------------------
+    service_provider_name text not null,
+    service_provider_legal_name text,
+    service_provider_short_name text,
+
+    service_provider_type text,         -- Legal, Fund Admin, Audit, Tax, Custodian, Placement Agent, Tech, Consulting
+    specialization text,                -- PE, VC, Hedge, Credit, Infra, Multi-asset
+
+    year_founded integer,
+
+    headquarters_country text,
+    headquarters_city text,
+    operating_regions text,
+    website text,
+
+    -- -------------------------
+    -- B. Services Offered (CORE)
+    -- -------------------------
+    primary_services text,               -- Fund admin, Valuation, Legal advisory, Audit, Compliance, Tech
+    secondary_services text,
+    asset_class_coverage text,           -- PE, VC, Credit, Hedge, Infra
+    fund_stage_coverage text,            -- Early, Growth, Buyout, Multi-stage
+
+    -- -------------------------
+    -- C. Client Profile (CORE)
+    -- -------------------------
+    typical_client_type text,            -- GP, LP, Fund, Portfolio Company
+    client_size_focus text,              -- Small, Mid, Large, Mega
+    geographic_client_focus text,
+
+    -- -------------------------
+    -- D. Organization Profile (PREQIN-PLUS)
+    -- -------------------------
+    ownership_type text,                 -- Partner-owned, Corporate, Public
+    employee_count_band text,            -- 1–10, 11–50, 51–100, 101–250, etc.
+    office_locations text,               -- Multi-office listing
+
+    regulated_flag boolean,
+    primary_regulator text,
+
+    -- -------------------------
+    -- E. Engagement & Reputation (PREQIN-PLUS)
+    -- -------------------------
+    marquee_clients text,                -- Not exhaustive, signal-level
+    years_active_in_private_markets integer,
+    cross_border_capability_flag boolean,
+
+    -- -------------------------
+    -- F. ESG & Compliance (LIGHT)
+    -- -------------------------
+    esg_policy_available boolean,
+    data_privacy_compliance text,        -- GDPR, ISO, SOC2, etc.
+    sustainability_report_url text,
+
+    -- -------------------------
+    -- G. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,       -- 0–100
+    verification_method text,            -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- H. Relationship Awareness (DERIVED / OPTIONAL)
+    -- -------------------------
+    linked_gps_count integer,
+    linked_funds_count integer,
+    linked_lps_count integer,
+    linked_portfolio_companies_count integer,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

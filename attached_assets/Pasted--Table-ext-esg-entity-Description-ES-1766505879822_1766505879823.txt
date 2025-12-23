@@ -1,0 +1,105 @@
+-- =====================================================
+-- Table: ext_esg_entity
+-- Description: ESG attributes applicable across all entity types
+-- Applies to: GP, LP, Fund, PortfolioCompany, ServiceProvider, Deal
+-- =====================================================
+
+create table if not exists ext_esg_entity (
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Entity Linkage
+    -- -------------------------
+    entity_type text not null,           -- GP, LP, Fund, PortfolioCompany, ServiceProvider, Deal
+    entity_id uuid not null,
+    entity_name_snapshot text,
+
+    -- -------------------------
+    -- B. ESG Governance (CORE)
+    -- -------------------------
+    esg_policy_available boolean,
+    esg_policy_url text,
+
+    esg_committee_flag boolean,
+    esg_committee_description text,
+
+    responsible_investment_framework text, -- PRI, UN SDGs, SFDR, TCFD, Custom
+    pri_signatory boolean,
+
+    -- -------------------------
+    -- C. Environmental (E)
+    -- -------------------------
+    environmental_focus_areas text,      -- Climate, Energy, Water, Waste, Biodiversity
+    carbon_emissions_reporting_flag boolean,
+    net_zero_commitment_flag boolean,
+
+    renewable_energy_usage_flag boolean,
+    climate_risk_assessment_flag boolean,
+
+    environmental_certifications text,   -- ISO 14001, LEED, etc.
+
+    -- -------------------------
+    -- D. Social (S)
+    -- -------------------------
+    social_focus_areas text,              -- DEI, Labor, Community, Health & Safety
+    dei_policy_available boolean,
+
+    employee_health_safety_flag boolean,
+    community_engagement_flag boolean,
+
+    human_rights_policy_flag boolean,
+    supply_chain_labor_standards_flag boolean,
+
+    -- -------------------------
+    -- E. Governance (G)
+    -- -------------------------
+    governance_focus_areas text,          -- Board, Audit, Ethics, Compliance
+    board_independence_flag boolean,
+
+    anti_corruption_policy_flag boolean,
+    whistleblower_policy_flag boolean,
+
+    regulatory_compliance_issues_flag boolean,
+    governance_incident_history_flag boolean,
+
+    -- -------------------------
+    -- F. ESG Integration & Monitoring (PREQIN-PLUS)
+    -- -------------------------
+    esg_due_diligence_flag boolean,
+    esg_kpi_tracking_flag boolean,
+
+    portfolio_level_esg_monitoring_flag boolean,
+    third_party_esg_audit_flag boolean,
+
+    -- -------------------------
+    -- G. Disclosure & Reporting
+    -- -------------------------
+    sustainability_report_available boolean,
+    sustainability_report_url text,
+
+    reporting_frequency text,            -- Annual, Bi-annual, Ad-hoc
+    last_report_year integer,
+
+    -- -------------------------
+    -- H. Controversies & Risk (SIGNAL ONLY)
+    -- -------------------------
+    esg_controversy_flag boolean,
+    controversy_description text,
+
+    esg_risk_level text,                  -- Low, Medium, High
+    material_esg_issues text,
+
+    -- -------------------------
+    -- I. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,        -- 0–100
+    verification_method text,             -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

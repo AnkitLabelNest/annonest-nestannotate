@@ -1,0 +1,73 @@
+-- =====================================================
+-- Table: relationships
+-- Description: Universal relationship table across all entities
+-- Covers: GP, LP, Fund, Deal, Portfolio Company, Service Provider, Contact
+-- =====================================================
+
+create table if not exists relationships (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. FROM Entity
+    -- -------------------------
+    from_entity_type text not null,      -- GP, LP, Fund, Deal, PortfolioCompany, ServiceProvider, Contact
+    from_entity_id uuid not null,
+    from_entity_name_snapshot text,
+
+    -- -------------------------
+    -- B. TO Entity
+    -- -------------------------
+    to_entity_type text not null,        -- GP, LP, Fund, Deal, PortfolioCompany, ServiceProvider, Contact
+    to_entity_id uuid not null,
+    to_entity_name_snapshot text,
+
+    -- -------------------------
+    -- C. Relationship Definition
+    -- -------------------------
+    relationship_type text not null,     -- Manager, Investor, PortfolioCompany, Advisor, Employer, BoardMember
+    relationship_subtype text,           -- Lead, Co-investor, Cornerstone, Sponsor, Auditor, etc.
+
+    relationship_context text,           -- Fundraising, Investment, Employment, Advisory, Governance
+
+    -- -------------------------
+    -- D. Role & Asset Context (IMPORTANT)
+    -- -------------------------
+    role_title text,                     -- Partner, CIO, Board Member, Analyst
+    department_category text,            -- Investments, IR, Finance, Legal, ESG, Ops, Tech
+
+    asset_category_snapshot text,        -- PE, VC, Credit, Hedge, Infra (derived from entity)
+
+    -- -------------------------
+    -- E. Economic / Quantitative (OPTIONAL)
+    -- -------------------------
+    commitment_amount numeric,
+    commitment_currency text,
+
+    ownership_percentage numeric,
+    investment_amount numeric,
+    valuation numeric,
+
+    -- -------------------------
+    -- F. Time Dimension
+    -- -------------------------
+    start_year integer,
+    end_year integer,
+
+    is_primary_relationship boolean,
+    relationship_status text,            -- Active, Ended, Pending
+
+    -- -------------------------
+    -- G. Data Quality & Trust
+    -- -------------------------
+    source_coverage text,
+    data_confidence_score numeric,       -- 0–100
+    verification_method text,
+    last_verified_date date,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

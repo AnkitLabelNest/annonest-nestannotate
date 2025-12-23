@@ -4,13 +4,15 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 let supabase: SupabaseClient | null = null;
 let supabaseInitialized = false;
 
-const SUPABASE_URL = "https://evugaodpzepyjonlrptn.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_P5C3dk9nw2VVFD_W25my6Q_6MpPg6gH";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseInitialized) {
     supabaseInitialized = true;
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
   }
   return supabase;
 }

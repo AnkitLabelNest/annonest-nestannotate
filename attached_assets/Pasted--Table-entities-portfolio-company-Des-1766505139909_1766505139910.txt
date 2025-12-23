@@ -1,0 +1,109 @@
+-- =====================================================
+-- Table: entities_portfolio_company
+-- Description: Portfolio / Operating company backed by private capital
+-- Standard: Preqin-equivalent + LabelNest add-ons
+-- =====================================================
+
+create table if not exists entities_portfolio_company (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Classification (CORE)
+    -- -------------------------
+    company_name text not null,
+    legal_name text,
+    short_name text,
+
+    company_type text,                  -- Private, Public, Subsidiary, JV
+    year_founded integer,
+
+    headquarters_country text,
+    headquarters_city text,
+    operating_regions text,
+    website text,
+
+    -- -------------------------
+    -- B. Business Profile (CORE)
+    -- -------------------------
+    primary_industry text,
+    sub_industry text,
+    business_description text,
+
+    business_model text,                -- B2B, B2C, B2B2C, Marketplace, SaaS, Manufacturing
+    revenue_model text,                 -- Subscription, Transactional, Licensing, Hybrid
+
+    -- -------------------------
+    -- C. Size & Scale (CORE)
+    -- -------------------------
+    employee_count_band text,            -- 1–10, 11–50, 51–100, 101–250, etc.
+    revenue_band text,                   -- <1m, 1–10m, 10–50m, 50–100m, 100m+
+
+    -- -------------------------
+    -- D. Financial Snapshot (PREQIN-PLUS)
+    -- -------------------------
+    latest_revenue numeric,
+    revenue_currency text,
+    revenue_year integer,
+
+    profitability_status text,           -- Profitable, Breakeven, Loss-making
+    ebitda_margin numeric,
+
+    -- -------------------------
+    -- E. Ownership & Capital (CORE)
+    -- -------------------------
+    current_owner_type text,             -- PE-backed, VC-backed, Founder-owned
+    controlling_gp_id uuid,              -- Primary sponsor (logical link)
+    controlling_fund_id uuid,            -- Primary fund (logical link)
+
+    first_investment_year integer,
+    total_funding_raised numeric,
+    funding_currency text,
+
+    -- -------------------------
+    -- F. Operations & Geography (PREQIN-PLUS)
+    -- -------------------------
+    primary_markets text,                -- Countries/regions of revenue
+    manufacturing_presence_flag boolean,
+    r_and_d_presence_flag boolean,
+
+    -- -------------------------
+    -- G. ESG & Sustainability (LIGHT)
+    -- -------------------------
+    esg_policy_available boolean,
+    environmental_focus text,
+    social_focus text,
+    governance_focus text,
+
+    compliance_certifications text,      -- ISO, SOC, HIPAA, etc.
+    sustainability_report_url text,
+
+    -- -------------------------
+    -- H. Exit & Outcome (PREQIN-PLUS)
+    -- -------------------------
+    exit_status text,                    -- Active, Exited, Written-off
+    exit_type text,                      -- IPO, Trade sale, Secondary
+    exit_year integer,
+
+    -- -------------------------
+    -- I. Data Quality & Trust (LABELNEST)
+    -- -------------------------
+    data_confidence_score numeric,       -- 0–100
+    verification_method text,            -- Human / Hybrid / Automated
+    last_verified_date date,
+    source_coverage text,
+
+    -- -------------------------
+    -- J. Relationship Awareness (DERIVED / OPTIONAL)
+    -- -------------------------
+    linked_gps_count integer,
+    linked_funds_count integer,
+    linked_deals_count integer,
+    linked_service_providers_count integer,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);

@@ -20,9 +20,16 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
-const supabaseUrl = process.env.SUPABASE_URL || "https://evugaodpzepyjonlrptn.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "sb_publishable_P5C3dk9nw2VVFD_W25my6Q_6MpPg6gH";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn("Supabase credentials not configured. Some features may not work.");
+}
+
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export async function registerRoutes(
   httpServer: Server,
@@ -36,7 +43,7 @@ export async function registerRoutes(
       return res.json({
         status: "ok",
         database: dbCheck ? "connected" : "no admin user",
-        supabase: supabase ? "configured" : "not configured",
+        supabase: supabase !== null ? "configured" : "not configured",
         environment: process.env.NODE_ENV || "unknown"
       });
     } catch (error: any) {
@@ -44,7 +51,7 @@ export async function registerRoutes(
         status: "error",
         message: error?.message,
         database: "error",
-        supabase: supabase ? "configured" : "not configured"
+        supabase: supabase !== null ? "configured" : "not configured"
       });
     }
   });
@@ -114,6 +121,10 @@ export async function registerRoutes(
   // Supabase login - authenticates via Supabase token and syncs/creates local user
   app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
     try {
+      if (!supabase) {
+        return res.status(503).json({ message: "Supabase authentication not configured" });
+      }
+      
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Authorization token required" });

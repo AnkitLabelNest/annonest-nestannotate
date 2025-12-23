@@ -1,0 +1,101 @@
+-- =====================================================
+-- Table: public_company_snapshot
+-- Description: Read-only snapshot of publicly listed companies
+-- Use cases: Benchmarking, comps, market context
+-- =====================================================
+
+create table if not exists public_company_snapshot (
+    -- Primary Key
+    id uuid primary key default gen_random_uuid(),
+
+    -- -------------------------
+    -- A. Identity & Listing (CORE)
+    -- -------------------------
+    company_name text not null,
+    legal_name text,
+
+    ticker_symbol text,
+    exchange text,                      -- NYSE, NASDAQ, NSE, BSE, LSE, etc.
+    isin text,
+    sedol text,
+
+    headquarters_country text,
+    headquarters_city text,
+    website text,
+
+    industry text,
+    sub_industry text,
+
+    -- -------------------------
+    -- B. Market Snapshot (CORE)
+    -- -------------------------
+    market_cap numeric,
+    market_cap_currency text,
+
+    share_price numeric,
+    share_price_currency text,
+    share_price_as_of_date date,
+
+    shares_outstanding numeric,
+
+    -- -------------------------
+    -- C. Financial Summary (CORE)
+    -- -------------------------
+    revenue_ttm numeric,
+    revenue_currency text,
+
+    ebitda_ttm numeric,
+    net_income_ttm numeric,
+
+    fiscal_year_end text,
+
+    -- -------------------------
+    -- D. Valuation Multiples (PREQIN-PLUS)
+    -- -------------------------
+    pe_ratio numeric,
+    ev_ebitda multiple numeric,
+    price_to_sales numeric,
+
+    -- -------------------------
+    -- E. Performance Indicators (PREQIN-PLUS)
+    -- -------------------------
+    one_year_return_percent numeric,
+    three_year_return_percent numeric,
+    five_year_return_percent numeric,
+
+    volatility_indicator text,          -- Low, Medium, High
+
+    -- -------------------------
+    -- F. Ownership & Coverage (LIGHT)
+    -- -------------------------
+    institutional_ownership_percent numeric,
+    insider_ownership_percent numeric,
+
+    analyst_coverage_count integer,
+
+    -- -------------------------
+    -- G. ESG & Sustainability (SIGNAL-LEVEL)
+    -- -------------------------
+    esg_rating_provider text,            -- MSCI, Sustainalytics, Refinitiv
+    esg_rating text,                     -- AAA–CCC, Low/Medium/High
+
+    sustainability_report_available boolean,
+    sustainability_report_url text,
+
+    -- -------------------------
+    -- H. Snapshot Metadata (IMPORTANT)
+    -- -------------------------
+    snapshot_date date not null,
+    data_source text,                   -- Yahoo, Refinitiv, Exchange filings, Manual
+
+    refresh_frequency text,             -- Daily, Weekly, Quarterly
+
+    data_confidence_score numeric,       -- 0–100
+    verification_method text,
+
+    -- -------------------------
+    -- System Fields
+    -- -------------------------
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
