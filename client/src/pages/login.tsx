@@ -60,30 +60,86 @@ export default function LoginPage() {
     
     try {
       if (isSupabaseConfigured()) {
-        const { user } = await supabaseSignIn(data.username, data.password);
+        const { user: supabaseUser, session } = await supabaseSignIn(data.username, data.password);
         
-        if (!user) {
+        if (!supabaseUser || !session) {
           form.setError("root", { message: "Authentication failed" });
           setIsLoading(false);
           return;
         }
 
+        // Sync with backend to get/create local user
+        const backendResponse = await fetch("/api/auth/supabase-login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+        });
+
+        let backendResult;
+        try {
+          backendResult = await backendResponse.json();
+        } catch {
+          form.setError("root", { message: "Could not sync with backend" });
+          setIsLoading(false);
+          return;
+        }
+
+        if (!backendResponse.ok) {
+          if (backendResponse.status === 403 && backendResult?.trialExpired && backendResult?.user) {
+            const expiredUser = backendResult.user;
+            const expiredTrialStatus = backendResult.trialStatus;
+            
+            login({
+              id: expiredUser.id,
+              username: expiredUser.username,
+              password: data.password,
+              email: expiredUser.email || "",
+              role: expiredUser.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
+              displayName: expiredUser.displayName || expiredUser.username,
+              avatar: expiredUser.avatar || null,
+              qaPercentage: expiredUser.qaPercentage || 20,
+              isActive: expiredUser.isActive,
+              createdAt: expiredUser.createdAt ? new Date(expiredUser.createdAt) : new Date(),
+              trialEndsAt: expiredUser.trialEndsAt ? new Date(expiredUser.trialEndsAt) : null,
+              approvalStatus: expiredUser.approvalStatus || "pending",
+              approvedBy: expiredUser.approvedBy || null,
+              approvedAt: expiredUser.approvedAt ? new Date(expiredUser.approvedAt) : null,
+            }, expiredTrialStatus ? {
+              isTrialExpired: expiredTrialStatus.isTrialExpired,
+              isApproved: expiredTrialStatus.isApproved,
+              trialEndsAt: expiredTrialStatus.trialEndsAt ? new Date(expiredTrialStatus.trialEndsAt) : null,
+            } : { isTrialExpired: true, isApproved: false, trialEndsAt: null });
+
+            setLocation("/dashboard");
+            return;
+          }
+          throw new Error(backendResult?.message || "Authentication failed");
+        }
+
+        const { user, trialStatus } = backendResult as LoginResponse;
+        
         login({
           id: user.id,
-          username: data.username,
+          username: user.username,
           password: data.password,
           email: user.email || "",
-          role: "annotator",
-          displayName: user.user_metadata?.displayName || "User",
-          avatar: user.user_metadata?.avatar || null,
-          qaPercentage: 20,
-          isActive: true,
-          createdAt: new Date(),
-          trialEndsAt: null,
-          approvalStatus: "approved",
-          approvedBy: null,
-          approvedAt: null,
-        });
+          role: user.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
+          displayName: user.displayName || user.username,
+          avatar: user.avatar || null,
+          qaPercentage: user.qaPercentage || 20,
+          isActive: user.isActive,
+          createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+          trialEndsAt: user.trialEndsAt ? new Date(user.trialEndsAt) : null,
+          approvalStatus: user.approvalStatus as "pending" | "approved" | "rejected" | null,
+          approvedBy: user.approvedBy || null,
+          approvedAt: user.approvedAt ? new Date(user.approvedAt) : null,
+        }, trialStatus ? {
+          isTrialExpired: trialStatus.isTrialExpired,
+          isApproved: trialStatus.isApproved,
+          trialEndsAt: trialStatus.trialEndsAt ? new Date(trialStatus.trialEndsAt) : null,
+        } : null);
       } else {
         const response = await fetch("/api/auth/login", {
           method: "POST",

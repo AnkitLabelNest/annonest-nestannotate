@@ -19,6 +19,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserBySupabaseId(supabaseId: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
   getPendingGuests(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
@@ -269,6 +270,12 @@ export class MemStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.email === email,
+    );
+  }
+
+  async getUserBySupabaseId(supabaseId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.supabaseId === supabaseId,
     );
   }
 
@@ -722,6 +729,11 @@ export class DatabaseStorage extends MemStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+
+  async getUserBySupabaseId(supabaseId: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.supabaseId, supabaseId));
     return result[0];
   }
 

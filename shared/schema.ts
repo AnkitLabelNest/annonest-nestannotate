@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   qaPercentage: integer("qa_percentage").default(20),
   isActive: boolean("is_active").default(true),
+  supabaseId: varchar("supabase_id"),
   createdAt: timestamp("created_at").defaultNow(),
   trialEndsAt: timestamp("trial_ends_at"),
   approvalStatus: text("approval_status").$type<ApprovalStatus>(),
