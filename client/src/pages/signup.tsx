@@ -81,8 +81,9 @@ export default function SignupPage() {
     
     try {
       let backendResponse;
+      const configured = await isSupabaseConfigured();
       
-      if (isSupabaseConfigured()) {
+      if (configured) {
         const { user: supabaseUser, session } = await supabaseSignUp(data.email, data.password, data.displayName);
         
         if (!supabaseUser) {
@@ -120,6 +121,8 @@ export default function SignupPage() {
         avatar: user.avatar || null,
         qaPercentage: user.qaPercentage || 20,
         isActive: user.isActive ?? true,
+        orgId: (user as any).orgId || "",
+        supabaseId: (user as any).supabaseId || null,
         createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
         trialEndsAt: user.trialEndsAt ? new Date(user.trialEndsAt) : null,
         approvalStatus: user.approvalStatus as "pending" | "approved" | "rejected" | null,

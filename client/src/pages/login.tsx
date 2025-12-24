@@ -61,7 +61,8 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      if (!isSupabaseConfigured()) {
+      const configured = await isSupabaseConfigured();
+      if (!configured) {
         form.setError("root", { message: "Authentication service not configured" });
         setIsLoading(false);
         return;
