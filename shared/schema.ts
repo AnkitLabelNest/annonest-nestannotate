@@ -198,6 +198,142 @@ export const monitoredUrls = pgTable("monitored_urls", {
   index("monitored_urls_org_id_idx").on(table.orgId),
 ]);
 
+export const entitiesGp = pgTable("entities_gp", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  gpName: text("gp_name").notNull(),
+  gpLegalName: text("gp_legal_name"),
+  firmType: text("firm_type"),
+  headquartersCountry: text("headquarters_country"),
+  headquartersCity: text("headquarters_city"),
+  totalAum: text("total_aum"),
+  aumCurrency: text("aum_currency"),
+  website: text("website"),
+  primaryAssetClasses: text("primary_asset_classes"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_gp_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesLp = pgTable("entities_lp", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  lpName: text("lp_name").notNull(),
+  lpLegalName: text("lp_legal_name"),
+  firmType: text("firm_type"),
+  headquartersCountry: text("headquarters_country"),
+  headquartersCity: text("headquarters_city"),
+  totalAum: text("total_aum"),
+  aumCurrency: text("aum_currency"),
+  website: text("website"),
+  investorType: text("investor_type"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_lp_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesFund = pgTable("entities_fund", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  fundName: text("fund_name").notNull(),
+  gpId: varchar("gp_id").references(() => entitiesGp.id),
+  fundType: text("fund_type"),
+  vintageYear: integer("vintage_year"),
+  fundSize: text("fund_size"),
+  fundCurrency: text("fund_currency"),
+  targetSize: text("target_size"),
+  fundStatus: text("fund_status"),
+  primarySector: text("primary_sector"),
+  geographicFocus: text("geographic_focus"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_fund_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesPortfolioCompany = pgTable("entities_portfolio_company", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  companyName: text("company_name").notNull(),
+  companyType: text("company_type"),
+  headquartersCountry: text("headquarters_country"),
+  headquartersCity: text("headquarters_city"),
+  primaryIndustry: text("primary_industry"),
+  businessModel: text("business_model"),
+  website: text("website"),
+  businessDescription: text("business_description"),
+  foundedYear: integer("founded_year"),
+  employeeCount: integer("employee_count"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_portfolio_company_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesServiceProvider = pgTable("entities_service_provider", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  providerName: text("provider_name").notNull(),
+  providerType: text("provider_type"),
+  headquartersCountry: text("headquarters_country"),
+  headquartersCity: text("headquarters_city"),
+  website: text("website"),
+  servicesOffered: text("services_offered"),
+  sectorExpertise: text("sector_expertise"),
+  geographicCoverage: text("geographic_coverage"),
+  foundedYear: integer("founded_year"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_service_provider_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesContact = pgTable("entities_contact", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  title: text("title"),
+  companyName: text("company_name"),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  linkedinUrl: text("linkedin_url"),
+  notes: text("notes"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_contact_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesDeal = pgTable("entities_deal", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  dealName: text("deal_name").notNull(),
+  dealType: text("deal_type"),
+  dealStatus: text("deal_status"),
+  dealAmount: text("deal_amount"),
+  dealCurrency: text("deal_currency"),
+  dealDate: text("deal_date"),
+  targetCompany: text("target_company"),
+  acquirerCompany: text("acquirer_company"),
+  investorIds: text("investor_ids"),
+  sector: text("sector"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_deal_org_id_idx").on(table.orgId),
+]);
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertFirmSchema = createInsertSchema(firms).omit({ id: true });
@@ -209,6 +345,14 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
 export const insertAnnotationSchema = createInsertSchema(annotations).omit({ id: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true });
 export const insertMonitoredUrlSchema = createInsertSchema(monitoredUrls).omit({ id: true });
+
+export const insertEntityGpSchema = createInsertSchema(entitiesGp).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityLpSchema = createInsertSchema(entitiesLp).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityFundSchema = createInsertSchema(entitiesFund).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityPortfolioCompanySchema = createInsertSchema(entitiesPortfolioCompany).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityServiceProviderSchema = createInsertSchema(entitiesServiceProvider).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityContactSchema = createInsertSchema(entitiesContact).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntityDealSchema = createInsertSchema(entitiesDeal).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Organization = typeof organizations.$inferSelect;
@@ -232,6 +376,21 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertMonitoredUrl = z.infer<typeof insertMonitoredUrlSchema>;
 export type MonitoredUrl = typeof monitoredUrls.$inferSelect;
+
+export type InsertEntityGp = z.infer<typeof insertEntityGpSchema>;
+export type EntityGp = typeof entitiesGp.$inferSelect;
+export type InsertEntityLp = z.infer<typeof insertEntityLpSchema>;
+export type EntityLp = typeof entitiesLp.$inferSelect;
+export type InsertEntityFund = z.infer<typeof insertEntityFundSchema>;
+export type EntityFund = typeof entitiesFund.$inferSelect;
+export type InsertEntityPortfolioCompany = z.infer<typeof insertEntityPortfolioCompanySchema>;
+export type EntityPortfolioCompany = typeof entitiesPortfolioCompany.$inferSelect;
+export type InsertEntityServiceProvider = z.infer<typeof insertEntityServiceProviderSchema>;
+export type EntityServiceProvider = typeof entitiesServiceProvider.$inferSelect;
+export type InsertEntityContact = z.infer<typeof insertEntityContactSchema>;
+export type EntityContact = typeof entitiesContact.$inferSelect;
+export type InsertEntityDeal = z.infer<typeof insertEntityDealSchema>;
+export type EntityDeal = typeof entitiesDeal.$inferSelect;
 
 export const moduleAccessByRole: Record<UserRole, string[]> = {
   admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
