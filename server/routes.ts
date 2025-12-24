@@ -512,9 +512,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Organization name is required" });
       }
       
-      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      
-      const org = await storage.createOrganization({ name: name.trim(), slug });
+      const org = await storage.createOrganization({ name: name.trim() });
       return res.status(201).json(org);
     } catch (error: any) {
       console.error("Error creating organization:", error);
