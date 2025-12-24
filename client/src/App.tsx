@@ -11,6 +11,8 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import TrialLockedPage from "@/pages/trial-locked";
 import DashboardPage from "@/pages/dashboard";
 import AnnotatePage from "@/pages/annotate/index";
@@ -87,6 +89,8 @@ function AppRoutes() {
       <Switch>
         <Route path="/" component={LoginPage} />
         <Route path="/signup" component={SignupPage} />
+        <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
         <Route>
           <Redirect to="/" />
         </Route>
