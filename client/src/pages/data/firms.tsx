@@ -41,6 +41,7 @@ import {
   Eye, Pencil, Users, UserPlus, Link2, CheckCircle, AlertCircle, Clock,
   Briefcase, Mail, Phone, Linkedin
 } from "lucide-react";
+import { EntityUrlsSection } from "@/components/entity-urls-section";
 
 interface CrmGp {
   id: string;
@@ -481,6 +482,9 @@ function GpFirmForm({
       operating_regions: dv.operating_regions || "",
       office_locations: dv.office_locations || "",
       website: dv.website || "",
+      email: dv.email || "",
+      phone: dv.phone || "",
+      linkedin_url: dv.linkedin_url || "",
       regulatory_status: dv.regulatory_status || "",
       primary_regulator: dv.primary_regulator || "",
       registration_number: dv.registration_number || "",
@@ -526,6 +530,9 @@ function GpFirmForm({
       operating_regions: data.operating_regions || null,
       office_locations: data.office_locations || null,
       website: data.website || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      linkedin_url: data.linkedin_url || null,
       regulatory_status: data.regulatory_status || null,
       primary_regulator: data.primary_regulator || null,
       registration_number: data.registration_number || null,
@@ -614,6 +621,19 @@ function GpFirmForm({
           <FormField control={form.control} name="office_locations" render={({ field }) => (
             <FormItem><FormLabel>Office Locations</FormLabel><FormControl><Input {...field} placeholder="e.g., New York, London, Hong Kong" /></FormControl></FormItem>
           )} />
+
+          <SectionHeader title="Contact Information" />
+          <div className="grid grid-cols-3 gap-4">
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" placeholder="contact@firm.com" data-testid="input-gp-email" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} placeholder="+1 (555) 000-0000" data-testid="input-gp-phone" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="linkedin_url" render={({ field }) => (
+              <FormItem><FormLabel>LinkedIn URL</FormLabel><FormControl><Input {...field} placeholder="https://linkedin.com/company/..." data-testid="input-gp-linkedin" /></FormControl></FormItem>
+            )} />
+          </div>
 
           <SectionHeader title="Regulatory" />
           <div className="grid grid-cols-2 gap-4">
@@ -816,6 +836,13 @@ function GpFirmFullView({ gp, onClose }: { gp: any; onClose: () => void }) {
         </div>
         <FieldDisplay label="Office Locations" value={gp.office_locations} />
 
+        <SectionHeader title="Contact Information" />
+        <div className="grid grid-cols-3 gap-4">
+          <FieldDisplay label="Email" value={gp.email} />
+          <FieldDisplay label="Phone" value={gp.phone} />
+          <FieldDisplay label="LinkedIn" value={gp.linkedin_url} isLink />
+        </div>
+
         <SectionHeader title="Regulatory" />
         <div className="grid grid-cols-2 gap-4">
           <FieldDisplay label="Regulatory Status" value={gp.regulatory_status} />
@@ -920,6 +947,9 @@ function GpFirmFullView({ gp, onClose }: { gp: any; onClose: () => void }) {
             <Badge className={statusColors[gp.status || "active"]}>{gp.status || "active"}</Badge>
           </div>
         </div>
+
+        <SectionHeader title="URLs" />
+        <EntityUrlsSection entityType="gp" entityId={gp.id} readOnly />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -1629,6 +1659,9 @@ function LpFirmForm({
       operating_regions: dv.operating_regions || "",
       office_locations: dv.office_locations || "",
       website: dv.website || "",
+      email: dv.email || "",
+      phone: dv.phone || "",
+      linkedin_url: dv.linkedin_url || "",
       regulatory_status: dv.regulatory_status || "",
       primary_regulator: dv.primary_regulator || "",
       registration_number: dv.registration_number || "",
@@ -1673,6 +1706,9 @@ function LpFirmForm({
       operating_regions: data.operating_regions || null,
       office_locations: data.office_locations || null,
       website: data.website || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      linkedin_url: data.linkedin_url || null,
       regulatory_status: data.regulatory_status || null,
       primary_regulator: data.primary_regulator || null,
       registration_number: data.registration_number || null,
@@ -1758,6 +1794,19 @@ function LpFirmForm({
           <FormField control={form.control} name="office_locations" render={({ field }) => (
             <FormItem><FormLabel>Office Locations</FormLabel><FormControl><Input {...field} placeholder="e.g., New York, London" /></FormControl></FormItem>
           )} />
+
+          <SectionHeader title="Contact Information" />
+          <div className="grid grid-cols-3 gap-4">
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" placeholder="contact@firm.com" data-testid="input-lp-email" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} placeholder="+1 (555) 000-0000" data-testid="input-lp-phone" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="linkedin_url" render={({ field }) => (
+              <FormItem><FormLabel>LinkedIn URL</FormLabel><FormControl><Input {...field} placeholder="https://linkedin.com/company/..." data-testid="input-lp-linkedin" /></FormControl></FormItem>
+            )} />
+          </div>
 
           <SectionHeader title="Regulatory" />
           <div className="grid grid-cols-2 gap-4">
@@ -1952,6 +2001,13 @@ function LpFirmFullView({ lp, onClose }: { lp: any; onClose: () => void }) {
         </div>
         <FieldDisplay label="Office Locations" value={lp.office_locations} />
 
+        <SectionHeader title="Contact Information" />
+        <div className="grid grid-cols-3 gap-4">
+          <FieldDisplay label="Email" value={lp.email} />
+          <FieldDisplay label="Phone" value={lp.phone} />
+          <FieldDisplay label="LinkedIn" value={lp.linkedin_url} isLink />
+        </div>
+
         <SectionHeader title="Regulatory" />
         <div className="grid grid-cols-2 gap-4">
           <FieldDisplay label="Regulatory Status" value={lp.regulatory_status} />
@@ -2045,6 +2101,9 @@ function LpFirmFullView({ lp, onClose }: { lp: any; onClose: () => void }) {
             <Badge className={statusColors[lp.status || "active"]}>{lp.status || "active"}</Badge>
           </div>
         </div>
+
+        <SectionHeader title="URLs" />
+        <EntityUrlsSection entityType="lp" entityId={lp.id} readOnly />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -2281,6 +2340,7 @@ function ServiceProviderForm({
       website: dv.website || "",
       phone: dv.phone || "",
       email: dv.email || "",
+      linkedin_url: dv.linkedin_url || "",
       services_offered: dv.services_offered || "",
       sector_expertise: dv.sector_expertise || "",
       geographic_coverage: dv.geographic_coverage || "",
@@ -2326,6 +2386,7 @@ function ServiceProviderForm({
       website: data.website || null,
       phone: data.phone || null,
       email: data.email || null,
+      linkedin_url: data.linkedin_url || null,
       services_offered: data.services_offered || null,
       sector_expertise: data.sector_expertise || null,
       geographic_coverage: data.geographic_coverage || null,
@@ -2405,6 +2466,19 @@ function ServiceProviderForm({
             )} />
             <FormField control={form.control} name="office_locations" render={({ field }) => (
               <FormItem><FormLabel>Office Locations</FormLabel><FormControl><Input {...field} placeholder="e.g., NYC, London, Singapore" /></FormControl></FormItem>
+            )} />
+          </div>
+
+          <SectionHeader title="Contact Information" />
+          <div className="grid grid-cols-3 gap-4">
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" placeholder="contact@provider.com" data-testid="input-sp-email" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} placeholder="+1 (555) 000-0000" data-testid="input-sp-phone" /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="linkedin_url" render={({ field }) => (
+              <FormItem><FormLabel>LinkedIn URL</FormLabel><FormControl><Input {...field} placeholder="https://linkedin.com/company/..." data-testid="input-sp-linkedin" /></FormControl></FormItem>
             )} />
           </div>
 
@@ -2594,6 +2668,13 @@ function ServiceProviderFullView({ sp, onClose }: { sp: any; onClose: () => void
           <FieldDisplay label="Office Locations" value={sp.office_locations} />
         </div>
 
+        <SectionHeader title="Contact Information" />
+        <div className="grid grid-cols-3 gap-4">
+          <FieldDisplay label="Email" value={sp.email} />
+          <FieldDisplay label="Phone" value={sp.phone} />
+          <FieldDisplay label="LinkedIn" value={sp.linkedin_url} isLink />
+        </div>
+
         <SectionHeader title="Services & Expertise" />
         <FieldDisplay label="Services Offered" value={sp.services_offered} />
         <div className="grid grid-cols-2 gap-4">
@@ -2671,6 +2752,9 @@ function ServiceProviderFullView({ sp, onClose }: { sp: any; onClose: () => void
           <p className="text-sm text-muted-foreground">Status</p>
           <Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge>
         </div>
+
+        <SectionHeader title="URLs" />
+        <EntityUrlsSection entityType="service_provider" entityId={sp.id} readOnly />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -3359,6 +3443,9 @@ function PortfolioCompanyFullView({ pc, onClose }: { pc: any; onClose: () => voi
           <p className="text-sm text-muted-foreground">Status</p>
           <Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge>
         </div>
+
+        <SectionHeader title="URLs" />
+        <EntityUrlsSection entityType="portfolio_company" entityId={pc.id} readOnly />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
