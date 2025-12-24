@@ -1,4 +1,5 @@
 import {
+  type Organization, type InsertOrganization,
   type User, type InsertUser,
   type Firm, type InsertFirm,
   type Contact, type InsertContact,
@@ -9,6 +10,7 @@ import {
   type Annotation, type InsertAnnotation,
   type AuditLog, type InsertAuditLog,
   type MonitoredUrl, type InsertMonitoredUrl,
+  organizations,
   users,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -16,6 +18,11 @@ import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
+  getOrganizations(): Promise<Organization[]>;
+  getOrganization(id: string): Promise<Organization | undefined>;
+  createOrganization(org: InsertOrganization): Promise<Organization>;
+  updateOrganization(id: string, org: Partial<InsertOrganization>): Promise<Organization | undefined>;
+
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -81,6 +88,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private organizations: Map<string, Organization>;
   private users: Map<string, User>;
   private firms: Map<string, Firm>;
   private contacts: Map<string, Contact>;
@@ -93,6 +101,7 @@ export class MemStorage implements IStorage {
   private monitoredUrls: Map<string, MonitoredUrl>;
 
   constructor() {
+    this.organizations = new Map();
     this.users = new Map();
     this.firms = new Map();
     this.contacts = new Map();
@@ -105,6 +114,36 @@ export class MemStorage implements IStorage {
     this.monitoredUrls = new Map();
     
     this.seedData();
+  }
+
+  async getOrganizations(): Promise<Organization[]> {
+    return Array.from(this.organizations.values());
+  }
+
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    return this.organizations.get(id);
+  }
+
+  async createOrganization(insertOrg: InsertOrganization): Promise<Organization> {
+    const id = randomUUID();
+    const org: Organization = {
+      id,
+      isGuestOrg: false,
+      isActive: true,
+      createdAt: new Date(),
+      settings: {},
+      ...insertOrg,
+    };
+    this.organizations.set(id, org);
+    return org;
+  }
+
+  async updateOrganization(id: string, updates: Partial<InsertOrganization>): Promise<Organization | undefined> {
+    const org = this.organizations.get(id);
+    if (!org) return undefined;
+    const updated = { ...org, ...updates };
+    this.organizations.set(id, updated);
+    return updated;
   }
 
   private seedData() {
@@ -764,6 +803,37 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage extends MemStorage {
+  async getOrganizations(): Promise<Organization[]> {
+    return await db.select().from(organizations);
+  }
+
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    const result = await db.select().from(organizations).where(eq(organizations.id, id));
+    return result[0];
+  }
+
+  async createOrganization(insertOrg: InsertOrganization): Promise<Organization> {
+    const id = randomUUID();
+    const orgToInsert = {
+      id,
+      isGuestOrg: false,
+      isActive: true,
+      createdAt: new Date(),
+      settings: {},
+      ...insertOrg,
+    };
+    const result = await db.insert(organizations).values(orgToInsert).returning();
+    return result[0];
+  }
+
+  async updateOrganization(id: string, updates: Partial<InsertOrganization>): Promise<Organization | undefined> {
+    const result = await db.update(organizations)
+      .set(updates)
+      .where(eq(organizations.id, id))
+      .returning();
+    return result[0];
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];

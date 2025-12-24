@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import {
   loginSchema,
   signupSchema,
+  insertOrganizationSchema,
   insertFirmSchema,
   insertContactSchema,
   insertFundSchema,
@@ -407,6 +408,61 @@ export async function registerRoutes(
     
     const { password, ...userWithoutPassword } = rejected;
     return res.json(userWithoutPassword);
+  });
+
+  // Organizations routes
+  app.get("/api/organizations", async (_req: Request, res: Response) => {
+    const orgs = await storage.getOrganizations();
+    return res.json(orgs);
+  });
+
+  app.get("/api/organizations/:id", async (req: Request, res: Response) => {
+    const org = await storage.getOrganization(req.params.id);
+    if (!org) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+    return res.json(org);
+  });
+
+  app.post("/api/organizations", async (req: Request, res: Response) => {
+    try {
+      const adminId = req.headers["x-user-id"] as string;
+      if (!adminId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const admin = await storage.getUser(adminId);
+      if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
+        return res.status(403).json({ message: "Only admins and managers can create organizations" });
+      }
+      
+      const parsed = insertOrganizationSchema.parse(req.body);
+      const org = await storage.createOrganization(parsed);
+      return res.status(201).json(org);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      throw error;
+    }
+  });
+
+  app.patch("/api/organizations/:id", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can update organizations" });
+    }
+    
+    const updated = await storage.updateOrganization(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+    return res.json(updated);
   });
 
   // Firms routes - using in-memory storage with org scoping

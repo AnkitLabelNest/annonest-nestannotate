@@ -29,17 +29,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedTrial = localStorage.getItem("annonest_trial_status");
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+        localStorage.setItem("userId", parsed.id);
         if (storedTrial) {
-          const parsed = JSON.parse(storedTrial);
+          const trialParsed = JSON.parse(storedTrial);
           setTrialStatus({
-            ...parsed,
-            trialEndsAt: parsed.trialEndsAt ? new Date(parsed.trialEndsAt) : null,
+            ...trialParsed,
+            trialEndsAt: trialParsed.trialEndsAt ? new Date(trialParsed.trialEndsAt) : null,
           });
         }
       } catch {
         localStorage.removeItem("annonest_user");
         localStorage.removeItem("annonest_trial_status");
+        localStorage.removeItem("userId");
       }
     }
   }, []);
@@ -47,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (userData: User, trialStatusData?: TrialStatus | null) => {
     setUser(userData);
     localStorage.setItem("annonest_user", JSON.stringify(userData));
+    localStorage.setItem("userId", userData.id);
     if (trialStatusData !== undefined) {
       setTrialStatus(trialStatusData);
       if (trialStatusData) {
@@ -62,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTrialStatus(null);
     localStorage.removeItem("annonest_user");
     localStorage.removeItem("annonest_trial_status");
+    localStorage.removeItem("userId");
   };
 
   const hasModuleAccess = (moduleId: string): boolean => {
