@@ -22,22 +22,15 @@ import VideoLabelPage from "@/pages/annotate/video";
 import TranscriptionPage from "@/pages/annotate/transcription";
 import TranslationPage from "@/pages/annotate/translation";
 import DemoDataNestPage from "@/pages/data/index";
-import DemoFirmsPage from "@/pages/data/firms";
-import DemoContactsPage from "@/pages/data/contacts";
-import DemoFundsPage from "@/pages/data/funds";
-import DemoDealsPage from "@/pages/data/deals";
+import FirmsPage from "@/pages/data/firms";
+import ContactsPage from "@/pages/data/contacts";
+import FundsPage from "@/pages/data/funds";
+import DealsPage from "@/pages/data/deals";
 import ExtractionPage from "@/pages/extraction";
 import IntelligencePage from "@/pages/intelligence";
 import SettingsPage from "@/pages/settings";
 import AdminUsersPage from "@/pages/admin/users";
 import DataNestDashboard from "@/pages/crm/index";
-import GPsPage from "@/pages/crm/gps";
-import LPsPage from "@/pages/crm/lps";
-import DataNestFundsPage from "@/pages/crm/funds";
-import PortfolioCompaniesPage from "@/pages/crm/portfolio-companies";
-import ServiceProvidersPage from "@/pages/crm/service-providers";
-import DataNestContactsPage from "@/pages/crm/contacts";
-import DataNestDealsPage from "@/pages/crm/deals";
 import PublicCompaniesPage from "@/pages/crm/public-companies";
 import RelationshipsPage from "@/pages/crm/relationships";
 import AgritechPage from "@/pages/crm/agritech";
@@ -114,20 +107,20 @@ function AppRoutes() {
         <Route path="/annotate/transcription" component={TranscriptionPage} />
         <Route path="/annotate/translation" component={TranslationPage} />
         <Route path="/demo" component={DemoDataNestPage} />
-        <Route path="/demo/firms" component={DemoFirmsPage} />
-        <Route path="/demo/contacts" component={DemoContactsPage} />
-        <Route path="/demo/funds" component={DemoFundsPage} />
-        <Route path="/demo/deals" component={DemoDealsPage} />
+        <Route path="/demo/firms" component={() => <FirmsPage />} />
+        <Route path="/demo/contacts" component={ContactsPage} />
+        <Route path="/demo/funds" component={FundsPage} />
+        <Route path="/demo/deals" component={DealsPage} />
         <Route path="/extraction" component={ExtractionPage} />
         <Route path="/intelligence" component={IntelligencePage} />
         <Route path="/data" component={DataNestDashboard} />
-        <Route path="/data/gps" component={GPsPage} />
-        <Route path="/data/lps" component={LPsPage} />
-        <Route path="/data/funds" component={DataNestFundsPage} />
-        <Route path="/data/portfolio-companies" component={PortfolioCompaniesPage} />
-        <Route path="/data/service-providers" component={ServiceProvidersPage} />
-        <Route path="/data/contacts" component={DataNestContactsPage} />
-        <Route path="/data/deals" component={DataNestDealsPage} />
+        <Route path="/data/gps" component={() => <FirmsPage defaultTab="gp" />} />
+        <Route path="/data/lps" component={() => <FirmsPage defaultTab="lp" />} />
+        <Route path="/data/funds" component={FundsPage} />
+        <Route path="/data/portfolio-companies" component={() => <FirmsPage defaultTab="portfolio-company" />} />
+        <Route path="/data/service-providers" component={() => <FirmsPage defaultTab="service-provider" />} />
+        <Route path="/data/contacts" component={ContactsPage} />
+        <Route path="/data/deals" component={DealsPage} />
         <Route path="/data/public-companies" component={PublicCompaniesPage} />
         <Route path="/data/relationships" component={RelationshipsPage} />
         <Route path="/data/agritech" component={AgritechPage} />

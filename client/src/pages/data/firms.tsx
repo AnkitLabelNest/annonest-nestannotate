@@ -180,9 +180,13 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-export default function FirmsPage() {
+interface FirmsPageProps {
+  defaultTab?: "gp" | "lp" | "service-provider" | "portfolio-company";
+}
+
+export default function FirmsPage({ defaultTab = "gp" }: FirmsPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("gp");
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
     <div className="p-6 space-y-6">
@@ -208,7 +212,7 @@ export default function FirmsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "gp" | "lp" | "service-provider" | "portfolio-company")}>
             <TabsList className="mb-4 flex flex-wrap gap-1">
               <TabsTrigger value="gp">GP Firms</TabsTrigger>
               <TabsTrigger value="lp">LP Firms</TabsTrigger>
