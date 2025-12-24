@@ -10,11 +10,25 @@ import {
   type Annotation, type InsertAnnotation,
   type AuditLog, type InsertAuditLog,
   type MonitoredUrl, type InsertMonitoredUrl,
+  type EntityGp, type InsertEntityGp,
+  type EntityLp, type InsertEntityLp,
+  type EntityFund, type InsertEntityFund,
+  type EntityPortfolioCompany, type InsertEntityPortfolioCompany,
+  type EntityServiceProvider, type InsertEntityServiceProvider,
+  type EntityContact, type InsertEntityContact,
+  type EntityDeal, type InsertEntityDeal,
   organizations,
   users,
   firms,
   contacts,
   funds,
+  entitiesGp,
+  entitiesLp,
+  entitiesFund,
+  entitiesPortfolioCompany,
+  entitiesServiceProvider,
+  entitiesContact,
+  entitiesDeal,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -88,6 +102,48 @@ export interface IStorage {
   createMonitoredUrl(url: InsertMonitoredUrl & { orgId: string }): Promise<MonitoredUrl>;
   updateMonitoredUrl(id: string, orgId: string, url: Partial<InsertMonitoredUrl>): Promise<MonitoredUrl | undefined>;
   deleteMonitoredUrl(id: string, orgId: string): Promise<boolean>;
+
+  getGpFirms(orgId: string): Promise<EntityGp[]>;
+  getGpFirm(id: string, orgId: string): Promise<EntityGp | undefined>;
+  createGpFirm(gp: InsertEntityGp): Promise<EntityGp>;
+  updateGpFirm(id: string, orgId: string, gp: Partial<InsertEntityGp>): Promise<EntityGp | undefined>;
+  deleteGpFirm(id: string, orgId: string): Promise<boolean>;
+
+  getLpFirms(orgId: string): Promise<EntityLp[]>;
+  getLpFirm(id: string, orgId: string): Promise<EntityLp | undefined>;
+  createLpFirm(lp: InsertEntityLp): Promise<EntityLp>;
+  updateLpFirm(id: string, orgId: string, lp: Partial<InsertEntityLp>): Promise<EntityLp | undefined>;
+  deleteLpFirm(id: string, orgId: string): Promise<boolean>;
+
+  getEntityFunds(orgId: string): Promise<EntityFund[]>;
+  getEntityFund(id: string, orgId: string): Promise<EntityFund | undefined>;
+  createEntityFund(fund: InsertEntityFund): Promise<EntityFund>;
+  updateEntityFund(id: string, orgId: string, fund: Partial<InsertEntityFund>): Promise<EntityFund | undefined>;
+  deleteEntityFund(id: string, orgId: string): Promise<boolean>;
+
+  getPortfolioCompanies(orgId: string): Promise<EntityPortfolioCompany[]>;
+  getPortfolioCompany(id: string, orgId: string): Promise<EntityPortfolioCompany | undefined>;
+  createPortfolioCompany(pc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany>;
+  updatePortfolioCompany(id: string, orgId: string, pc: Partial<InsertEntityPortfolioCompany>): Promise<EntityPortfolioCompany | undefined>;
+  deletePortfolioCompany(id: string, orgId: string): Promise<boolean>;
+
+  getServiceProviders(orgId: string): Promise<EntityServiceProvider[]>;
+  getServiceProvider(id: string, orgId: string): Promise<EntityServiceProvider | undefined>;
+  createServiceProvider(sp: InsertEntityServiceProvider): Promise<EntityServiceProvider>;
+  updateServiceProvider(id: string, orgId: string, sp: Partial<InsertEntityServiceProvider>): Promise<EntityServiceProvider | undefined>;
+  deleteServiceProvider(id: string, orgId: string): Promise<boolean>;
+
+  getEntityContacts(orgId: string): Promise<EntityContact[]>;
+  getEntityContact(id: string, orgId: string): Promise<EntityContact | undefined>;
+  createEntityContact(contact: InsertEntityContact): Promise<EntityContact>;
+  updateEntityContact(id: string, orgId: string, contact: Partial<InsertEntityContact>): Promise<EntityContact | undefined>;
+  deleteEntityContact(id: string, orgId: string): Promise<boolean>;
+
+  getEntityDeals(orgId: string): Promise<EntityDeal[]>;
+  getEntityDeal(id: string, orgId: string): Promise<EntityDeal | undefined>;
+  createEntityDeal(deal: InsertEntityDeal): Promise<EntityDeal>;
+  updateEntityDeal(id: string, orgId: string, deal: Partial<InsertEntityDeal>): Promise<EntityDeal | undefined>;
+  deleteEntityDeal(id: string, orgId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -803,6 +859,48 @@ export class MemStorage implements IStorage {
     if (!url || url.orgId !== orgId) return false;
     return this.monitoredUrls.delete(id);
   }
+
+  async getGpFirms(_orgId: string): Promise<EntityGp[]> { return []; }
+  async getGpFirm(_id: string, _orgId: string): Promise<EntityGp | undefined> { return undefined; }
+  async createGpFirm(_gp: InsertEntityGp): Promise<EntityGp> { throw new Error("Not implemented"); }
+  async updateGpFirm(_id: string, _orgId: string, _gp: Partial<InsertEntityGp>): Promise<EntityGp | undefined> { return undefined; }
+  async deleteGpFirm(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getLpFirms(_orgId: string): Promise<EntityLp[]> { return []; }
+  async getLpFirm(_id: string, _orgId: string): Promise<EntityLp | undefined> { return undefined; }
+  async createLpFirm(_lp: InsertEntityLp): Promise<EntityLp> { throw new Error("Not implemented"); }
+  async updateLpFirm(_id: string, _orgId: string, _lp: Partial<InsertEntityLp>): Promise<EntityLp | undefined> { return undefined; }
+  async deleteLpFirm(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getEntityFunds(_orgId: string): Promise<EntityFund[]> { return []; }
+  async getEntityFund(_id: string, _orgId: string): Promise<EntityFund | undefined> { return undefined; }
+  async createEntityFund(_fund: InsertEntityFund): Promise<EntityFund> { throw new Error("Not implemented"); }
+  async updateEntityFund(_id: string, _orgId: string, _fund: Partial<InsertEntityFund>): Promise<EntityFund | undefined> { return undefined; }
+  async deleteEntityFund(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getPortfolioCompanies(_orgId: string): Promise<EntityPortfolioCompany[]> { return []; }
+  async getPortfolioCompany(_id: string, _orgId: string): Promise<EntityPortfolioCompany | undefined> { return undefined; }
+  async createPortfolioCompany(_pc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany> { throw new Error("Not implemented"); }
+  async updatePortfolioCompany(_id: string, _orgId: string, _pc: Partial<InsertEntityPortfolioCompany>): Promise<EntityPortfolioCompany | undefined> { return undefined; }
+  async deletePortfolioCompany(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getServiceProviders(_orgId: string): Promise<EntityServiceProvider[]> { return []; }
+  async getServiceProvider(_id: string, _orgId: string): Promise<EntityServiceProvider | undefined> { return undefined; }
+  async createServiceProvider(_sp: InsertEntityServiceProvider): Promise<EntityServiceProvider> { throw new Error("Not implemented"); }
+  async updateServiceProvider(_id: string, _orgId: string, _sp: Partial<InsertEntityServiceProvider>): Promise<EntityServiceProvider | undefined> { return undefined; }
+  async deleteServiceProvider(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getEntityContacts(_orgId: string): Promise<EntityContact[]> { return []; }
+  async getEntityContact(_id: string, _orgId: string): Promise<EntityContact | undefined> { return undefined; }
+  async createEntityContact(_contact: InsertEntityContact): Promise<EntityContact> { throw new Error("Not implemented"); }
+  async updateEntityContact(_id: string, _orgId: string, _contact: Partial<InsertEntityContact>): Promise<EntityContact | undefined> { return undefined; }
+  async deleteEntityContact(_id: string, _orgId: string): Promise<boolean> { return false; }
+
+  async getEntityDeals(_orgId: string): Promise<EntityDeal[]> { return []; }
+  async getEntityDeal(_id: string, _orgId: string): Promise<EntityDeal | undefined> { return undefined; }
+  async createEntityDeal(_deal: InsertEntityDeal): Promise<EntityDeal> { throw new Error("Not implemented"); }
+  async updateEntityDeal(_id: string, _orgId: string, _deal: Partial<InsertEntityDeal>): Promise<EntityDeal | undefined> { return undefined; }
+  async deleteEntityDeal(_id: string, _orgId: string): Promise<boolean> { return false; }
 }
 
 export class DatabaseStorage extends MemStorage {
@@ -1094,6 +1192,237 @@ export class DatabaseStorage extends MemStorage {
   async deleteFund(id: string, orgId: string): Promise<boolean> {
     const result = await db.delete(funds)
       .where(and(eq(funds.id, id), eq(funds.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getGpFirms(orgId: string): Promise<EntityGp[]> {
+    return await db.select().from(entitiesGp).where(eq(entitiesGp.orgId, orgId));
+  }
+
+  async getGpFirm(id: string, orgId: string): Promise<EntityGp | undefined> {
+    const result = await db.select().from(entitiesGp).where(
+      and(eq(entitiesGp.id, id), eq(entitiesGp.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createGpFirm(insertGp: InsertEntityGp): Promise<EntityGp> {
+    const id = randomUUID();
+    const gpToInsert = { id, ...insertGp };
+    const result = await db.insert(entitiesGp).values(gpToInsert).returning();
+    return result[0];
+  }
+
+  async updateGpFirm(id: string, orgId: string, updates: Partial<InsertEntityGp>): Promise<EntityGp | undefined> {
+    const result = await db.update(entitiesGp)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesGp.id, id), eq(entitiesGp.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteGpFirm(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesGp)
+      .where(and(eq(entitiesGp.id, id), eq(entitiesGp.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getLpFirms(orgId: string): Promise<EntityLp[]> {
+    return await db.select().from(entitiesLp).where(eq(entitiesLp.orgId, orgId));
+  }
+
+  async getLpFirm(id: string, orgId: string): Promise<EntityLp | undefined> {
+    const result = await db.select().from(entitiesLp).where(
+      and(eq(entitiesLp.id, id), eq(entitiesLp.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createLpFirm(insertLp: InsertEntityLp): Promise<EntityLp> {
+    const id = randomUUID();
+    const lpToInsert = { id, ...insertLp };
+    const result = await db.insert(entitiesLp).values(lpToInsert).returning();
+    return result[0];
+  }
+
+  async updateLpFirm(id: string, orgId: string, updates: Partial<InsertEntityLp>): Promise<EntityLp | undefined> {
+    const result = await db.update(entitiesLp)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesLp.id, id), eq(entitiesLp.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteLpFirm(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesLp)
+      .where(and(eq(entitiesLp.id, id), eq(entitiesLp.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getEntityFunds(orgId: string): Promise<EntityFund[]> {
+    return await db.select().from(entitiesFund).where(eq(entitiesFund.orgId, orgId));
+  }
+
+  async getEntityFund(id: string, orgId: string): Promise<EntityFund | undefined> {
+    const result = await db.select().from(entitiesFund).where(
+      and(eq(entitiesFund.id, id), eq(entitiesFund.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createEntityFund(insertFund: InsertEntityFund): Promise<EntityFund> {
+    const id = randomUUID();
+    const fundToInsert = { id, ...insertFund };
+    const result = await db.insert(entitiesFund).values(fundToInsert).returning();
+    return result[0];
+  }
+
+  async updateEntityFund(id: string, orgId: string, updates: Partial<InsertEntityFund>): Promise<EntityFund | undefined> {
+    const result = await db.update(entitiesFund)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesFund.id, id), eq(entitiesFund.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEntityFund(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesFund)
+      .where(and(eq(entitiesFund.id, id), eq(entitiesFund.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getPortfolioCompanies(orgId: string): Promise<EntityPortfolioCompany[]> {
+    return await db.select().from(entitiesPortfolioCompany).where(eq(entitiesPortfolioCompany.orgId, orgId));
+  }
+
+  async getPortfolioCompany(id: string, orgId: string): Promise<EntityPortfolioCompany | undefined> {
+    const result = await db.select().from(entitiesPortfolioCompany).where(
+      and(eq(entitiesPortfolioCompany.id, id), eq(entitiesPortfolioCompany.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createPortfolioCompany(insertPc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany> {
+    const id = randomUUID();
+    const pcToInsert = { id, ...insertPc };
+    const result = await db.insert(entitiesPortfolioCompany).values(pcToInsert).returning();
+    return result[0];
+  }
+
+  async updatePortfolioCompany(id: string, orgId: string, updates: Partial<InsertEntityPortfolioCompany>): Promise<EntityPortfolioCompany | undefined> {
+    const result = await db.update(entitiesPortfolioCompany)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesPortfolioCompany.id, id), eq(entitiesPortfolioCompany.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deletePortfolioCompany(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesPortfolioCompany)
+      .where(and(eq(entitiesPortfolioCompany.id, id), eq(entitiesPortfolioCompany.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getServiceProviders(orgId: string): Promise<EntityServiceProvider[]> {
+    return await db.select().from(entitiesServiceProvider).where(eq(entitiesServiceProvider.orgId, orgId));
+  }
+
+  async getServiceProvider(id: string, orgId: string): Promise<EntityServiceProvider | undefined> {
+    const result = await db.select().from(entitiesServiceProvider).where(
+      and(eq(entitiesServiceProvider.id, id), eq(entitiesServiceProvider.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createServiceProvider(insertSp: InsertEntityServiceProvider): Promise<EntityServiceProvider> {
+    const id = randomUUID();
+    const spToInsert = { id, ...insertSp };
+    const result = await db.insert(entitiesServiceProvider).values(spToInsert).returning();
+    return result[0];
+  }
+
+  async updateServiceProvider(id: string, orgId: string, updates: Partial<InsertEntityServiceProvider>): Promise<EntityServiceProvider | undefined> {
+    const result = await db.update(entitiesServiceProvider)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesServiceProvider.id, id), eq(entitiesServiceProvider.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteServiceProvider(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesServiceProvider)
+      .where(and(eq(entitiesServiceProvider.id, id), eq(entitiesServiceProvider.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getEntityContacts(orgId: string): Promise<EntityContact[]> {
+    return await db.select().from(entitiesContact).where(eq(entitiesContact.orgId, orgId));
+  }
+
+  async getEntityContact(id: string, orgId: string): Promise<EntityContact | undefined> {
+    const result = await db.select().from(entitiesContact).where(
+      and(eq(entitiesContact.id, id), eq(entitiesContact.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createEntityContact(insertContact: InsertEntityContact): Promise<EntityContact> {
+    const id = randomUUID();
+    const contactToInsert = { id, ...insertContact };
+    const result = await db.insert(entitiesContact).values(contactToInsert).returning();
+    return result[0];
+  }
+
+  async updateEntityContact(id: string, orgId: string, updates: Partial<InsertEntityContact>): Promise<EntityContact | undefined> {
+    const result = await db.update(entitiesContact)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesContact.id, id), eq(entitiesContact.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEntityContact(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesContact)
+      .where(and(eq(entitiesContact.id, id), eq(entitiesContact.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getEntityDeals(orgId: string): Promise<EntityDeal[]> {
+    return await db.select().from(entitiesDeal).where(eq(entitiesDeal.orgId, orgId));
+  }
+
+  async getEntityDeal(id: string, orgId: string): Promise<EntityDeal | undefined> {
+    const result = await db.select().from(entitiesDeal).where(
+      and(eq(entitiesDeal.id, id), eq(entitiesDeal.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createEntityDeal(insertDeal: InsertEntityDeal): Promise<EntityDeal> {
+    const id = randomUUID();
+    const dealToInsert = { id, ...insertDeal };
+    const result = await db.insert(entitiesDeal).values(dealToInsert).returning();
+    return result[0];
+  }
+
+  async updateEntityDeal(id: string, orgId: string, updates: Partial<InsertEntityDeal>): Promise<EntityDeal | undefined> {
+    const result = await db.update(entitiesDeal)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(entitiesDeal.id, id), eq(entitiesDeal.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEntityDeal(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(entitiesDeal)
+      .where(and(eq(entitiesDeal.id, id), eq(entitiesDeal.orgId, orgId)))
       .returning();
     return result.length > 0;
   }
