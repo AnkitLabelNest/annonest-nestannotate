@@ -68,6 +68,14 @@ export async function registerRoutes(
     return { isTrialExpired, isApproved };
   }
 
+  function getOrgIdByEmailDomain(email: string): string {
+    // Labelnest org for @labelnest.in emails, Guest Firm for others
+    if (email.endsWith("@labelnest.in")) {
+      return "b650b699-16be-43bc-9119-0250cea2e44e"; // Labelnest
+    }
+    return "f971a315-dec1-4bcf-b098-af6e5abd32b5"; // Guest Firm
+  }
+
   async function getUserOrgId(req: Request): Promise<string> {
     const userId = req.headers["x-user-id"] as string;
     if (!userId) {
@@ -177,11 +185,14 @@ export async function registerRoutes(
                            supabaseUser.email?.split("@")[0] || 
                            "User";
         
+        const email = supabaseUser.email || "";
+        const orgId = getOrgIdByEmailDomain(email);
+        
         user = await storage.createUserWithId(supabaseUser.id, {
-          orgId: "b650b699-16be-43bc-9119-0250cea2e44e",
-          username: supabaseUser.email || supabaseUser.id,
+          orgId,
+          username: email || supabaseUser.id,
           password: await bcrypt.hash(crypto.randomUUID(), 10), // Random password for Supabase users
-          email: supabaseUser.email || "",
+          email,
           displayName,
           role: "annotator",
           isActive: true,
@@ -270,11 +281,12 @@ export async function registerRoutes(
 
       const isSupabaseUser = !!verifiedSupabaseId;
       const trialDurationMs = 5 * 60 * 1000;
+      const orgId = getOrgIdByEmailDomain(parsed.email);
       
       const newUser = await storage.createUserWithId(
         verifiedSupabaseId,
         {
-          orgId: isSupabaseUser ? "b650b699-16be-43bc-9119-0250cea2e44e" : "f971a315-dec1-4bcf-b098-af6e5abd32b5",
+          orgId,
           username: parsed.email,
           password: hashedPassword,
           email: parsed.email,
