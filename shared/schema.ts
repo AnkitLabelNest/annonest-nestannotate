@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, index, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -269,6 +269,16 @@ export const entitiesPortfolioCompany = pgTable("entities_portfolio_company", {
   foundedYear: integer("founded_year"),
   employeeCount: integer("employee_count"),
   status: text("status").default("active"),
+  // Financial snapshot (bands only)
+  revenueBand: text("revenue_band"),
+  valuationBand: text("valuation_band"),
+  // Lifecycle & ownership
+  currentOwnerType: text("current_owner_type"),
+  exitType: text("exit_type"),
+  exitYear: integer("exit_year"),
+  // Intelligence metadata
+  confidenceScore: integer("confidence_score"),
+  dataSource: text("data_source"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -308,6 +318,23 @@ export const entitiesContact = pgTable("entities_contact", {
   linkedinUrl: text("linkedin_url"),
   notes: text("notes"),
   status: text("status").default("active"),
+  // Professional context
+  roleCategory: text("role_category"),
+  seniorityLevel: text("seniority_level"),
+  // Coverage intelligence
+  assetClassFocus: text("asset_class_focus"),
+  sectorFocus: text("sector_focus"),
+  geographyFocus: text("geography_focus"),
+  // Verification & trust
+  verificationStatus: text("verification_status"),
+  verificationSource: text("verification_source"),
+  lastVerifiedAt: timestamp("last_verified_at"),
+  // Relationship intelligence
+  associatedFundIds: text("associated_fund_ids"),
+  boardRoles: text("board_roles"),
+  // Internal scoring
+  confidenceScore: integer("confidence_score"),
+  importanceScore: integer("importance_score"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -328,6 +355,19 @@ export const entitiesDeal = pgTable("entities_deal", {
   investorIds: text("investor_ids"),
   sector: text("sector"),
   notes: text("notes"),
+  // Classification
+  dealRound: text("deal_round"),
+  assetClass: text("asset_class"),
+  // Structured relationships
+  targetCompanyId: varchar("target_company_id"),
+  acquirerCompanyId: varchar("acquirer_company_id"),
+  // Investment context
+  leadInvestor: boolean("lead_investor"),
+  ownershipPercentage: numeric("ownership_percentage"),
+  // Trust & quality
+  verificationStatus: text("verification_status"),
+  confidenceScore: integer("confidence_score"),
+  sourceUrls: text("source_urls"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

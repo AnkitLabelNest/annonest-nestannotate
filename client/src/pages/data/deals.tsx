@@ -33,8 +33,14 @@ import { useForm } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Briefcase, Building2, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react";
+import { Search, Plus, Briefcase, Building2, Calendar, DollarSign, TrendingUp, Loader2, Shield, Percent, Link2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { EntityDeal } from "@shared/schema";
+
+const dealRoundOptions = ["Seed", "Series A", "Series B", "Series C", "Series D+", "Growth", "Late Stage", "Pre-IPO", "IPO", "Other"];
+const assetClassOptions = ["Private Equity", "Venture Capital", "Real Estate", "Infrastructure", "Credit", "Hedge Fund", "Other"];
+const verificationStatuses = ["verified", "partial", "unverified"];
 
 const statusColors: Record<string, string> = {
   active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
@@ -69,8 +75,8 @@ export default function DealsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityDeal>) => {
-      const res = await apiRequest("POST", "/api/entities/deals", data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/crm/deals", data);
       return res.json();
     },
     onSuccess: () => {
@@ -85,7 +91,7 @@ export default function DealsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<EntityDeal> }) => {
-      const res = await apiRequest("PUT", `/api/entities/deals/${id}`, data);
+      const res = await apiRequest("PATCH", `/api/crm/deals/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -299,69 +305,210 @@ function DealForm({
   onCancel: () => void;
   isEdit?: boolean;
 }) {
+  const d = defaultValues as any;
   const form = useForm({
     defaultValues: {
-      dealName: defaultValues?.dealName || "",
-      dealType: defaultValues?.dealType || "",
-      dealStatus: defaultValues?.dealStatus || "active",
-      dealAmount: defaultValues?.dealAmount || "",
-      dealCurrency: defaultValues?.dealCurrency || "USD",
-      dealDate: defaultValues?.dealDate || "",
-      targetCompany: defaultValues?.targetCompany || "",
-      acquirerCompany: defaultValues?.acquirerCompany || "",
-      sector: defaultValues?.sector || "",
-      notes: defaultValues?.notes || "",
+      deal_name: defaultValues?.dealName || d?.deal_name || "",
+      deal_type: defaultValues?.dealType || d?.deal_type || "",
+      deal_status: defaultValues?.dealStatus || d?.deal_status || "active",
+      deal_amount: defaultValues?.dealAmount || d?.deal_amount || "",
+      deal_currency: defaultValues?.dealCurrency || d?.deal_currency || "USD",
+      deal_date: defaultValues?.dealDate || d?.deal_date || "",
+      target_company: defaultValues?.targetCompany || d?.target_company || "",
+      acquirer_company: defaultValues?.acquirerCompany || d?.acquirer_company || "",
+      investor_ids: defaultValues?.investorIds || d?.investor_ids || "",
+      sector: defaultValues?.sector || d?.sector || "",
+      notes: defaultValues?.notes || d?.notes || "",
+      deal_round: d?.dealRound || d?.deal_round || "",
+      asset_class: d?.assetClass || d?.asset_class || "",
+      target_company_id: d?.targetCompanyId || d?.target_company_id || "",
+      acquirer_company_id: d?.acquirerCompanyId || d?.acquirer_company_id || "",
+      lead_investor: d?.leadInvestor || d?.lead_investor || false,
+      ownership_percentage: d?.ownershipPercentage || d?.ownership_percentage || "",
+      verification_status: d?.verificationStatus || d?.verification_status || "",
+      confidence_score: d?.confidenceScore || d?.confidence_score || "",
+      source_urls: d?.sourceUrls || d?.source_urls || "",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      dealName: data.dealName || null,
-      dealType: data.dealType || null,
-      dealStatus: data.dealStatus || "active",
-      dealAmount: data.dealAmount || null,
-      dealCurrency: data.dealCurrency || null,
-      dealDate: data.dealDate || null,
-      targetCompany: data.targetCompany || null,
-      acquirerCompany: data.acquirerCompany || null,
+      deal_name: data.deal_name || null,
+      deal_type: data.deal_type || null,
+      deal_status: data.deal_status || "active",
+      deal_amount: data.deal_amount || null,
+      deal_currency: data.deal_currency || null,
+      deal_date: data.deal_date || null,
+      target_company: data.target_company || null,
+      acquirer_company: data.acquirer_company || null,
+      investor_ids: data.investor_ids || null,
       sector: data.sector || null,
       notes: data.notes || null,
-    });
+      deal_round: data.deal_round || null,
+      asset_class: data.asset_class || null,
+      target_company_id: data.target_company_id || null,
+      acquirer_company_id: data.acquirer_company_id || null,
+      lead_investor: data.lead_investor || false,
+      ownership_percentage: data.ownership_percentage || null,
+      verification_status: data.verification_status || null,
+      confidence_score: data.confidence_score ? parseInt(data.confidence_score) : null,
+      source_urls: data.source_urls || null,
+    } as any);
   };
 
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
-        <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
-          <FormField
-            control={form.control}
-            name="dealName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Deal Name *</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Deal name" data-testid="input-deal-name" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
+        <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic Information</h3>
             <FormField
               control={form.control}
-              name="dealType"
+              name="deal_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Deal Type</FormLabel>
+                  <FormLabel>Deal Name *</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Deal name" data-testid="input-deal-name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="deal_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-deal-type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {dealTypeOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="deal_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Date</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="YYYY-MM-DD" data-testid="input-deal-date" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="deal_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Amount</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., 100M" data-testid="input-deal-amount" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="deal_currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-currency">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencyOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Classification</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="deal_round"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Round</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-deal-round">
+                          <SelectValue placeholder="Select round" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {dealRoundOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="asset_class"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Class</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-asset-class">
+                          <SelectValue placeholder="Select asset class" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {assetClassOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="sector"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sector</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger data-testid="select-deal-type">
-                        <SelectValue placeholder="Select type" />
+                      <SelectTrigger data-testid="select-sector">
+                        <SelectValue placeholder="Select sector" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {dealTypeOptions.map((opt) => (
+                      {sectorOptions.map((opt) => (
                         <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                       ))}
                     </SelectContent>
@@ -369,141 +516,207 @@ function DealForm({
                 </FormItem>
               )}
             />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Parties</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="target_company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target Company (Text)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Target company name" data-testid="input-target-company" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="acquirer_company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Acquirer / Investor (Text)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Acquirer or investor name" data-testid="input-acquirer" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="target_company_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target Company ID</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Portfolio company ID" data-testid="input-target-company-id" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="acquirer_company_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Acquirer Company ID</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Organization ID" data-testid="input-acquirer-company-id" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
-              name="dealDate"
+              name="investor_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Deal Date</FormLabel>
+                  <FormLabel>Investor IDs</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="YYYY-MM-DD" data-testid="input-deal-date" />
+                    <Input {...field} placeholder="Comma-separated investor IDs" data-testid="input-investor-ids" />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Investment Context</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="lead_investor"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-lead-investor"
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Lead Investor</FormLabel>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ownership_percentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ownership Percentage</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.01" min="0" max="100" placeholder="e.g., 25.5" data-testid="input-ownership" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Trust & Quality</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="verification_status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verification Status</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-verification-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {verificationStatuses.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confidence_score"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confidence Score (0-100)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="0" max="100" placeholder="0-100" data-testid="input-confidence" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
-              name="dealAmount"
+              name="source_urls"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Deal Amount</FormLabel>
+                  <FormLabel>Source URLs</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g., 100M" data-testid="input-deal-amount" />
+                    <Input {...field} placeholder="Comma-separated URLs" data-testid="input-source-urls" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Additional Info</h3>
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Additional notes..." data-testid="input-notes" />
                   </FormControl>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="dealCurrency"
+              name="deal_status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency</FormLabel>
+                  <FormLabel>Status</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger data-testid="select-currency">
+                      <SelectTrigger data-testid="select-status">
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {currencyOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                      ))}
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="exited">Exited</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="targetCompany"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Target Company</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Target company name" data-testid="input-target-company" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="acquirerCompany"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Acquirer / Investor</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Acquirer or investor name" data-testid="input-acquirer" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="sector"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Sector</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-sector">
-                      <SelectValue placeholder="Select sector" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {sectorOptions.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl>
-                  <Textarea {...field} placeholder="Additional notes..." data-testid="input-notes" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="dealStatus"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                    <SelectItem value="exited">Exited</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>
@@ -521,55 +734,145 @@ function DealForm({
 }
 
 function DealView({ deal, onClose }: { deal: EntityDeal; onClose: () => void }) {
+  const d = deal as any;
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Deal Name</p>
-          <p className="font-medium">{deal.dealName || "-"}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic Information</h3>
           <div>
-            <p className="text-sm text-muted-foreground">Deal Type</p>
-            <Badge className={dealTypeColors[deal.dealType || ""] || "bg-secondary"}>
-              {deal.dealType || "-"}
+            <p className="text-sm text-muted-foreground">Deal Name</p>
+            <p className="font-medium">{deal.dealName || d.deal_name || "-"}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Deal Type</p>
+              <Badge className={dealTypeColors[deal.dealType || d.deal_type || ""] || "bg-secondary"}>
+                {deal.dealType || d.deal_type || "-"}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Deal Date</p>
+              <p className="font-medium">{deal.dealDate || d.deal_date || "-"}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Deal Amount</p>
+              <p className="font-medium">{(deal.dealAmount || d.deal_amount) ? `${deal.dealAmount || d.deal_amount} ${deal.dealCurrency || d.deal_currency || "USD"}` : "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Sector</p>
+              <p className="font-medium">{deal.sector || d.sector || "-"}</p>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Classification</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Deal Round</p>
+              <p className="font-medium">{d.deal_round || d.dealRound || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Asset Class</p>
+              <p className="font-medium">{d.asset_class || d.assetClass || "-"}</p>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Parties</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Target Company</p>
+              <p className="font-medium">{deal.targetCompany || d.target_company || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Acquirer / Investor</p>
+              <p className="font-medium">{deal.acquirerCompany || d.acquirer_company || "-"}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Target Company ID</p>
+              <p className="font-medium">{d.target_company_id || d.targetCompanyId || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Acquirer Company ID</p>
+              <p className="font-medium">{d.acquirer_company_id || d.acquirerCompanyId || "-"}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Investor IDs</p>
+            <p className="font-medium">{deal.investorIds || d.investor_ids || "-"}</p>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Investment Context</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Lead Investor</p>
+              <p className="font-medium">{(d.lead_investor || d.leadInvestor) ? "Yes" : "No"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Ownership Percentage</p>
+              <p className="font-medium">{d.ownership_percentage || d.ownershipPercentage ? `${d.ownership_percentage || d.ownershipPercentage}%` : "-"}</p>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Trust & Quality</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Verification Status</p>
+              {(d.verification_status || d.verificationStatus) ? (
+                <Badge variant={
+                  (d.verification_status || d.verificationStatus) === "verified" ? "default" : 
+                  (d.verification_status || d.verificationStatus) === "partial" ? "secondary" : "outline"
+                }>
+                  {d.verification_status || d.verificationStatus}
+                </Badge>
+              ) : <p className="font-medium">-</p>}
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Confidence Score</p>
+              <p className="font-medium">{d.confidence_score ?? d.confidenceScore ?? "-"}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Source URLs</p>
+            <p className="font-medium break-all">{d.source_urls || d.sourceUrls || "-"}</p>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Additional Info</h3>
+          <div>
+            <p className="text-sm text-muted-foreground">Notes</p>
+            <p className="font-medium">{deal.notes || d.notes || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[deal.dealStatus || d.deal_status || "active"]}>
+              {deal.dealStatus || d.deal_status || "active"}
             </Badge>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Deal Date</p>
-            <p className="font-medium">{deal.dealDate || "-"}</p>
-          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Deal Amount</p>
-            <p className="font-medium">{deal.dealAmount ? `${deal.dealAmount} ${deal.dealCurrency || "USD"}` : "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Sector</p>
-            <p className="font-medium">{deal.sector || "-"}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Target Company</p>
-            <p className="font-medium">{deal.targetCompany || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Acquirer / Investor</p>
-            <p className="font-medium">{deal.acquirerCompany || "-"}</p>
-          </div>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Notes</p>
-          <p className="font-medium">{deal.notes || "-"}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[deal.dealStatus || "active"]}>
-            {deal.dealStatus || "active"}
-          </Badge>
-        </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>

@@ -34,8 +34,14 @@ import { useForm } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Mail, Phone, Linkedin, Building2, Users, Loader2 } from "lucide-react";
+import { Search, Plus, Mail, Phone, Linkedin, Building2, Users, Loader2, Shield, Target, Globe, Award, Star } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import type { EntityContact } from "@shared/schema";
+
+const roleCategories = ["Investment", "IR", "Ops", "Legal", "Board", "Other"];
+const seniorityLevels = ["Partner", "Principal", "VP", "Associate", "Analyst", "Other"];
+const verificationStatuses = ["verified", "partial", "unverified"];
+const verificationSources = ["website", "linkedin", "filing", "manual"];
 
 const statusColors: Record<string, string> = {
   active: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
@@ -57,8 +63,8 @@ export default function ContactsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityContact>) => {
-      const res = await apiRequest("POST", "/api/entities/contacts", data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/crm/contacts", data);
       return res.json();
     },
     onSuccess: () => {
@@ -73,7 +79,7 @@ export default function ContactsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<EntityContact> }) => {
-      const res = await apiRequest("PUT", `/api/entities/contacts/${id}`, data);
+      const res = await apiRequest("PATCH", `/api/crm/contacts/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -299,190 +305,425 @@ function ContactForm({
 }) {
   const form = useForm({
     defaultValues: {
-      firstName: defaultValues?.firstName || "",
-      lastName: defaultValues?.lastName || "",
+      first_name: defaultValues?.firstName || "",
+      last_name: defaultValues?.lastName || "",
       email: defaultValues?.email || "",
       phone: defaultValues?.phone || "",
       title: defaultValues?.title || "",
-      companyName: defaultValues?.companyName || "",
-      entityType: defaultValues?.entityType || "",
-      linkedinUrl: defaultValues?.linkedinUrl || "",
+      company_name: defaultValues?.companyName || "",
+      entity_type: defaultValues?.entityType || "",
+      linkedin_url: defaultValues?.linkedinUrl || "",
       notes: defaultValues?.notes || "",
       status: defaultValues?.status || "active",
+      role_category: (defaultValues as any)?.roleCategory || (defaultValues as any)?.role_category || "",
+      seniority_level: (defaultValues as any)?.seniorityLevel || (defaultValues as any)?.seniority_level || "",
+      asset_class_focus: (defaultValues as any)?.assetClassFocus || (defaultValues as any)?.asset_class_focus || "",
+      sector_focus: (defaultValues as any)?.sectorFocus || (defaultValues as any)?.sector_focus || "",
+      geography_focus: (defaultValues as any)?.geographyFocus || (defaultValues as any)?.geography_focus || "",
+      verification_status: (defaultValues as any)?.verificationStatus || (defaultValues as any)?.verification_status || "",
+      verification_source: (defaultValues as any)?.verificationSource || (defaultValues as any)?.verification_source || "",
+      associated_fund_ids: (defaultValues as any)?.associatedFundIds || (defaultValues as any)?.associated_fund_ids || "",
+      board_roles: (defaultValues as any)?.boardRoles || (defaultValues as any)?.board_roles || "",
+      confidence_score: (defaultValues as any)?.confidenceScore || (defaultValues as any)?.confidence_score || "",
+      importance_score: (defaultValues as any)?.importanceScore || (defaultValues as any)?.importance_score || "",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      firstName: data.firstName || null,
-      lastName: data.lastName || null,
+      first_name: data.first_name || null,
+      last_name: data.last_name || null,
       email: data.email || null,
       phone: data.phone || null,
       title: data.title || null,
-      companyName: data.companyName || null,
-      entityType: data.entityType || null,
-      linkedinUrl: data.linkedinUrl || null,
+      company_name: data.company_name || null,
+      entity_type: data.entity_type || null,
+      linkedin_url: data.linkedin_url || null,
       notes: data.notes || null,
       status: data.status || "active",
-    });
+      role_category: data.role_category || null,
+      seniority_level: data.seniority_level || null,
+      asset_class_focus: data.asset_class_focus || null,
+      sector_focus: data.sector_focus || null,
+      geography_focus: data.geography_focus || null,
+      verification_status: data.verification_status || null,
+      verification_source: data.verification_source || null,
+      associated_fund_ids: data.associated_fund_ids || null,
+      board_roles: data.board_roles || null,
+      confidence_score: data.confidence_score ? parseInt(data.confidence_score) : null,
+      importance_score: data.importance_score ? parseInt(data.importance_score) : null,
+    } as any);
   };
 
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
-        <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
-          <div className="grid grid-cols-2 gap-4">
+        <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="first_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="First name" data-testid="input-first-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="last_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name *</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Last name" data-testid="input-last-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" placeholder="email@example.com" data-testid="input-email" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="+1 (555) 123-4567" data-testid="input-phone" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Job title" data-testid="input-title" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="company_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Company name" data-testid="input-company" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="entity_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Entity Type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-entity-type">
+                          <SelectValue placeholder="Select entity type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {entityTypeOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="linkedin_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LinkedIn URL</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://linkedin.com/in/..." data-testid="input-linkedin" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Professional Context</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="role_category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role Category</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-role-category">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {roleCategories.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="seniority_level"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Seniority Level</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-seniority">
+                          <SelectValue placeholder="Select seniority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {seniorityLevels.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Coverage Intelligence</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="asset_class_focus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Class Focus</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., PE, VC, RE" data-testid="input-asset-class" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sector_focus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sector Focus</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., Tech, Healthcare" data-testid="input-sector-focus" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="geography_focus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Geography Focus</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., North America" data-testid="input-geography-focus" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Verification & Trust</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="verification_status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verification Status</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-verification-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {verificationStatuses.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="verification_source"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verification Source</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-verification-source">
+                          <SelectValue placeholder="Select source" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {verificationSources.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Relationship Intelligence</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="associated_fund_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Associated Fund IDs</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Comma-separated fund IDs" data-testid="input-fund-ids" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="board_roles"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Board Roles</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Board positions held" data-testid="input-board-roles" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Internal Scoring</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="confidence_score"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confidence Score (0-100)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="0" max="100" placeholder="0-100" data-testid="input-confidence" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="importance_score"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Importance Score (0-100)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="0" max="100" placeholder="0-100" data-testid="input-importance" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Additional Info</h3>
             <FormField
               control={form.control}
-              name="firstName"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Name *</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="First name" data-testid="input-first-name" />
+                    <Textarea {...field} placeholder="Additional notes..." data-testid="input-notes" />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="lastName"
+              name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Last name" data-testid="input-last-name" />
-                  </FormControl>
-                  <FormMessage />
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="prospect">Prospect</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </FormItem>
               )}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" placeholder="email@example.com" data-testid="input-email" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="+1 (555) 123-4567" data-testid="input-phone" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Job title" data-testid="input-title" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Company name" data-testid="input-company" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="entityType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Entity Type</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-entity-type">
-                      <SelectValue placeholder="Select entity type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {entityTypeOptions.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="linkedinUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>LinkedIn URL</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="https://linkedin.com/in/..." data-testid="input-linkedin" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl>
-                  <Textarea {...field} placeholder="Additional notes..." data-testid="input-notes" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>
@@ -500,57 +741,163 @@ function ContactForm({
 }
 
 function ContactView({ contact, onClose }: { contact: EntityContact; onClose: () => void }) {
+  const c = contact as any;
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Name</p>
-            <p className="font-medium">{contact.firstName} {contact.lastName}</p>
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Basic Information</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Name</p>
+              <p className="font-medium">{contact.firstName} {contact.lastName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Title</p>
+              <p className="font-medium">{contact.title || "-"}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Email</p>
+              {contact.email ? (
+                <a href={`mailto:${contact.email}`} className="text-primary hover:underline">{contact.email}</a>
+              ) : <p className="font-medium">-</p>}
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Phone</p>
+              <p className="font-medium">{contact.phone || "-"}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Company</p>
+              <p className="font-medium">{contact.companyName || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Entity Type</p>
+              <p className="font-medium">{contact.entityType || "-"}</p>
+            </div>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Title</p>
-            <p className="font-medium">{contact.title || "-"}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Email</p>
-            {contact.email ? (
-              <a href={`mailto:${contact.email}`} className="text-primary hover:underline">{contact.email}</a>
+            <p className="text-sm text-muted-foreground">LinkedIn</p>
+            {contact.linkedinUrl ? (
+              <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{contact.linkedinUrl}</a>
             ) : <p className="font-medium">-</p>}
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Phone</p>
-            <p className="font-medium">{contact.phone || "-"}</p>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Professional Context</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Role Category</p>
+              <p className="font-medium">{c.role_category || c.roleCategory || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Seniority Level</p>
+              <p className="font-medium">{c.seniority_level || c.seniorityLevel || "-"}</p>
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Company</p>
-            <p className="font-medium">{contact.companyName || "-"}</p>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Coverage Intelligence</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Asset Class Focus</p>
+              <p className="font-medium">{c.asset_class_focus || c.assetClassFocus || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Sector Focus</p>
+              <p className="font-medium">{c.sector_focus || c.sectorFocus || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Geography Focus</p>
+              <p className="font-medium">{c.geography_focus || c.geographyFocus || "-"}</p>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Verification & Trust</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Verification Status</p>
+              {(c.verification_status || c.verificationStatus) ? (
+                <Badge variant={
+                  (c.verification_status || c.verificationStatus) === "verified" ? "default" : 
+                  (c.verification_status || c.verificationStatus) === "partial" ? "secondary" : "outline"
+                }>
+                  {c.verification_status || c.verificationStatus}
+                </Badge>
+              ) : <p className="font-medium">-</p>}
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Verification Source</p>
+              <p className="font-medium">{c.verification_source || c.verificationSource || "-"}</p>
+            </div>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Entity Type</p>
-            <p className="font-medium">{contact.entityType || "-"}</p>
+            <p className="text-sm text-muted-foreground">Last Verified</p>
+            <p className="font-medium">{c.last_verified_at || c.lastVerifiedAt ? new Date(c.last_verified_at || c.lastVerifiedAt).toLocaleDateString() : "-"}</p>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">LinkedIn</p>
-          {contact.linkedinUrl ? (
-            <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{contact.linkedinUrl}</a>
-          ) : <p className="font-medium">-</p>}
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Relationship Intelligence</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Associated Fund IDs</p>
+              <p className="font-medium">{c.associated_fund_ids || c.associatedFundIds || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Board Roles</p>
+              <p className="font-medium">{c.board_roles || c.boardRoles || "-"}</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Notes</p>
-          <p className="font-medium">{contact.notes || "-"}</p>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Internal Scoring</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Confidence Score</p>
+              <p className="font-medium">{c.confidence_score ?? c.confidenceScore ?? "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Importance Score</p>
+              <p className="font-medium">{c.importance_score ?? c.importanceScore ?? "-"}</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[contact.status || "active"]}>
-            {contact.status || "active"}
-          </Badge>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Additional Info</h3>
+          <div>
+            <p className="text-sm text-muted-foreground">Notes</p>
+            <p className="font-medium">{contact.notes || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[contact.status || "active"]}>
+              {contact.status || "active"}
+            </Badge>
+          </div>
         </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>

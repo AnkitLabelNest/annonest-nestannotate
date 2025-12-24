@@ -1526,8 +1526,18 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_portfolio_company (org_id, company_name, company_type, headquarters_country, headquarters_city, primary_industry, business_model, website, business_description)
-        VALUES (${orgId}, ${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null})
+        INSERT INTO entities_portfolio_company (
+          org_id, company_name, company_type, headquarters_country, headquarters_city, 
+          primary_industry, business_model, website, business_description, founded_year, employee_count,
+          revenue_band, valuation_band, current_owner_type, exit_type, exit_year,
+          confidence_score, data_source, status
+        )
+        VALUES (
+          ${orgId}, ${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, 
+          ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null}, ${data.founded_year || null}, ${data.employee_count || null},
+          ${data.revenue_band || null}, ${data.valuation_band || null}, ${data.current_owner_type || null}, ${data.exit_type || null}, ${data.exit_year || null},
+          ${data.confidence_score || null}, ${data.data_source || null}, ${data.status || 'active'}
+        )
         RETURNING *
       `);
       
@@ -1792,8 +1802,24 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_contact (org_id, first_name, last_name, email, phone, title, seniority_level, department, linked_entity_type, linked_entity_id, relationship_type, linkedin_url, notes, status)
-        VALUES (${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.email || null}, ${data.phone || null}, ${data.title || null}, ${data.seniority_level || null}, ${data.department || null}, ${data.linked_entity_type || null}, ${data.linked_entity_id || null}, ${data.relationship_type || null}, ${data.linkedin_url || null}, ${data.notes || null}, ${data.status || 'active'})
+        INSERT INTO entities_contact (
+          org_id, first_name, last_name, email, phone, title, company_name,
+          entity_type, entity_id, linkedin_url, notes, status,
+          role_category, seniority_level, asset_class_focus, sector_focus, geography_focus,
+          verification_status, verification_source, associated_fund_ids, board_roles,
+          confidence_score, importance_score
+        )
+        VALUES (
+          ${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.email || null}, ${data.phone || null}, 
+          ${data.title || null}, ${data.company_name || null},
+          ${data.entity_type || data.linked_entity_type || null}, ${data.entity_id || data.linked_entity_id || null}, 
+          ${data.linkedin_url || null}, ${data.notes || null}, ${data.status || 'active'},
+          ${data.role_category || null}, ${data.seniority_level || null}, ${data.asset_class_focus || null}, 
+          ${data.sector_focus || null}, ${data.geography_focus || null},
+          ${data.verification_status || null}, ${data.verification_source || null}, 
+          ${data.associated_fund_ids || null}, ${data.board_roles || null},
+          ${data.confidence_score || null}, ${data.importance_score || null}
+        )
         RETURNING *
       `);
       
@@ -1803,6 +1829,58 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Authentication required" });
       }
       console.error("Error creating contact:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/contacts/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_contact SET
+          first_name = ${data.first_name || null},
+          last_name = ${data.last_name || null},
+          email = ${data.email || null},
+          phone = ${data.phone || null},
+          title = ${data.title || null},
+          company_name = ${data.company_name || null},
+          entity_type = ${data.entity_type || null},
+          entity_id = ${data.entity_id || null},
+          linkedin_url = ${data.linkedin_url || null},
+          notes = ${data.notes || null},
+          status = ${data.status || 'active'},
+          role_category = ${data.role_category || null},
+          seniority_level = ${data.seniority_level || null},
+          asset_class_focus = ${data.asset_class_focus || null},
+          sector_focus = ${data.sector_focus || null},
+          geography_focus = ${data.geography_focus || null},
+          verification_status = ${data.verification_status || null},
+          verification_source = ${data.verification_source || null},
+          last_verified_at = ${data.last_verified_at || null},
+          associated_fund_ids = ${data.associated_fund_ids || null},
+          board_roles = ${data.board_roles || null},
+          confidence_score = ${data.confidence_score || null},
+          importance_score = ${data.importance_score || null},
+          updated_at = NOW()
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating contact:", error?.message || error);
       return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
@@ -1832,8 +1910,21 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_deal (org_id, deal_name, deal_type, target_company_id, lead_gp_id, deal_status, deal_stage, estimated_value, estimated_value_currency, sector, geography, description, status)
-        VALUES (${orgId}, ${data.deal_name}, ${data.deal_type || null}, ${data.target_company_id || null}, ${data.lead_gp_id || null}, ${data.deal_status || null}, ${data.deal_stage || null}, ${data.estimated_value || null}, ${data.estimated_value_currency || 'USD'}, ${data.sector || null}, ${data.geography || null}, ${data.description || null}, ${data.status || 'active'})
+        INSERT INTO entities_deal (
+          org_id, deal_name, deal_type, deal_status, deal_amount, deal_currency, deal_date,
+          target_company, acquirer_company, investor_ids, sector, notes,
+          deal_round, asset_class, target_company_id, acquirer_company_id,
+          lead_investor, ownership_percentage, verification_status, confidence_score, source_urls
+        )
+        VALUES (
+          ${orgId}, ${data.deal_name}, ${data.deal_type || null}, ${data.deal_status || null}, 
+          ${data.deal_amount || null}, ${data.deal_currency || null}, ${data.deal_date || null},
+          ${data.target_company || null}, ${data.acquirer_company || null}, ${data.investor_ids || null}, 
+          ${data.sector || null}, ${data.notes || null},
+          ${data.deal_round || null}, ${data.asset_class || null}, ${data.target_company_id || null}, ${data.acquirer_company_id || null},
+          ${data.lead_investor ?? null}, ${data.ownership_percentage || null}, ${data.verification_status || null}, 
+          ${data.confidence_score || null}, ${data.source_urls || null}
+        )
         RETURNING *
       `);
       
@@ -1843,6 +1934,55 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Authentication required" });
       }
       console.error("Error creating deal:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/deals/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_deal SET
+          deal_name = ${data.deal_name || null},
+          deal_type = ${data.deal_type || null},
+          deal_status = ${data.deal_status || null},
+          deal_amount = ${data.deal_amount || null},
+          deal_currency = ${data.deal_currency || null},
+          deal_date = ${data.deal_date || null},
+          target_company = ${data.target_company || null},
+          acquirer_company = ${data.acquirer_company || null},
+          investor_ids = ${data.investor_ids || null},
+          sector = ${data.sector || null},
+          notes = ${data.notes || null},
+          deal_round = ${data.deal_round || null},
+          asset_class = ${data.asset_class || null},
+          target_company_id = ${data.target_company_id || null},
+          acquirer_company_id = ${data.acquirer_company_id || null},
+          lead_investor = ${data.lead_investor ?? null},
+          ownership_percentage = ${data.ownership_percentage || null},
+          verification_status = ${data.verification_status || null},
+          confidence_score = ${data.confidence_score || null},
+          source_urls = ${data.source_urls || null},
+          updated_at = NOW()
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating deal:", error?.message || error);
       return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
