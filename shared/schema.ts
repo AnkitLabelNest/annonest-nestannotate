@@ -230,10 +230,10 @@ export type MonitoredUrl = typeof monitoredUrls.$inferSelect;
 
 export const moduleAccessByRole: Record<UserRole, string[]> = {
   admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
-  manager: ["nest_annotate", "data_nest", "extraction_engine"],
-  researcher: ["nest_annotate", "data_nest", "extraction_engine"],
-  annotator: ["nest_annotate"],
-  qa: ["nest_annotate", "data_nest"],
+  manager: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
+  researcher: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
+  annotator: ["nest_annotate", "data_nest", "contact_intelligence"],
+  qa: ["nest_annotate", "data_nest", "contact_intelligence"],
   guest: ["guest_preview"],
 };
 

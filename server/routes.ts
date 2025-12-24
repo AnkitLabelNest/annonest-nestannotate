@@ -585,8 +585,9 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      console.error("Error creating firm:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Error creating firm:", error?.message || error);
+      console.error("Full error stack:", error?.stack);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
@@ -613,8 +614,9 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      console.error("Error creating firm (force):", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Error creating firm (force):", error?.message || error);
+      console.error("Full error stack:", error?.stack);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
@@ -1168,13 +1170,17 @@ export async function registerRoutes(
   });
 
   // GP Routes
-  app.get("/api/crm/gps", async (_req: Request, res: Response) => {
+  app.get("/api/crm/gps", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_gp ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_gp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching GPs:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -1182,31 +1188,39 @@ export async function registerRoutes(
 
   app.post("/api/crm/gps", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_gp (gp_name, gp_legal_name, firm_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, primary_asset_classes)
-        VALUES (${data.gp_name}, ${data.gp_legal_name || null}, ${data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.primary_asset_classes || null})
+        INSERT INTO entities_gp (org_id, gp_name, gp_legal_name, firm_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, primary_asset_classes)
+        VALUES (${orgId}, ${data.gp_name}, ${data.gp_legal_name || null}, ${data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.primary_asset_classes || null})
         RETURNING *
       `);
       
       return res.status(201).json(result.rows[0]);
-    } catch (error) {
-      console.error("Error creating GP:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating GP:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
   // LP Routes
-  app.get("/api/crm/lps", async (_req: Request, res: Response) => {
+  app.get("/api/crm/lps", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_lp ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_lp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching LPs:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -1214,44 +1228,56 @@ export async function registerRoutes(
 
   app.post("/api/crm/lps", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_lp (lp_name, lp_type, headquarters_country, headquarters_city, total_aum, aum_currency, private_markets_allocation_percent)
-        VALUES (${data.lp_name}, ${data.lp_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.private_markets_allocation_percent || null})
+        INSERT INTO entities_lp (org_id, lp_name, lp_type, headquarters_country, headquarters_city, total_aum, aum_currency, private_markets_allocation_percent)
+        VALUES (${orgId}, ${data.lp_name}, ${data.lp_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.private_markets_allocation_percent || null})
         RETURNING *
       `);
       
       return res.status(201).json(result.rows[0]);
-    } catch (error) {
-      console.error("Error creating LP:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating LP:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
   // Fund Routes
-  app.get("/api/crm/funds", async (_req: Request, res: Response) => {
+  app.get("/api/crm/funds", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_fund ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_fund WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching funds:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   // Portfolio Company Routes
-  app.get("/api/crm/portfolio-companies", async (_req: Request, res: Response) => {
+  app.get("/api/crm/portfolio-companies", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_portfolio_company ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_portfolio_company WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching portfolio companies:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -1259,70 +1285,90 @@ export async function registerRoutes(
 
   app.post("/api/crm/portfolio-companies", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_portfolio_company (company_name, company_type, headquarters_country, headquarters_city, primary_industry, business_model, website, business_description)
-        VALUES (${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null})
+        INSERT INTO entities_portfolio_company (org_id, company_name, company_type, headquarters_country, headquarters_city, primary_industry, business_model, website, business_description)
+        VALUES (${orgId}, ${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null})
         RETURNING *
       `);
       
       return res.status(201).json(result.rows[0]);
-    } catch (error) {
-      console.error("Error creating portfolio company:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating portfolio company:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
   // Service Provider Routes
-  app.get("/api/crm/service-providers", async (_req: Request, res: Response) => {
+  app.get("/api/crm/service-providers", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_service_provider ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_service_provider WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching service providers:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   // Contact Routes (CRM version)
-  app.get("/api/crm/contacts", async (_req: Request, res: Response) => {
+  app.get("/api/crm/contacts", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_contact ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching CRM contacts:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   // Deal Routes (CRM version)
-  app.get("/api/crm/deals", async (_req: Request, res: Response) => {
+  app.get("/api/crm/deals", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_deal ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM entities_deal WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching CRM deals:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   // Relationships Routes
-  app.get("/api/crm/relationships", async (_req: Request, res: Response) => {
+  app.get("/api/crm/relationships", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM relationships ORDER BY created_at DESC`);
+      const result = await db.execute(sql`SELECT * FROM relationships WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching relationships:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -1330,31 +1376,35 @@ export async function registerRoutes(
 
   app.post("/api/crm/relationships", async (req: Request, res: Response) => {
     try {
+      const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO relationships (from_entity_type, from_entity_id, from_entity_name_snapshot, to_entity_type, to_entity_id, to_entity_name_snapshot, relationship_type, relationship_subtype, relationship_status)
-        VALUES (${data.from_entity_type}, ${data.from_entity_id}, ${data.from_entity_name_snapshot || null}, ${data.to_entity_type}, ${data.to_entity_id}, ${data.to_entity_name_snapshot || null}, ${data.relationship_type}, ${data.relationship_subtype || null}, ${data.relationship_status || 'Active'})
+        INSERT INTO relationships (org_id, from_entity_type, from_entity_id, from_entity_name_snapshot, to_entity_type, to_entity_id, to_entity_name_snapshot, relationship_type, relationship_subtype, relationship_status)
+        VALUES (${orgId}, ${data.from_entity_type}, ${data.from_entity_id}, ${data.from_entity_name_snapshot || null}, ${data.to_entity_type}, ${data.to_entity_id}, ${data.to_entity_name_snapshot || null}, ${data.relationship_type}, ${data.relationship_subtype || null}, ${data.relationship_status || 'Active'})
         RETURNING *
       `);
       
       return res.status(201).json(result.rows[0]);
-    } catch (error) {
-      console.error("Error creating relationship:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating relationship:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
-  // Public Company Snapshots
+  // Public Company Snapshots (shared across all orgs for now - public data)
   app.get("/api/crm/public-companies", async (_req: Request, res: Response) => {
     try {
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const result = await db.execute(sql`SELECT * FROM public_company_snapshot ORDER BY created_at DESC`);
       return res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching public companies:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
