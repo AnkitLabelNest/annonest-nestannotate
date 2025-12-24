@@ -1241,8 +1241,8 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_lp (org_id, lp_name, lp_type, headquarters_country, headquarters_city, total_aum, aum_currency, private_markets_allocation_percent)
-        VALUES (${orgId}, ${data.lp_name}, ${data.lp_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.private_markets_allocation_percent || null})
+        INSERT INTO entities_lp (org_id, lp_name, lp_legal_name, firm_type, investor_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, status)
+        VALUES (${orgId}, ${data.lp_name}, ${data.lp_legal_name || null}, ${data.firm_type || null}, ${data.investor_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.status || 'active'})
         RETURNING *
       `);
       
@@ -1270,6 +1270,29 @@ export async function registerRoutes(
       }
       console.error("Error fetching funds:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/funds", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_fund (org_id, fund_name, fund_legal_name, fund_type, gp_id, vintage_year, target_size, target_size_currency, fund_status, status)
+        VALUES (${orgId}, ${data.fund_name}, ${data.fund_legal_name || null}, ${data.fund_type || null}, ${data.gp_id || null}, ${data.vintage_year || null}, ${data.target_size || null}, ${data.target_size_currency || 'USD'}, ${data.fund_status || null}, ${data.status || 'active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating fund:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
@@ -1330,6 +1353,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/crm/service-providers", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_service_provider (org_id, provider_name, provider_type, headquarters_country, headquarters_city, website, services_offered, sector_expertise, geographic_coverage, founded_year, status)
+        VALUES (${orgId}, ${data.provider_name}, ${data.provider_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.website || null}, ${data.services_offered || null}, ${data.sector_expertise || null}, ${data.geographic_coverage || null}, ${data.founded_year || null}, ${data.status || 'active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating service provider:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // Contact Routes (CRM version)
   app.get("/api/crm/contacts", async (req: Request, res: Response) => {
     try {
@@ -1347,6 +1393,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/crm/contacts", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_contact (org_id, first_name, last_name, email, phone, title, seniority_level, department, linked_entity_type, linked_entity_id, relationship_type, linkedin_url, notes, status)
+        VALUES (${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.email || null}, ${data.phone || null}, ${data.title || null}, ${data.seniority_level || null}, ${data.department || null}, ${data.linked_entity_type || null}, ${data.linked_entity_id || null}, ${data.relationship_type || null}, ${data.linkedin_url || null}, ${data.notes || null}, ${data.status || 'active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating contact:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // Deal Routes (CRM version)
   app.get("/api/crm/deals", async (req: Request, res: Response) => {
     try {
@@ -1361,6 +1430,29 @@ export async function registerRoutes(
       }
       console.error("Error fetching CRM deals:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/deals", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entities_deal (org_id, deal_name, deal_type, target_company_id, lead_gp_id, deal_status, deal_stage, estimated_value, estimated_value_currency, sector, geography, description, status)
+        VALUES (${orgId}, ${data.deal_name}, ${data.deal_type || null}, ${data.target_company_id || null}, ${data.lead_gp_id || null}, ${data.deal_status || null}, ${data.deal_stage || null}, ${data.estimated_value || null}, ${data.estimated_value_currency || 'USD'}, ${data.sector || null}, ${data.geography || null}, ${data.description || null}, ${data.status || 'active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating deal:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 

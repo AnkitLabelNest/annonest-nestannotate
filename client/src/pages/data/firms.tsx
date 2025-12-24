@@ -35,13 +35,77 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Building2, Globe, MapPin, DollarSign, Loader2 } from "lucide-react";
-import type { EntityGp, EntityLp, EntityServiceProvider, EntityPortfolioCompany } from "@shared/schema";
+
+interface CrmGp {
+  id: string;
+  org_id: string;
+  gp_name: string;
+  gp_legal_name?: string;
+  firm_type?: string;
+  headquarters_country?: string;
+  headquarters_city?: string;
+  total_aum?: string;
+  aum_currency?: string;
+  website?: string;
+  primary_asset_classes?: string;
+  status?: string;
+}
+
+interface CrmLp {
+  id: string;
+  org_id: string;
+  lp_name: string;
+  lp_legal_name?: string;
+  firm_type?: string;
+  investor_type?: string;
+  headquarters_country?: string;
+  headquarters_city?: string;
+  total_aum?: string;
+  aum_currency?: string;
+  website?: string;
+  status?: string;
+}
+
+interface CrmServiceProvider {
+  id: string;
+  org_id: string;
+  provider_name: string;
+  provider_type?: string;
+  headquarters_country?: string;
+  headquarters_city?: string;
+  website?: string;
+  services_offered?: string;
+  sector_expertise?: string;
+  geographic_coverage?: string;
+  founded_year?: number;
+  status?: string;
+}
+
+interface CrmPortfolioCompany {
+  id: string;
+  org_id: string;
+  company_name: string;
+  company_type?: string;
+  headquarters_country?: string;
+  headquarters_city?: string;
+  primary_industry?: string;
+  business_model?: string;
+  website?: string;
+  business_description?: string;
+  founded_year?: number;
+  employee_count?: number;
+  status?: string;
+}
 
 const statusColors: Record<string, string> = {
   active: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  Active: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   inactive: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  Inactive: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   prospect: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  Prospect: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
   pending: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  Pending: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
 };
 
 const currencyOptions = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"];
@@ -111,21 +175,21 @@ export default function FirmsPage() {
 
 function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<EntityGp | null>(null);
-  const [editItem, setEditItem] = useState<EntityGp | null>(null);
+  const [viewItem, setViewItem] = useState<CrmGp | null>(null);
+  const [editItem, setEditItem] = useState<CrmGp | null>(null);
   const { toast } = useToast();
 
-  const { data: gps = [], isLoading, error } = useQuery<EntityGp[]>({
-    queryKey: ["/api/entities/gp"],
+  const { data: gps = [], isLoading, error } = useQuery<CrmGp[]>({
+    queryKey: ["/api/crm/gps"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityGp>) => {
-      const res = await apiRequest("POST", "/api/entities/gp", data);
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/gps", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/gp"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/gps"] });
       setIsAddDialogOpen(false);
       toast({ title: "GP Firm created", description: "The GP firm has been added successfully." });
     },
@@ -134,71 +198,56 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EntityGp> }) => {
-      const res = await apiRequest("PUT", `/api/entities/gp/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/gp"] });
-      setEditItem(null);
-      toast({ title: "GP Firm updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const filteredData = gps.filter((gp) =>
-    gp.gpName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    gp.gpLegalName?.toLowerCase().includes(searchQuery.toLowerCase())
+    gp.gp_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    gp.gp_legal_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
     {
-      key: "gpName",
+      key: "gp_name",
       header: "Firm Name",
       sortable: true,
-      render: (gp: EntityGp) => (
+      render: (gp: CrmGp) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{gp.gpName || "-"}</span>
+          <span className="font-medium">{gp.gp_name || "-"}</span>
         </div>
       ),
     },
     {
-      key: "firmType",
+      key: "firm_type",
       header: "Type",
-      render: (gp: EntityGp) => <Badge variant="secondary">{gp.firmType || "-"}</Badge>,
+      render: (gp: CrmGp) => <Badge variant="secondary">{gp.firm_type || "-"}</Badge>,
     },
     {
       key: "headquarters",
       header: "Location",
-      render: (gp: EntityGp) => (
+      render: (gp: CrmGp) => (
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3 w-3" />
-          {gp.headquartersCity && gp.headquartersCountry
-            ? `${gp.headquartersCity}, ${gp.headquartersCountry}`
-            : gp.headquartersCountry || gp.headquartersCity || "-"}
+          {gp.headquarters_city && gp.headquarters_country
+            ? `${gp.headquarters_city}, ${gp.headquarters_country}`
+            : gp.headquarters_country || gp.headquarters_city || "-"}
         </div>
       ),
     },
     {
-      key: "totalAum",
+      key: "total_aum",
       header: "AUM",
-      render: (gp: EntityGp) => (
+      render: (gp: CrmGp) => (
         <div className="flex items-center gap-1">
           <DollarSign className="h-3 w-3 text-muted-foreground" />
-          {gp.totalAum ? `${gp.totalAum} ${gp.aumCurrency || "USD"}` : "-"}
+          {gp.total_aum ? `${gp.total_aum} ${gp.aum_currency || "USD"}` : "-"}
         </div>
       ),
     },
     {
       key: "website",
       header: "Website",
-      render: (gp: EntityGp) =>
+      render: (gp: CrmGp) =>
         gp.website ? (
-          <a href={gp.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
+          <a href={gp.website.startsWith("http") ? gp.website : `https://${gp.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
             <Globe className="h-3 w-3" />
             {gp.website.replace(/^https?:\/\//, "").split("/")[0]}
           </a>
@@ -207,7 +256,7 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
     {
       key: "status",
       header: "Status",
-      render: (gp: EntityGp) => (
+      render: (gp: CrmGp) => (
         <Badge className={statusColors[gp.status || "active"] || statusColors.active}>
           {gp.status || "active"}
         </Badge>
@@ -273,8 +322,11 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
           {editItem && (
             <GpFirmForm
               defaultValues={editItem}
-              onSubmit={(data) => updateMutation.mutate({ id: editItem.id, data })}
-              isPending={updateMutation.isPending}
+              onSubmit={(data) => {
+                toast({ title: "Edit not implemented yet" });
+                setEditItem(null);
+              }}
+              isPending={false}
               onCancel={() => setEditItem(null)}
               isEdit
             />
@@ -292,39 +344,39 @@ function GpFirmForm({
   onCancel,
   isEdit = false,
 }: {
-  defaultValues?: Partial<EntityGp>;
-  onSubmit: (data: Partial<EntityGp>) => void;
+  defaultValues?: Partial<CrmGp>;
+  onSubmit: (data: Record<string, any>) => void;
   isPending: boolean;
   onCancel: () => void;
   isEdit?: boolean;
 }) {
   const form = useForm({
     defaultValues: {
-      gpName: defaultValues?.gpName || "",
-      gpLegalName: defaultValues?.gpLegalName || "",
-      firmType: defaultValues?.firmType || "",
-      headquartersCountry: defaultValues?.headquartersCountry || "",
-      headquartersCity: defaultValues?.headquartersCity || "",
-      totalAum: defaultValues?.totalAum || "",
-      aumCurrency: defaultValues?.aumCurrency || "USD",
+      gp_name: defaultValues?.gp_name || "",
+      gp_legal_name: defaultValues?.gp_legal_name || "",
+      firm_type: defaultValues?.firm_type || "",
+      headquarters_country: defaultValues?.headquarters_country || "",
+      headquarters_city: defaultValues?.headquarters_city || "",
+      total_aum: defaultValues?.total_aum || "",
+      aum_currency: defaultValues?.aum_currency || "USD",
       website: defaultValues?.website || "",
-      primaryAssetClasses: defaultValues?.primaryAssetClasses || "",
-      status: defaultValues?.status || "active",
+      primary_asset_classes: defaultValues?.primary_asset_classes || "",
+      status: defaultValues?.status || "Active",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      gpName: data.gpName || null,
-      gpLegalName: data.gpLegalName || null,
-      firmType: data.firmType || null,
-      headquartersCountry: data.headquartersCountry || null,
-      headquartersCity: data.headquartersCity || null,
-      totalAum: data.totalAum || null,
-      aumCurrency: data.aumCurrency || null,
+      gp_name: data.gp_name || null,
+      gp_legal_name: data.gp_legal_name || null,
+      firm_type: data.firm_type || null,
+      headquarters_country: data.headquarters_country || null,
+      headquarters_city: data.headquarters_city || null,
+      total_aum: data.total_aum || null,
+      aum_currency: data.aum_currency || null,
       website: data.website || null,
-      primaryAssetClasses: data.primaryAssetClasses || null,
-      status: data.status || "active",
+      primary_asset_classes: data.primary_asset_classes || null,
+      status: data.status || "Active",
     });
   };
 
@@ -335,7 +387,7 @@ function GpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="gpName"
+              name="gp_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>GP Name *</FormLabel>
@@ -348,7 +400,7 @@ function GpFirmForm({
             />
             <FormField
               control={form.control}
-              name="gpLegalName"
+              name="gp_legal_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Legal Name</FormLabel>
@@ -363,7 +415,7 @@ function GpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="firmType"
+              name="firm_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Firm Type</FormLabel>
@@ -384,7 +436,7 @@ function GpFirmForm({
             />
             <FormField
               control={form.control}
-              name="primaryAssetClasses"
+              name="primary_asset_classes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Primary Asset Classes</FormLabel>
@@ -408,7 +460,7 @@ function GpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="headquartersCountry"
+              name="headquarters_country"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
@@ -420,7 +472,7 @@ function GpFirmForm({
             />
             <FormField
               control={form.control}
-              name="headquartersCity"
+              name="headquarters_city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>City</FormLabel>
@@ -435,7 +487,7 @@ function GpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="totalAum"
+              name="total_aum"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Total AUM</FormLabel>
@@ -447,7 +499,7 @@ function GpFirmForm({
             />
             <FormField
               control={form.control}
-              name="aumCurrency"
+              name="aum_currency"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
@@ -494,9 +546,9 @@ function GpFirmForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Prospect">Prospect</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -518,49 +570,49 @@ function GpFirmForm({
   );
 }
 
-function GpFirmView({ gp, onClose }: { gp: EntityGp; onClose: () => void }) {
+function GpFirmView({ gp, onClose }: { gp: CrmGp; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">GP Name</p>
-            <p className="font-medium">{gp.gpName || "-"}</p>
+            <p className="font-medium">{gp.gp_name || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Legal Name</p>
-            <p className="font-medium">{gp.gpLegalName || "-"}</p>
+            <p className="font-medium">{gp.gp_legal_name || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Firm Type</p>
-            <p className="font-medium">{gp.firmType || "-"}</p>
+            <p className="font-medium">{gp.firm_type || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Primary Asset Classes</p>
-            <p className="font-medium">{gp.primaryAssetClasses || "-"}</p>
+            <p className="font-medium">{gp.primary_asset_classes || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{gp.headquartersCountry || "-"}</p>
+            <p className="font-medium">{gp.headquarters_country || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{gp.headquartersCity || "-"}</p>
+            <p className="font-medium">{gp.headquarters_city || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Total AUM</p>
-            <p className="font-medium">{gp.totalAum ? `${gp.totalAum} ${gp.aumCurrency || "USD"}` : "-"}</p>
+            <p className="font-medium">{gp.total_aum ? `${gp.total_aum} ${gp.aum_currency || "USD"}` : "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Website</p>
             {gp.website ? (
-              <a href={gp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <a href={gp.website.startsWith("http") ? gp.website : `https://${gp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 {gp.website}
               </a>
             ) : (
@@ -582,21 +634,21 @@ function GpFirmView({ gp, onClose }: { gp: EntityGp; onClose: () => void }) {
 
 function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<EntityLp | null>(null);
-  const [editItem, setEditItem] = useState<EntityLp | null>(null);
+  const [viewItem, setViewItem] = useState<CrmLp | null>(null);
+  const [editItem, setEditItem] = useState<CrmLp | null>(null);
   const { toast } = useToast();
 
-  const { data: lps = [], isLoading, error } = useQuery<EntityLp[]>({
-    queryKey: ["/api/entities/lp"],
+  const { data: lps = [], isLoading, error } = useQuery<CrmLp[]>({
+    queryKey: ["/api/crm/lps"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityLp>) => {
-      const res = await apiRequest("POST", "/api/entities/lp", data);
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/lps", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/lp"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/lps"] });
       setIsAddDialogOpen(false);
       toast({ title: "LP Firm created", description: "The LP firm has been added successfully." });
     },
@@ -605,69 +657,54 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EntityLp> }) => {
-      const res = await apiRequest("PUT", `/api/entities/lp/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/lp"] });
-      setEditItem(null);
-      toast({ title: "LP Firm updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const filteredData = lps.filter((lp) =>
-    lp.lpName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    lp.lpLegalName?.toLowerCase().includes(searchQuery.toLowerCase())
+    lp.lp_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lp.lp_legal_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
     {
-      key: "lpName",
+      key: "lp_name",
       header: "Firm Name",
       sortable: true,
-      render: (lp: EntityLp) => (
+      render: (lp: CrmLp) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{lp.lpName || "-"}</span>
+          <span className="font-medium">{lp.lp_name || "-"}</span>
         </div>
       ),
     },
     {
-      key: "investorType",
+      key: "investor_type",
       header: "Investor Type",
-      render: (lp: EntityLp) => <Badge variant="secondary">{lp.investorType || "-"}</Badge>,
+      render: (lp: CrmLp) => <Badge variant="secondary">{lp.investor_type || "-"}</Badge>,
     },
     {
       key: "headquarters",
       header: "Location",
-      render: (lp: EntityLp) => (
+      render: (lp: CrmLp) => (
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3 w-3" />
-          {lp.headquartersCity && lp.headquartersCountry
-            ? `${lp.headquartersCity}, ${lp.headquartersCountry}`
-            : lp.headquartersCountry || lp.headquartersCity || "-"}
+          {lp.headquarters_city && lp.headquarters_country
+            ? `${lp.headquarters_city}, ${lp.headquarters_country}`
+            : lp.headquarters_country || lp.headquarters_city || "-"}
         </div>
       ),
     },
     {
-      key: "totalAum",
+      key: "total_aum",
       header: "AUM",
-      render: (lp: EntityLp) => (
+      render: (lp: CrmLp) => (
         <div className="flex items-center gap-1">
           <DollarSign className="h-3 w-3 text-muted-foreground" />
-          {lp.totalAum ? `${lp.totalAum} ${lp.aumCurrency || "USD"}` : "-"}
+          {lp.total_aum ? `${lp.total_aum} ${lp.aum_currency || "USD"}` : "-"}
         </div>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (lp: EntityLp) => (
+      render: (lp: CrmLp) => (
         <Badge className={statusColors[lp.status || "active"] || statusColors.active}>
           {lp.status || "active"}
         </Badge>
@@ -733,8 +770,11 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
           {editItem && (
             <LpFirmForm
               defaultValues={editItem}
-              onSubmit={(data) => updateMutation.mutate({ id: editItem.id, data })}
-              isPending={updateMutation.isPending}
+              onSubmit={(data) => {
+                toast({ title: "Edit not implemented yet" });
+                setEditItem(null);
+              }}
+              isPending={false}
               onCancel={() => setEditItem(null)}
               isEdit
             />
@@ -752,39 +792,39 @@ function LpFirmForm({
   onCancel,
   isEdit = false,
 }: {
-  defaultValues?: Partial<EntityLp>;
-  onSubmit: (data: Partial<EntityLp>) => void;
+  defaultValues?: Partial<CrmLp>;
+  onSubmit: (data: Record<string, any>) => void;
   isPending: boolean;
   onCancel: () => void;
   isEdit?: boolean;
 }) {
   const form = useForm({
     defaultValues: {
-      lpName: defaultValues?.lpName || "",
-      lpLegalName: defaultValues?.lpLegalName || "",
-      firmType: defaultValues?.firmType || "",
-      investorType: defaultValues?.investorType || "",
-      headquartersCountry: defaultValues?.headquartersCountry || "",
-      headquartersCity: defaultValues?.headquartersCity || "",
-      totalAum: defaultValues?.totalAum || "",
-      aumCurrency: defaultValues?.aumCurrency || "USD",
+      lp_name: defaultValues?.lp_name || "",
+      lp_legal_name: defaultValues?.lp_legal_name || "",
+      firm_type: defaultValues?.firm_type || "",
+      investor_type: defaultValues?.investor_type || "",
+      headquarters_country: defaultValues?.headquarters_country || "",
+      headquarters_city: defaultValues?.headquarters_city || "",
+      total_aum: defaultValues?.total_aum || "",
+      aum_currency: defaultValues?.aum_currency || "USD",
       website: defaultValues?.website || "",
-      status: defaultValues?.status || "active",
+      status: defaultValues?.status || "Active",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      lpName: data.lpName || null,
-      lpLegalName: data.lpLegalName || null,
-      firmType: data.firmType || null,
-      investorType: data.investorType || null,
-      headquartersCountry: data.headquartersCountry || null,
-      headquartersCity: data.headquartersCity || null,
-      totalAum: data.totalAum || null,
-      aumCurrency: data.aumCurrency || null,
+      lp_name: data.lp_name || null,
+      lp_legal_name: data.lp_legal_name || null,
+      firm_type: data.firm_type || null,
+      investor_type: data.investor_type || null,
+      headquarters_country: data.headquarters_country || null,
+      headquarters_city: data.headquarters_city || null,
+      total_aum: data.total_aum || null,
+      aum_currency: data.aum_currency || null,
       website: data.website || null,
-      status: data.status || "active",
+      status: data.status || "Active",
     });
   };
 
@@ -795,7 +835,7 @@ function LpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="lpName"
+              name="lp_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>LP Name *</FormLabel>
@@ -808,7 +848,7 @@ function LpFirmForm({
             />
             <FormField
               control={form.control}
-              name="lpLegalName"
+              name="lp_legal_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Legal Name</FormLabel>
@@ -823,7 +863,7 @@ function LpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="firmType"
+              name="firm_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Firm Type</FormLabel>
@@ -844,7 +884,7 @@ function LpFirmForm({
             />
             <FormField
               control={form.control}
-              name="investorType"
+              name="investor_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Investor Type</FormLabel>
@@ -868,7 +908,7 @@ function LpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="headquartersCountry"
+              name="headquarters_country"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
@@ -880,7 +920,7 @@ function LpFirmForm({
             />
             <FormField
               control={form.control}
-              name="headquartersCity"
+              name="headquarters_city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>City</FormLabel>
@@ -895,7 +935,7 @@ function LpFirmForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="totalAum"
+              name="total_aum"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Total AUM</FormLabel>
@@ -907,7 +947,7 @@ function LpFirmForm({
             />
             <FormField
               control={form.control}
-              name="aumCurrency"
+              name="aum_currency"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
@@ -954,9 +994,9 @@ function LpFirmForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Prospect">Prospect</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -978,49 +1018,49 @@ function LpFirmForm({
   );
 }
 
-function LpFirmView({ lp, onClose }: { lp: EntityLp; onClose: () => void }) {
+function LpFirmView({ lp, onClose }: { lp: CrmLp; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">LP Name</p>
-            <p className="font-medium">{lp.lpName || "-"}</p>
+            <p className="font-medium">{lp.lp_name || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Legal Name</p>
-            <p className="font-medium">{lp.lpLegalName || "-"}</p>
+            <p className="font-medium">{lp.lp_legal_name || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Firm Type</p>
-            <p className="font-medium">{lp.firmType || "-"}</p>
+            <p className="font-medium">{lp.firm_type || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Investor Type</p>
-            <p className="font-medium">{lp.investorType || "-"}</p>
+            <p className="font-medium">{lp.investor_type || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{lp.headquartersCountry || "-"}</p>
+            <p className="font-medium">{lp.headquarters_country || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{lp.headquartersCity || "-"}</p>
+            <p className="font-medium">{lp.headquarters_city || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Total AUM</p>
-            <p className="font-medium">{lp.totalAum ? `${lp.totalAum} ${lp.aumCurrency || "USD"}` : "-"}</p>
+            <p className="font-medium">{lp.total_aum ? `${lp.total_aum} ${lp.aum_currency || "USD"}` : "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Website</p>
             {lp.website ? (
-              <a href={lp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <a href={lp.website.startsWith("http") ? lp.website : `https://${lp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 {lp.website}
               </a>
             ) : (
@@ -1042,21 +1082,21 @@ function LpFirmView({ lp, onClose }: { lp: EntityLp; onClose: () => void }) {
 
 function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<EntityServiceProvider | null>(null);
-  const [editItem, setEditItem] = useState<EntityServiceProvider | null>(null);
+  const [viewItem, setViewItem] = useState<CrmServiceProvider | null>(null);
+  const [editItem, setEditItem] = useState<CrmServiceProvider | null>(null);
   const { toast } = useToast();
 
-  const { data: sps = [], isLoading, error } = useQuery<EntityServiceProvider[]>({
-    queryKey: ["/api/entities/service-providers"],
+  const { data: sps = [], isLoading, error } = useQuery<CrmServiceProvider[]>({
+    queryKey: ["/api/crm/service-providers"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityServiceProvider>) => {
-      const res = await apiRequest("POST", "/api/entities/service-providers", data);
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/service-providers", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/service-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/service-providers"] });
       setIsAddDialogOpen(false);
       toast({ title: "Service Provider created" });
     },
@@ -1065,58 +1105,43 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EntityServiceProvider> }) => {
-      const res = await apiRequest("PUT", `/api/entities/service-providers/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/service-providers"] });
-      setEditItem(null);
-      toast({ title: "Service Provider updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const filteredData = sps.filter((sp) =>
-    sp.providerName?.toLowerCase().includes(searchQuery.toLowerCase())
+    sp.provider_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
     {
-      key: "providerName",
+      key: "provider_name",
       header: "Provider Name",
       sortable: true,
-      render: (sp: EntityServiceProvider) => (
+      render: (sp: CrmServiceProvider) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{sp.providerName || "-"}</span>
+          <span className="font-medium">{sp.provider_name || "-"}</span>
         </div>
       ),
     },
     {
-      key: "providerType",
+      key: "provider_type",
       header: "Provider Type",
-      render: (sp: EntityServiceProvider) => <Badge variant="secondary">{sp.providerType || "-"}</Badge>,
+      render: (sp: CrmServiceProvider) => <Badge variant="secondary">{sp.provider_type || "-"}</Badge>,
     },
     {
       key: "headquarters",
       header: "Location",
-      render: (sp: EntityServiceProvider) => (
+      render: (sp: CrmServiceProvider) => (
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3 w-3" />
-          {sp.headquartersCity && sp.headquartersCountry
-            ? `${sp.headquartersCity}, ${sp.headquartersCountry}`
-            : sp.headquartersCountry || sp.headquartersCity || "-"}
+          {sp.headquarters_city && sp.headquarters_country
+            ? `${sp.headquarters_city}, ${sp.headquarters_country}`
+            : sp.headquarters_country || sp.headquarters_city || "-"}
         </div>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (sp: EntityServiceProvider) => (
+      render: (sp: CrmServiceProvider) => (
         <Badge className={statusColors[sp.status || "active"]}>
           {sp.status || "active"}
         </Badge>
@@ -1182,8 +1207,11 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
           {editItem && (
             <ServiceProviderForm
               defaultValues={editItem}
-              onSubmit={(data) => updateMutation.mutate({ id: editItem.id, data })}
-              isPending={updateMutation.isPending}
+              onSubmit={(data) => {
+                toast({ title: "Edit not implemented yet" });
+                setEditItem(null);
+              }}
+              isPending={false}
               onCancel={() => setEditItem(null)}
               isEdit
             />
@@ -1201,39 +1229,39 @@ function ServiceProviderForm({
   onCancel,
   isEdit = false,
 }: {
-  defaultValues?: Partial<EntityServiceProvider>;
-  onSubmit: (data: Partial<EntityServiceProvider>) => void;
+  defaultValues?: Partial<CrmServiceProvider>;
+  onSubmit: (data: Record<string, any>) => void;
   isPending: boolean;
   onCancel: () => void;
   isEdit?: boolean;
 }) {
   const form = useForm({
     defaultValues: {
-      providerName: defaultValues?.providerName || "",
-      providerType: defaultValues?.providerType || "",
-      headquartersCountry: defaultValues?.headquartersCountry || "",
-      headquartersCity: defaultValues?.headquartersCity || "",
+      provider_name: defaultValues?.provider_name || "",
+      provider_type: defaultValues?.provider_type || "",
+      headquarters_country: defaultValues?.headquarters_country || "",
+      headquarters_city: defaultValues?.headquarters_city || "",
       website: defaultValues?.website || "",
-      servicesOffered: defaultValues?.servicesOffered || "",
-      sectorExpertise: defaultValues?.sectorExpertise || "",
-      geographicCoverage: defaultValues?.geographicCoverage || "",
-      foundedYear: defaultValues?.foundedYear?.toString() || "",
-      status: defaultValues?.status || "active",
+      services_offered: defaultValues?.services_offered || "",
+      sector_expertise: defaultValues?.sector_expertise || "",
+      geographic_coverage: defaultValues?.geographic_coverage || "",
+      founded_year: defaultValues?.founded_year?.toString() || "",
+      status: defaultValues?.status || "Active",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      providerName: data.providerName || null,
-      providerType: data.providerType || null,
-      headquartersCountry: data.headquartersCountry || null,
-      headquartersCity: data.headquartersCity || null,
+      provider_name: data.provider_name || null,
+      provider_type: data.provider_type || null,
+      headquarters_country: data.headquarters_country || null,
+      headquarters_city: data.headquarters_city || null,
       website: data.website || null,
-      servicesOffered: data.servicesOffered || null,
-      sectorExpertise: data.sectorExpertise || null,
-      geographicCoverage: data.geographicCoverage || null,
-      foundedYear: data.foundedYear ? parseInt(data.foundedYear) : null,
-      status: data.status || "active",
+      services_offered: data.services_offered || null,
+      sector_expertise: data.sector_expertise || null,
+      geographic_coverage: data.geographic_coverage || null,
+      founded_year: data.founded_year ? parseInt(data.founded_year) : null,
+      status: data.status || "Active",
     });
   };
 
@@ -1243,7 +1271,7 @@ function ServiceProviderForm({
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
           <FormField
             control={form.control}
-            name="providerName"
+            name="provider_name"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Provider Name *</FormLabel>
@@ -1258,7 +1286,7 @@ function ServiceProviderForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="providerType"
+              name="provider_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Provider Type</FormLabel>
@@ -1279,7 +1307,7 @@ function ServiceProviderForm({
             />
             <FormField
               control={form.control}
-              name="foundedYear"
+              name="founded_year"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Founded Year</FormLabel>
@@ -1294,7 +1322,7 @@ function ServiceProviderForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="headquartersCountry"
+              name="headquarters_country"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
@@ -1306,7 +1334,7 @@ function ServiceProviderForm({
             />
             <FormField
               control={form.control}
-              name="headquartersCity"
+              name="headquarters_city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>City</FormLabel>
@@ -1333,7 +1361,7 @@ function ServiceProviderForm({
 
           <FormField
             control={form.control}
-            name="servicesOffered"
+            name="services_offered"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Services Offered</FormLabel>
@@ -1347,7 +1375,7 @@ function ServiceProviderForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="sectorExpertise"
+              name="sector_expertise"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Sector Expertise</FormLabel>
@@ -1359,7 +1387,7 @@ function ServiceProviderForm({
             />
             <FormField
               control={form.control}
-              name="geographicCoverage"
+              name="geographic_coverage"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Geographic Coverage</FormLabel>
@@ -1384,9 +1412,9 @@ function ServiceProviderForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Prospect">Prospect</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -1408,35 +1436,35 @@ function ServiceProviderForm({
   );
 }
 
-function ServiceProviderView({ sp, onClose }: { sp: EntityServiceProvider; onClose: () => void }) {
+function ServiceProviderView({ sp, onClose }: { sp: CrmServiceProvider; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Provider Name</p>
-            <p className="font-medium">{sp.providerName || "-"}</p>
+            <p className="font-medium">{sp.provider_name || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Provider Type</p>
-            <p className="font-medium">{sp.providerType || "-"}</p>
+            <p className="font-medium">{sp.provider_type || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{sp.headquartersCountry || "-"}</p>
+            <p className="font-medium">{sp.headquarters_country || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{sp.headquartersCity || "-"}</p>
+            <p className="font-medium">{sp.headquarters_city || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Website</p>
             {sp.website ? (
-              <a href={sp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <a href={sp.website.startsWith("http") ? sp.website : `https://${sp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 {sp.website}
               </a>
             ) : (
@@ -1445,21 +1473,21 @@ function ServiceProviderView({ sp, onClose }: { sp: EntityServiceProvider; onClo
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Founded Year</p>
-            <p className="font-medium">{sp.foundedYear || "-"}</p>
+            <p className="font-medium">{sp.founded_year || "-"}</p>
           </div>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Services Offered</p>
-          <p className="font-medium">{sp.servicesOffered || "-"}</p>
+          <p className="font-medium">{sp.services_offered || "-"}</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Sector Expertise</p>
-            <p className="font-medium">{sp.sectorExpertise || "-"}</p>
+            <p className="font-medium">{sp.sector_expertise || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Geographic Coverage</p>
-            <p className="font-medium">{sp.geographicCoverage || "-"}</p>
+            <p className="font-medium">{sp.geographic_coverage || "-"}</p>
           </div>
         </div>
         <div>
@@ -1476,21 +1504,21 @@ function ServiceProviderView({ sp, onClose }: { sp: EntityServiceProvider; onClo
 
 function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<EntityPortfolioCompany | null>(null);
-  const [editItem, setEditItem] = useState<EntityPortfolioCompany | null>(null);
+  const [viewItem, setViewItem] = useState<CrmPortfolioCompany | null>(null);
+  const [editItem, setEditItem] = useState<CrmPortfolioCompany | null>(null);
   const { toast } = useToast();
 
-  const { data: pcs = [], isLoading, error } = useQuery<EntityPortfolioCompany[]>({
-    queryKey: ["/api/entities/portfolio-companies"],
+  const { data: pcs = [], isLoading, error } = useQuery<CrmPortfolioCompany[]>({
+    queryKey: ["/api/crm/portfolio-companies"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityPortfolioCompany>) => {
-      const res = await apiRequest("POST", "/api/entities/portfolio-companies", data);
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/portfolio-companies", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/portfolio-companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/portfolio-companies"] });
       setIsAddDialogOpen(false);
       toast({ title: "Portfolio Company created" });
     },
@@ -1499,58 +1527,43 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EntityPortfolioCompany> }) => {
-      const res = await apiRequest("PUT", `/api/entities/portfolio-companies/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/portfolio-companies"] });
-      setEditItem(null);
-      toast({ title: "Portfolio Company updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const filteredData = pcs.filter((pc) =>
-    pc.companyName?.toLowerCase().includes(searchQuery.toLowerCase())
+    pc.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
     {
-      key: "companyName",
+      key: "company_name",
       header: "Company Name",
       sortable: true,
-      render: (pc: EntityPortfolioCompany) => (
+      render: (pc: CrmPortfolioCompany) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{pc.companyName || "-"}</span>
+          <span className="font-medium">{pc.company_name || "-"}</span>
         </div>
       ),
     },
     {
-      key: "primaryIndustry",
+      key: "primary_industry",
       header: "Industry",
-      render: (pc: EntityPortfolioCompany) => <Badge variant="secondary">{pc.primaryIndustry || "-"}</Badge>,
+      render: (pc: CrmPortfolioCompany) => <Badge variant="secondary">{pc.primary_industry || "-"}</Badge>,
     },
     {
       key: "headquarters",
       header: "Location",
-      render: (pc: EntityPortfolioCompany) => (
+      render: (pc: CrmPortfolioCompany) => (
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3 w-3" />
-          {pc.headquartersCity && pc.headquartersCountry
-            ? `${pc.headquartersCity}, ${pc.headquartersCountry}`
-            : pc.headquartersCountry || pc.headquartersCity || "-"}
+          {pc.headquarters_city && pc.headquarters_country
+            ? `${pc.headquarters_city}, ${pc.headquarters_country}`
+            : pc.headquarters_country || pc.headquarters_city || "-"}
         </div>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (pc: EntityPortfolioCompany) => (
+      render: (pc: CrmPortfolioCompany) => (
         <Badge className={statusColors[pc.status || "active"]}>
           {pc.status || "active"}
         </Badge>
@@ -1616,8 +1629,11 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
           {editItem && (
             <PortfolioCompanyForm
               defaultValues={editItem}
-              onSubmit={(data) => updateMutation.mutate({ id: editItem.id, data })}
-              isPending={updateMutation.isPending}
+              onSubmit={(data) => {
+                toast({ title: "Edit not implemented yet" });
+                setEditItem(null);
+              }}
+              isPending={false}
               onCancel={() => setEditItem(null)}
               isEdit
             />
@@ -1635,41 +1651,41 @@ function PortfolioCompanyForm({
   onCancel,
   isEdit = false,
 }: {
-  defaultValues?: Partial<EntityPortfolioCompany>;
-  onSubmit: (data: Partial<EntityPortfolioCompany>) => void;
+  defaultValues?: Partial<CrmPortfolioCompany>;
+  onSubmit: (data: Record<string, any>) => void;
   isPending: boolean;
   onCancel: () => void;
   isEdit?: boolean;
 }) {
   const form = useForm({
     defaultValues: {
-      companyName: defaultValues?.companyName || "",
-      companyType: defaultValues?.companyType || "",
-      headquartersCountry: defaultValues?.headquartersCountry || "",
-      headquartersCity: defaultValues?.headquartersCity || "",
-      primaryIndustry: defaultValues?.primaryIndustry || "",
-      businessModel: defaultValues?.businessModel || "",
+      company_name: defaultValues?.company_name || "",
+      company_type: defaultValues?.company_type || "",
+      headquarters_country: defaultValues?.headquarters_country || "",
+      headquarters_city: defaultValues?.headquarters_city || "",
+      primary_industry: defaultValues?.primary_industry || "",
+      business_model: defaultValues?.business_model || "",
       website: defaultValues?.website || "",
-      businessDescription: defaultValues?.businessDescription || "",
-      foundedYear: defaultValues?.foundedYear?.toString() || "",
-      employeeCount: defaultValues?.employeeCount?.toString() || "",
-      status: defaultValues?.status || "active",
+      business_description: defaultValues?.business_description || "",
+      founded_year: defaultValues?.founded_year?.toString() || "",
+      employee_count: defaultValues?.employee_count?.toString() || "",
+      status: defaultValues?.status || "Active",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      companyName: data.companyName || null,
-      companyType: data.companyType || null,
-      headquartersCountry: data.headquartersCountry || null,
-      headquartersCity: data.headquartersCity || null,
-      primaryIndustry: data.primaryIndustry || null,
-      businessModel: data.businessModel || null,
+      company_name: data.company_name || null,
+      company_type: data.company_type || null,
+      headquarters_country: data.headquarters_country || null,
+      headquarters_city: data.headquarters_city || null,
+      primary_industry: data.primary_industry || null,
+      business_model: data.business_model || null,
       website: data.website || null,
-      businessDescription: data.businessDescription || null,
-      foundedYear: data.foundedYear ? parseInt(data.foundedYear) : null,
-      employeeCount: data.employeeCount ? parseInt(data.employeeCount) : null,
-      status: data.status || "active",
+      business_description: data.business_description || null,
+      founded_year: data.founded_year ? parseInt(data.founded_year) : null,
+      employee_count: data.employee_count ? parseInt(data.employee_count) : null,
+      status: data.status || "Active",
     });
   };
 
@@ -1679,7 +1695,7 @@ function PortfolioCompanyForm({
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
           <FormField
             control={form.control}
-            name="companyName"
+            name="company_name"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Company Name *</FormLabel>
@@ -1694,7 +1710,7 @@ function PortfolioCompanyForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="companyType"
+              name="company_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Company Type</FormLabel>
@@ -1706,7 +1722,7 @@ function PortfolioCompanyForm({
             />
             <FormField
               control={form.control}
-              name="primaryIndustry"
+              name="primary_industry"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Primary Industry</FormLabel>
@@ -1730,7 +1746,7 @@ function PortfolioCompanyForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="headquartersCountry"
+              name="headquarters_country"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
@@ -1742,7 +1758,7 @@ function PortfolioCompanyForm({
             />
             <FormField
               control={form.control}
-              name="headquartersCity"
+              name="headquarters_city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>City</FormLabel>
@@ -1757,7 +1773,7 @@ function PortfolioCompanyForm({
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="foundedYear"
+              name="founded_year"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Founded Year</FormLabel>
@@ -1769,7 +1785,7 @@ function PortfolioCompanyForm({
             />
             <FormField
               control={form.control}
-              name="employeeCount"
+              name="employee_count"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Employee Count</FormLabel>
@@ -1783,7 +1799,7 @@ function PortfolioCompanyForm({
 
           <FormField
             control={form.control}
-            name="businessModel"
+            name="business_model"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Business Model</FormLabel>
@@ -1809,7 +1825,7 @@ function PortfolioCompanyForm({
 
           <FormField
             control={form.control}
-            name="businessDescription"
+            name="business_description"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Business Description</FormLabel>
@@ -1833,9 +1849,9 @@ function PortfolioCompanyForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -1857,54 +1873,54 @@ function PortfolioCompanyForm({
   );
 }
 
-function PortfolioCompanyView({ pc, onClose }: { pc: EntityPortfolioCompany; onClose: () => void }) {
+function PortfolioCompanyView({ pc, onClose }: { pc: CrmPortfolioCompany; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Company Name</p>
-            <p className="font-medium">{pc.companyName || "-"}</p>
+            <p className="font-medium">{pc.company_name || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Company Type</p>
-            <p className="font-medium">{pc.companyType || "-"}</p>
+            <p className="font-medium">{pc.company_type || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Primary Industry</p>
-            <p className="font-medium">{pc.primaryIndustry || "-"}</p>
+            <p className="font-medium">{pc.primary_industry || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Business Model</p>
-            <p className="font-medium">{pc.businessModel || "-"}</p>
+            <p className="font-medium">{pc.business_model || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{pc.headquartersCountry || "-"}</p>
+            <p className="font-medium">{pc.headquarters_country || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{pc.headquartersCity || "-"}</p>
+            <p className="font-medium">{pc.headquarters_city || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Founded Year</p>
-            <p className="font-medium">{pc.foundedYear || "-"}</p>
+            <p className="font-medium">{pc.founded_year || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Employee Count</p>
-            <p className="font-medium">{pc.employeeCount || "-"}</p>
+            <p className="font-medium">{pc.employee_count || "-"}</p>
           </div>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Website</p>
           {pc.website ? (
-            <a href={pc.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            <a href={pc.website.startsWith("http") ? pc.website : `https://${pc.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
               {pc.website}
             </a>
           ) : (
@@ -1913,7 +1929,7 @@ function PortfolioCompanyView({ pc, onClose }: { pc: EntityPortfolioCompany; onC
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Business Description</p>
-          <p className="font-medium">{pc.businessDescription || "-"}</p>
+          <p className="font-medium">{pc.business_description || "-"}</p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Status</p>
