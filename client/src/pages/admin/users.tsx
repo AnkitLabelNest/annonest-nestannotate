@@ -31,6 +31,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import {
   Users,
@@ -41,8 +43,10 @@ import {
   Check,
   X,
   RefreshCw,
+  Building2,
+  Plus,
 } from "lucide-react";
-import type { UserRole, User, ApprovalStatus } from "@shared/schema";
+import type { UserRole, User, ApprovalStatus, Organization } from "@shared/schema";
 
 type UserWithoutPassword = Omit<User, "password">;
 
@@ -54,8 +58,17 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserWithoutPassword | null>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [orgDialogOpen, setOrgDialogOpen] = useState(false);
   const [newRole, setNewRole] = useState<UserRole>("annotator");
   const [approveRole, setApproveRole] = useState<UserRole>("annotator");
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [assignOrgDialogOpen, setAssignOrgDialogOpen] = useState(false);
+  const [assignOrgId, setAssignOrgId] = useState<string>("");
+
+  const { data: organizations = [] } = useQuery<Organization[]>({
+    queryKey: ["/api/organizations"],
+  });
 
   const { data: allUsers = [], isLoading } = useQuery<UserWithoutPassword[]>({
     queryKey: ["/api/users"],
@@ -63,6 +76,38 @@ export default function AdminUsersPage() {
 
   const { data: pendingGuests = [] } = useQuery<UserWithoutPassword[]>({
     queryKey: ["/api/admin/pending-guests"],
+  });
+
+  const createOrgMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/organizations", { name });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      setOrgDialogOpen(false);
+      setNewOrgName("");
+      toast({ title: "Organization created", description: "New organization has been created." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create organization", variant: "destructive" });
+    },
+  });
+
+  const updateUserOrgMutation = useMutation({
+    mutationFn: async ({ userId, orgId }: { userId: string; orgId: string }) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}`, { orgId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setAssignOrgDialogOpen(false);
+      setSelectedUser(null);
+      toast({ title: "Organization updated", description: "User's organization has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update user organization", variant: "destructive" });
+    },
   });
 
   const approveMutation = useMutation({
@@ -176,9 +221,31 @@ export default function AdminUsersPage() {
     }
   };
 
-  const approvedUsers = allUsers.filter(u => u.approvalStatus === "approved" || !u.approvalStatus);
-  const pendingUsers = allUsers.filter(u => u.approvalStatus === "pending");
-  const rejectedUsers = allUsers.filter(u => u.approvalStatus === "rejected");
+  const getOrgName = (orgId: string | null) => {
+    if (!orgId) return "No Organization";
+    const org = organizations.find(o => o.id === orgId);
+    return org?.name || "Unknown";
+  };
+
+  const openAssignOrgDialog = (user: UserWithoutPassword) => {
+    setSelectedUser(user);
+    setAssignOrgId(user.orgId || "");
+    setAssignOrgDialogOpen(true);
+  };
+
+  const handleAssignOrg = () => {
+    if (selectedUser && assignOrgId) {
+      updateUserOrgMutation.mutate({ userId: selectedUser.id, orgId: assignOrgId });
+    }
+  };
+
+  const filteredUsers = selectedOrgId
+    ? allUsers.filter(u => u.orgId === selectedOrgId)
+    : allUsers;
+
+  const approvedUsers = filteredUsers.filter(u => u.approvalStatus === "approved" || !u.approvalStatus);
+  const pendingUsers = filteredUsers.filter(u => u.approvalStatus === "pending");
+  const rejectedUsers = filteredUsers.filter(u => u.approvalStatus === "rejected");
 
   if (currentUser?.role !== "admin" && currentUser?.role !== "manager") {
     return (
@@ -202,9 +269,27 @@ export default function AdminUsersPage() {
           <p className="text-muted-foreground">Manage users, approve registrations, and assign roles</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedOrgId || "all"} onValueChange={(v) => setSelectedOrgId(v === "all" ? null : v)}>
+            <SelectTrigger className="w-[200px]" data-testid="select-org-filter">
+              <Building2 className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All Organizations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Organizations</SelectItem>
+              {organizations.map((org) => (
+                <SelectItem key={org.id} value={org.id} data-testid={`option-org-${org.id}`}>
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => setOrgDialogOpen(true)} data-testid="button-create-org">
+            <Plus className="h-4 w-4 mr-1" />
+            New Org
+          </Button>
           <Badge variant="outline" className="gap-1">
             <Users className="h-3 w-3" />
-            {allUsers.length} Users
+            {filteredUsers.length} Users
           </Badge>
           {pendingUsers.length > 0 && (
             <Badge variant="secondary" className="gap-1">
@@ -227,14 +312,16 @@ export default function AdminUsersPage() {
 
         <TabsContent value="all" className="mt-4">
           <UserTable
-            users={allUsers}
+            users={filteredUsers}
             isLoading={isLoading}
             getInitials={getInitials}
             getApprovalBadge={getApprovalBadge}
+            getOrgName={getOrgName}
             onApprove={openApproveDialog}
             onReject={(userId) => rejectMutation.mutate(userId)}
             onChangeRole={openRoleDialog}
             onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
+            onAssignOrg={openAssignOrgDialog}
             currentUserId={currentUser?.id}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
@@ -255,10 +342,12 @@ export default function AdminUsersPage() {
               isLoading={isLoading}
               getInitials={getInitials}
               getApprovalBadge={getApprovalBadge}
+              getOrgName={getOrgName}
               onApprove={openApproveDialog}
               onReject={(userId) => rejectMutation.mutate(userId)}
               onChangeRole={openRoleDialog}
               onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
+              onAssignOrg={openAssignOrgDialog}
               currentUserId={currentUser?.id}
               isApproving={approveMutation.isPending}
               isRejecting={rejectMutation.isPending}
@@ -273,10 +362,12 @@ export default function AdminUsersPage() {
             isLoading={isLoading}
             getInitials={getInitials}
             getApprovalBadge={getApprovalBadge}
+            getOrgName={getOrgName}
             onApprove={openApproveDialog}
             onReject={(userId) => rejectMutation.mutate(userId)}
             onChangeRole={openRoleDialog}
             onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
+            onAssignOrg={openAssignOrgDialog}
             currentUserId={currentUser?.id}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
@@ -296,10 +387,12 @@ export default function AdminUsersPage() {
               isLoading={isLoading}
               getInitials={getInitials}
               getApprovalBadge={getApprovalBadge}
+              getOrgName={getOrgName}
               onApprove={openApproveDialog}
               onReject={(userId) => rejectMutation.mutate(userId)}
               onChangeRole={openRoleDialog}
               onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
+              onAssignOrg={openAssignOrgDialog}
               currentUserId={currentUser?.id}
               isApproving={approveMutation.isPending}
               isRejecting={rejectMutation.isPending}
@@ -397,6 +490,94 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={orgDialogOpen} onOpenChange={setOrgDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Organization</DialogTitle>
+            <DialogDescription>
+              Create a new organization to group users
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="org-name">Organization Name</Label>
+              <Input
+                id="org-name"
+                placeholder="Enter organization name"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                data-testid="input-org-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOrgDialogOpen(false)} data-testid="button-cancel-org">
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => createOrgMutation.mutate(newOrgName)}
+              disabled={createOrgMutation.isPending || !newOrgName.trim()}
+              data-testid="button-confirm-org"
+            >
+              {createOrgMutation.isPending && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+              Create Organization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={assignOrgDialogOpen} onOpenChange={setAssignOrgDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Organization</DialogTitle>
+            <DialogDescription>
+              Assign {selectedUser?.displayName} to an organization
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {selectedUser ? getInitials(selectedUser.displayName) : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{selectedUser?.displayName}</p>
+                <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Select Organization</Label>
+              <Select value={assignOrgId} onValueChange={setAssignOrgId}>
+                <SelectTrigger data-testid="select-assign-org">
+                  <SelectValue placeholder="Select an organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id} data-testid={`option-assign-org-${org.id}`}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOrgDialogOpen(false)} data-testid="button-cancel-assign-org">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignOrg}
+              disabled={updateUserOrgMutation.isPending || !assignOrgId}
+              data-testid="button-confirm-assign-org"
+            >
+              {updateUserOrgMutation.isPending && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+              Assign Organization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -406,10 +587,12 @@ interface UserTableProps {
   isLoading: boolean;
   getInitials: (name: string) => string;
   getApprovalBadge: (status: ApprovalStatus | null) => JSX.Element;
+  getOrgName: (orgId: string | null) => string;
   onApprove: (user: UserWithoutPassword) => void;
   onReject: (userId: string) => void;
   onChangeRole: (user: UserWithoutPassword) => void;
   onToggleActive: (user: UserWithoutPassword) => void;
+  onAssignOrg: (user: UserWithoutPassword) => void;
   currentUserId?: string;
   isApproving: boolean;
   isRejecting: boolean;
@@ -421,10 +604,12 @@ function UserTable({
   isLoading,
   getInitials,
   getApprovalBadge,
+  getOrgName,
   onApprove,
   onReject,
   onChangeRole,
   onToggleActive,
+  onAssignOrg,
   currentUserId,
   isApproving,
   isRejecting,
@@ -459,6 +644,7 @@ function UserTable({
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
+              <TableHead>Organization</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Approval</TableHead>
@@ -480,6 +666,12 @@ function UserTable({
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                     </div>
                   </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {getOrgName(user.orgId)}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <RoleBadge role={user.role as UserRole} size="sm" />
@@ -516,6 +708,14 @@ function UserTable({
                         </Button>
                       </>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onAssignOrg(user)}
+                      data-testid={`button-assign-org-${user.id}`}
+                    >
+                      <Building2 className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

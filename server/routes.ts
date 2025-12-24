@@ -352,6 +352,30 @@ export async function registerRoutes(
   });
 
   app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin) {
+      return res.status(403).json({ message: "Admin user not found" });
+    }
+    
+    if (req.body.orgId) {
+      if (admin.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can change user organizations" });
+      }
+      const targetOrg = await storage.getOrganization(req.body.orgId);
+      if (!targetOrg) {
+        return res.status(400).json({ message: "Target organization does not exist" });
+      }
+    }
+    
+    if (req.body.role && admin.role !== "admin" && admin.role !== "manager") {
+      return res.status(403).json({ message: "Only admins and managers can change user roles" });
+    }
+    
     const updated = await storage.updateUser(req.params.id, req.body);
     if (!updated) {
       return res.status(404).json({ message: "User not found" });
@@ -410,13 +434,33 @@ export async function registerRoutes(
     return res.json(userWithoutPassword);
   });
 
-  // Organizations routes
-  app.get("/api/organizations", async (_req: Request, res: Response) => {
+  // Organizations routes - admin only, returns orgs user can see
+  app.get("/api/organizations", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
+      return res.status(403).json({ message: "Only admins and managers can view organizations" });
+    }
+    
     const orgs = await storage.getOrganizations();
     return res.json(orgs);
   });
 
   app.get("/api/organizations/:id", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
+      return res.status(403).json({ message: "Only admins and managers can view organizations" });
+    }
+    
     const org = await storage.getOrganization(req.params.id);
     if (!org) {
       return res.status(404).json({ message: "Organization not found" });
@@ -432,12 +476,18 @@ export async function registerRoutes(
       }
       
       const admin = await storage.getUser(adminId);
-      if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
-        return res.status(403).json({ message: "Only admins and managers can create organizations" });
+      if (!admin || admin.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can create organizations" });
       }
       
-      const parsed = insertOrganizationSchema.parse(req.body);
-      const org = await storage.createOrganization(parsed);
+      const name = req.body.name;
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ message: "Organization name is required" });
+      }
+      
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      
+      const org = await storage.createOrganization({ name: name.trim(), slug });
       return res.status(201).json(org);
     } catch (error) {
       if (error instanceof z.ZodError) {
