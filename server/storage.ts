@@ -12,6 +12,9 @@ import {
   type MonitoredUrl, type InsertMonitoredUrl,
   organizations,
   users,
+  firms,
+  contacts,
+  funds,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -944,6 +947,155 @@ export class DatabaseStorage extends MemStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0];
+  }
+
+  async getFirms(orgId: string): Promise<Firm[]> {
+    return await db.select().from(firms).where(eq(firms.orgId, orgId));
+  }
+
+  async getFirm(id: string, orgId: string): Promise<Firm | undefined> {
+    const result = await db.select().from(firms).where(
+      and(eq(firms.id, id), eq(firms.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createFirm(insertFirm: InsertFirm & { orgId: string }): Promise<Firm> {
+    const id = randomUUID();
+    const firmToInsert = {
+      id,
+      website: insertFirm.website ?? null,
+      description: insertFirm.description ?? null,
+      headquarters: insertFirm.headquarters ?? null,
+      foundedYear: insertFirm.foundedYear ?? null,
+      aum: insertFirm.aum ?? null,
+      createdBy: insertFirm.createdBy ?? null,
+      lastEditedBy: insertFirm.lastEditedBy ?? null,
+      viewedBy: insertFirm.viewedBy ?? [],
+      ...insertFirm,
+    };
+    const result = await db.insert(firms).values(firmToInsert).returning();
+    return result[0];
+  }
+
+  async updateFirm(id: string, orgId: string, updates: Partial<InsertFirm>): Promise<Firm | undefined> {
+    const result = await db.update(firms)
+      .set(updates)
+      .where(and(eq(firms.id, id), eq(firms.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFirm(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(firms)
+      .where(and(eq(firms.id, id), eq(firms.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async findDuplicateFirms(orgId: string, name: string, excludeId?: string): Promise<Firm[]> {
+    const allFirms = await this.getFirms(orgId);
+    const normalizedName = name.toLowerCase().trim();
+    return allFirms.filter(f => {
+      if (excludeId && f.id === excludeId) return false;
+      return f.name.toLowerCase().trim() === normalizedName;
+    });
+  }
+
+  async getContacts(orgId: string, firmId?: string): Promise<Contact[]> {
+    if (firmId) {
+      return await db.select().from(contacts).where(
+        and(eq(contacts.orgId, orgId), eq(contacts.firmId, firmId))
+      );
+    }
+    return await db.select().from(contacts).where(eq(contacts.orgId, orgId));
+  }
+
+  async getContact(id: string, orgId: string): Promise<Contact | undefined> {
+    const result = await db.select().from(contacts).where(
+      and(eq(contacts.id, id), eq(contacts.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createContact(insertContact: InsertContact & { orgId: string }): Promise<Contact> {
+    const id = randomUUID();
+    const contactToInsert = {
+      id,
+      firmId: insertContact.firmId ?? null,
+      email: insertContact.email ?? null,
+      phone: insertContact.phone ?? null,
+      title: insertContact.title ?? null,
+      linkedIn: insertContact.linkedIn ?? null,
+      createdBy: insertContact.createdBy ?? null,
+      lastEditedBy: insertContact.lastEditedBy ?? null,
+      ...insertContact,
+    };
+    const result = await db.insert(contacts).values(contactToInsert).returning();
+    return result[0];
+  }
+
+  async updateContact(id: string, orgId: string, updates: Partial<InsertContact>): Promise<Contact | undefined> {
+    const result = await db.update(contacts)
+      .set(updates)
+      .where(and(eq(contacts.id, id), eq(contacts.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteContact(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(contacts)
+      .where(and(eq(contacts.id, id), eq(contacts.orgId, orgId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getFunds(orgId: string, firmId?: string): Promise<Fund[]> {
+    if (firmId) {
+      return await db.select().from(funds).where(
+        and(eq(funds.orgId, orgId), eq(funds.firmId, firmId))
+      );
+    }
+    return await db.select().from(funds).where(eq(funds.orgId, orgId));
+  }
+
+  async getFund(id: string, orgId: string): Promise<Fund | undefined> {
+    const result = await db.select().from(funds).where(
+      and(eq(funds.id, id), eq(funds.orgId, orgId))
+    );
+    return result[0];
+  }
+
+  async createFund(insertFund: InsertFund & { orgId: string }): Promise<Fund> {
+    const id = randomUUID();
+    const fundToInsert = {
+      id,
+      firmId: insertFund.firmId ?? null,
+      vintage: insertFund.vintage ?? null,
+      size: insertFund.size ?? null,
+      strategy: insertFund.strategy ?? null,
+      status: insertFund.status ?? null,
+      createdBy: insertFund.createdBy ?? null,
+      lastEditedBy: insertFund.lastEditedBy ?? null,
+      ...insertFund,
+    };
+    const result = await db.insert(funds).values(fundToInsert).returning();
+    return result[0];
+  }
+
+  async updateFund(id: string, orgId: string, updates: Partial<InsertFund>): Promise<Fund | undefined> {
+    const result = await db.update(funds)
+      .set(updates)
+      .where(and(eq(funds.id, id), eq(funds.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFund(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(funds)
+      .where(and(eq(funds.id, id), eq(funds.orgId, orgId)))
+      .returning();
+    return result.length > 0;
   }
 }
 
