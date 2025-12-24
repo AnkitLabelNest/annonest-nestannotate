@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -34,7 +36,11 @@ import { useForm } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Building2, Globe, MapPin, DollarSign, Loader2 } from "lucide-react";
+import { 
+  Search, Plus, Building2, Globe, MapPin, DollarSign, Loader2, 
+  Eye, Pencil, Users, UserPlus, Link2, CheckCircle, AlertCircle, Clock,
+  Briefcase, Mail, Phone, Linkedin
+} from "lucide-react";
 
 interface CrmGp {
   id: string;
@@ -97,6 +103,25 @@ interface CrmPortfolioCompany {
   status?: string;
 }
 
+interface CrmContact {
+  id: string;
+  org_id: string;
+  first_name: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  seniority_level?: string;
+  department?: string;
+  linked_entity_type?: string;
+  linked_entity_id?: string;
+  relationship_type?: string;
+  linkedin_url?: string;
+  notes?: string;
+  status?: string;
+  verification_status?: string;
+}
+
 const statusColors: Record<string, string> = {
   active: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   Active: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
@@ -108,12 +133,52 @@ const statusColors: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
 };
 
+const verificationColors: Record<string, string> = {
+  verified: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  Verified: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  unverified: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  Unverified: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  Pending: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+};
+
 const currencyOptions = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"];
 const firmTypeOptions = ["Private Equity", "Venture Capital", "Hedge Fund", "Real Estate", "Infrastructure", "Credit", "Multi-Strategy", "Other"];
 const assetClassOptions = ["Buyout", "Growth Equity", "Venture", "Real Estate", "Infrastructure", "Credit", "Distressed", "Secondaries"];
 const investorTypeOptions = ["Pension Fund", "Endowment", "Foundation", "Family Office", "Sovereign Wealth Fund", "Insurance Company", "Fund of Funds", "Bank", "Corporate", "HNWI", "Other"];
 const providerTypeOptions = ["Law Firm", "Accounting", "Fund Administration", "Consulting", "Placement Agent", "Recruiting", "Technology", "Data Provider", "Other"];
 const industryOptions = ["Technology", "Healthcare", "Financial Services", "Consumer", "Industrial", "Energy", "Real Estate", "Multi-Sector"];
+const seniorityOptions = ["C-Suite", "VP", "Director", "Manager", "Senior", "Junior", "Associate", "Intern"];
+const relationshipOptions = ["Primary Contact", "Secondary Contact", "Board Member", "Advisor", "Investor Relations", "Portfolio Manager", "Deal Team", "Other"];
+
+function FieldDisplay({ label, value, isLink = false }: { label: string; value?: string | number | null; isLink?: boolean }) {
+  return (
+    <div>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {isLink && value ? (
+        <a 
+          href={String(value).startsWith("http") ? String(value) : `https://${value}`} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="font-medium text-primary hover:underline"
+        >
+          {value}
+        </a>
+      ) : (
+        <p className="font-medium">{value || "-"}</p>
+      )}
+    </div>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-4 pb-2">
+      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{title}</h4>
+      <Separator className="flex-1" />
+    </div>
+  );
+}
 
 export default function FirmsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,8 +240,8 @@ export default function FirmsPage() {
 
 function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<CrmGp | null>(null);
-  const [editItem, setEditItem] = useState<CrmGp | null>(null);
+  const [selectedFirm, setSelectedFirm] = useState<CrmGp | null>(null);
+  const [dialogMode, setDialogMode] = useState<"view" | "edit" | "contacts">("view");
   const { toast } = useToast();
 
   const { data: gps = [], isLoading, error } = useQuery<CrmGp[]>({
@@ -198,6 +263,21 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/gps/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/gps"] });
+      setDialogMode("view");
+      toast({ title: "GP Firm updated", description: "Changes have been saved successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating GP", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filteredData = gps.filter((gp) =>
     gp.gp_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     gp.gp_legal_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -211,7 +291,10 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       render: (gp: CrmGp) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{gp.gp_name || "-"}</span>
+          <div>
+            <span className="font-medium">{gp.gp_name || "-"}</span>
+            <p className="text-xs text-muted-foreground">Click to view full profile</p>
+          </div>
         </div>
       ),
     },
@@ -243,17 +326,6 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
     {
-      key: "website",
-      header: "Website",
-      render: (gp: CrmGp) =>
-        gp.website ? (
-          <a href={gp.website.startsWith("http") ? gp.website : `https://${gp.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
-            <Globe className="h-3 w-3" />
-            {gp.website.replace(/^https?:\/\//, "").split("/")[0]}
-          </a>
-        ) : "-",
-    },
-    {
       key: "status",
       header: "Status",
       render: (gp: CrmGp) => (
@@ -263,6 +335,11 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
   ];
+
+  const openFirmDialog = (firm: CrmGp, mode: "view" | "edit" | "contacts") => {
+    setSelectedFirm(firm);
+    setDialogMode(mode);
+  };
 
   if (isLoading) {
     return (
@@ -300,35 +377,72 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(gp) => setViewItem(gp)}
-        onEdit={(gp) => setEditItem(gp)}
+        onView={(gp) => openFirmDialog(gp, "view")}
+        onEdit={(gp) => openFirmDialog(gp, "edit")}
         emptyMessage="No GP firms found"
       />
 
-      <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>GP Firm Details</DialogTitle>
+      <Dialog open={!!selectedFirm} onOpenChange={() => setSelectedFirm(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader className="pb-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-xl">{selectedFirm?.gp_name}</DialogTitle>
+                <DialogDescription>
+                  {selectedFirm?.gp_legal_name && <span className="text-sm">{selectedFirm.gp_legal_name}</span>}
+                </DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={dialogMode === "view" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("view")}
+                  data-testid="button-view-profile"
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+                <Button
+                  variant={dialogMode === "edit" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("edit")}
+                  data-testid="button-edit-profile"
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={dialogMode === "contacts" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("contacts")}
+                  data-testid="button-contacts"
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  Contacts
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
-          {viewItem && <GpFirmView gp={viewItem} onClose={() => setViewItem(null)} />}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Edit GP Firm</DialogTitle>
-          </DialogHeader>
-          {editItem && (
+          
+          {selectedFirm && dialogMode === "view" && (
+            <GpFirmFullView gp={selectedFirm} onClose={() => setSelectedFirm(null)} />
+          )}
+          {selectedFirm && dialogMode === "edit" && (
             <GpFirmForm
-              defaultValues={editItem}
+              defaultValues={selectedFirm}
               onSubmit={(data) => {
-                toast({ title: "Edit not implemented yet" });
-                setEditItem(null);
+                updateMutation.mutate({ id: selectedFirm.id, data });
               }}
-              isPending={false}
-              onCancel={() => setEditItem(null)}
+              isPending={updateMutation.isPending}
+              onCancel={() => setDialogMode("view")}
               isEdit
+            />
+          )}
+          {selectedFirm && dialogMode === "contacts" && (
+            <FirmContactsSection 
+              entityType="gp" 
+              entityId={selectedFirm.id} 
+              entityName={selectedFirm.gp_name}
             />
           )}
         </DialogContent>
@@ -384,6 +498,7 @@ function GpFirmForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <SectionHeader title="Basic Information" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -457,6 +572,7 @@ function GpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Location" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -484,6 +600,7 @@ function GpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Financial Information" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -520,6 +637,7 @@ function GpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Contact & Status" />
           <FormField
             control={form.control}
             name="website"
@@ -570,60 +688,41 @@ function GpFirmForm({
   );
 }
 
-function GpFirmView({ gp, onClose }: { gp: CrmGp; onClose: () => void }) {
+function GpFirmFullView({ gp, onClose }: { gp: CrmGp; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
+      <div className="space-y-2">
+        <SectionHeader title="Basic Information" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">GP Name</p>
-            <p className="font-medium">{gp.gp_name || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Legal Name</p>
-            <p className="font-medium">{gp.gp_legal_name || "-"}</p>
-          </div>
+          <FieldDisplay label="GP Name" value={gp.gp_name} />
+          <FieldDisplay label="Legal Name" value={gp.gp_legal_name} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Firm Type</p>
-            <p className="font-medium">{gp.firm_type || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Primary Asset Classes</p>
-            <p className="font-medium">{gp.primary_asset_classes || "-"}</p>
-          </div>
+          <FieldDisplay label="Firm Type" value={gp.firm_type} />
+          <FieldDisplay label="Primary Asset Classes" value={gp.primary_asset_classes} />
         </div>
+
+        <SectionHeader title="Location" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{gp.headquarters_country || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{gp.headquarters_city || "-"}</p>
-          </div>
+          <FieldDisplay label="Country" value={gp.headquarters_country} />
+          <FieldDisplay label="City" value={gp.headquarters_city} />
         </div>
+
+        <SectionHeader title="Financial Information" />
         <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Total AUM" value={gp.total_aum ? `${gp.total_aum} ${gp.aum_currency || "USD"}` : null} />
+          <FieldDisplay label="Currency" value={gp.aum_currency} />
+        </div>
+
+        <SectionHeader title="Contact & Status" />
+        <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Website" value={gp.website} isLink />
           <div>
-            <p className="text-sm text-muted-foreground">Total AUM</p>
-            <p className="font-medium">{gp.total_aum ? `${gp.total_aum} ${gp.aum_currency || "USD"}` : "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Website</p>
-            {gp.website ? (
-              <a href={gp.website.startsWith("http") ? gp.website : `https://${gp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                {gp.website}
-              </a>
-            ) : (
-              <p className="font-medium">-</p>
-            )}
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[gp.status || "active"]}>{gp.status || "active"}</Badge>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[gp.status || "active"]}>{gp.status || "active"}</Badge>
-        </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
@@ -632,10 +731,473 @@ function GpFirmView({ gp, onClose }: { gp: CrmGp; onClose: () => void }) {
   );
 }
 
+function FirmContactsSection({ 
+  entityType, 
+  entityId, 
+  entityName 
+}: { 
+  entityType: string; 
+  entityId: string; 
+  entityName: string;
+}) {
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [isLinkContactOpen, setIsLinkContactOpen] = useState(false);
+  const { toast } = useToast();
+
+  const { data: linkedContacts = [], isLoading } = useQuery<CrmContact[]>({
+    queryKey: ["/api/crm/contacts", { linked_entity_type: entityType, linked_entity_id: entityId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/contacts?linked_entity_type=${entityType}&linked_entity_id=${entityId}`);
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      return res.json();
+    },
+  });
+
+  const { data: availableContacts = [] } = useQuery<CrmContact[]>({
+    queryKey: ["/api/crm/contacts", "unlinked"],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/contacts?unlinked=true`);
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      return res.json();
+    },
+    enabled: isLinkContactOpen,
+  });
+
+  const createContactMutation = useMutation({
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/contacts", {
+        ...data,
+        linked_entity_type: entityType,
+        linked_entity_id: entityId,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/contacts"] });
+      setIsAddContactOpen(false);
+      toast({ title: "Contact created", description: `Contact added to ${entityName}` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const linkContactMutation = useMutation({
+    mutationFn: async ({ contactId, relationshipType }: { contactId: string; relationshipType: string }) => {
+      const res = await apiRequest("PATCH", `/api/crm/contacts/${contactId}/link`, {
+        linked_entity_type: entityType,
+        linked_entity_id: entityId,
+        relationship_type: relationshipType,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/contacts"] });
+      setIsLinkContactOpen(false);
+      toast({ title: "Contact linked", description: `Contact linked to ${entityName}` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const getVerificationIcon = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case "verified":
+        return <CheckCircle className="h-3 w-3 text-green-600" />;
+      case "pending":
+        return <Clock className="h-3 w-3 text-amber-600" />;
+      default:
+        return <AlertCircle className="h-3 w-3 text-gray-400" />;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Contacts linked to this firm ({linkedContacts.length})
+        </p>
+        <div className="flex gap-2">
+          <Dialog open={isLinkContactOpen} onOpenChange={setIsLinkContactOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-link-contact">
+                <Link2 className="h-4 w-4 mr-1" />
+                Link Existing
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Link Existing Contact</DialogTitle>
+                <DialogDescription>Select a contact to link to {entityName}</DialogDescription>
+              </DialogHeader>
+              <LinkContactForm 
+                contacts={availableContacts} 
+                onLink={(contactId, relationshipType) => linkContactMutation.mutate({ contactId, relationshipType })}
+                isPending={linkContactMutation.isPending}
+                onCancel={() => setIsLinkContactOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" data-testid="button-add-contact">
+                <UserPlus className="h-4 w-4 mr-1" />
+                Add New Contact
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add New Contact</DialogTitle>
+                <DialogDescription>Create a new contact for {entityName}</DialogDescription>
+              </DialogHeader>
+              <ContactForm 
+                onSubmit={(data) => createContactMutation.mutate(data)}
+                isPending={createContactMutation.isPending}
+                onCancel={() => setIsAddContactOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <ScrollArea className="max-h-[50vh]">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+          </div>
+        ) : linkedContacts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No contacts linked to this firm yet.</p>
+            <p className="text-sm">Add a new contact or link an existing one.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {linkedContacts.map((contact) => (
+              <Card key={contact.id} className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">
+                        {contact.first_name} {contact.last_name}
+                      </span>
+                      {getVerificationIcon(contact.verification_status)}
+                    </div>
+                    {contact.title && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Briefcase className="h-3 w-3" />
+                        {contact.title}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {contact.email && (
+                        <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                          <Mail className="h-3 w-3" />
+                          {contact.email}
+                        </a>
+                      )}
+                      {contact.phone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {contact.phone}
+                        </span>
+                      )}
+                      {contact.linkedin_url && (
+                        <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                          <Linkedin className="h-3 w-3" />
+                          LinkedIn
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {contact.seniority_level && (
+                      <Badge variant="outline" className="text-xs">{contact.seniority_level}</Badge>
+                    )}
+                    {contact.relationship_type && (
+                      <Badge variant="secondary" className="text-xs">{contact.relationship_type}</Badge>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
+function ContactForm({
+  onSubmit,
+  isPending,
+  onCancel,
+}: {
+  onSubmit: (data: Record<string, any>) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  const form = useForm({
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      title: "",
+      seniority_level: "",
+      department: "",
+      relationship_type: "",
+      linkedin_url: "",
+      notes: "",
+    },
+  });
+
+  const handleSubmit = (data: any) => {
+    onSubmit({
+      first_name: data.first_name,
+      last_name: data.last_name || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      title: data.title || null,
+      seniority_level: data.seniority_level || null,
+      department: data.department || null,
+      relationship_type: data.relationship_type || null,
+      linkedin_url: data.linkedin_url || null,
+      notes: data.notes || null,
+    });
+  };
+
+  return (
+    <ScrollArea className="max-h-[60vh] pr-4">
+      <Form {...form}>
+        <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="first_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>First Name *</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="First name" data-testid="input-contact-first-name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="last_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Last name" data-testid="input-contact-last-name" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="email" placeholder="email@example.com" data-testid="input-contact-email" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="+1 (555) 000-0000" data-testid="input-contact-phone" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Title / Role</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="e.g., Partner, Managing Director" data-testid="input-contact-title" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="seniority_level"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Seniority Level</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-seniority">
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {seniorityOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="relationship_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Relationship Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-relationship">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {relationshipOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="linkedin_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>LinkedIn URL</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://linkedin.com/in/..." data-testid="input-contact-linkedin" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl>
+                  <Textarea {...field} placeholder="Additional notes..." data-testid="input-contact-notes" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending} data-testid="button-submit-contact">
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Add Contact
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </ScrollArea>
+  );
+}
+
+function LinkContactForm({
+  contacts,
+  onLink,
+  isPending,
+  onCancel,
+}: {
+  contacts: CrmContact[];
+  onLink: (contactId: string, relationshipType: string) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [relationshipType, setRelationshipType] = useState("");
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Select Contact</label>
+        <Select value={selectedContactId} onValueChange={setSelectedContactId}>
+          <SelectTrigger className="mt-1" data-testid="select-link-contact">
+            <SelectValue placeholder="Choose a contact to link" />
+          </SelectTrigger>
+          <SelectContent>
+            {contacts.length === 0 ? (
+              <SelectItem value="none" disabled>No unlinked contacts available</SelectItem>
+            ) : (
+              contacts.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.first_name} {c.last_name} {c.title ? `- ${c.title}` : ""}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Relationship Type</label>
+        <Select value={relationshipType} onValueChange={setRelationshipType}>
+          <SelectTrigger className="mt-1" data-testid="select-link-relationship">
+            <SelectValue placeholder="Select relationship type" />
+          </SelectTrigger>
+          <SelectContent>
+            {relationshipOptions.map((opt) => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button 
+          disabled={isPending || !selectedContactId} 
+          onClick={() => onLink(selectedContactId, relationshipType)}
+          data-testid="button-confirm-link"
+        >
+          {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          Link Contact
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<CrmLp | null>(null);
-  const [editItem, setEditItem] = useState<CrmLp | null>(null);
+  const [selectedFirm, setSelectedFirm] = useState<CrmLp | null>(null);
+  const [dialogMode, setDialogMode] = useState<"view" | "edit" | "contacts">("view");
   const { toast } = useToast();
 
   const { data: lps = [], isLoading, error } = useQuery<CrmLp[]>({
@@ -657,6 +1219,21 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/lps/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/lps"] });
+      setDialogMode("view");
+      toast({ title: "LP Firm updated", description: "Changes have been saved successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating LP", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filteredData = lps.filter((lp) =>
     lp.lp_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     lp.lp_legal_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -670,7 +1247,10 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
       render: (lp: CrmLp) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{lp.lp_name || "-"}</span>
+          <div>
+            <span className="font-medium">{lp.lp_name || "-"}</span>
+            <p className="text-xs text-muted-foreground">Click to view full profile</p>
+          </div>
         </div>
       ),
     },
@@ -712,6 +1292,11 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
     },
   ];
 
+  const openFirmDialog = (firm: CrmLp, mode: "view" | "edit" | "contacts") => {
+    setSelectedFirm(firm);
+    setDialogMode(mode);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -748,35 +1333,69 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(lp) => setViewItem(lp)}
-        onEdit={(lp) => setEditItem(lp)}
+        onView={(lp) => openFirmDialog(lp, "view")}
+        onEdit={(lp) => openFirmDialog(lp, "edit")}
         emptyMessage="No LP firms found"
       />
 
-      <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>LP Firm Details</DialogTitle>
+      <Dialog open={!!selectedFirm} onOpenChange={() => setSelectedFirm(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader className="pb-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-xl">{selectedFirm?.lp_name}</DialogTitle>
+                <DialogDescription>
+                  {selectedFirm?.lp_legal_name && <span className="text-sm">{selectedFirm.lp_legal_name}</span>}
+                </DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={dialogMode === "view" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("view")}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+                <Button
+                  variant={dialogMode === "edit" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("edit")}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={dialogMode === "contacts" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("contacts")}
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  Contacts
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
-          {viewItem && <LpFirmView lp={viewItem} onClose={() => setViewItem(null)} />}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Edit LP Firm</DialogTitle>
-          </DialogHeader>
-          {editItem && (
+          
+          {selectedFirm && dialogMode === "view" && (
+            <LpFirmFullView lp={selectedFirm} onClose={() => setSelectedFirm(null)} />
+          )}
+          {selectedFirm && dialogMode === "edit" && (
             <LpFirmForm
-              defaultValues={editItem}
+              defaultValues={selectedFirm}
               onSubmit={(data) => {
-                toast({ title: "Edit not implemented yet" });
-                setEditItem(null);
+                updateMutation.mutate({ id: selectedFirm.id, data });
               }}
-              isPending={false}
-              onCancel={() => setEditItem(null)}
+              isPending={updateMutation.isPending}
+              onCancel={() => setDialogMode("view")}
               isEdit
+            />
+          )}
+          {selectedFirm && dialogMode === "contacts" && (
+            <FirmContactsSection 
+              entityType="lp" 
+              entityId={selectedFirm.id} 
+              entityName={selectedFirm.lp_name}
             />
           )}
         </DialogContent>
@@ -832,6 +1451,7 @@ function LpFirmForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <SectionHeader title="Basic Information" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -905,6 +1525,7 @@ function LpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Location" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -932,6 +1553,7 @@ function LpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Financial Information" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -968,6 +1590,7 @@ function LpFirmForm({
             />
           </div>
 
+          <SectionHeader title="Contact & Status" />
           <FormField
             control={form.control}
             name="website"
@@ -1018,60 +1641,41 @@ function LpFirmForm({
   );
 }
 
-function LpFirmView({ lp, onClose }: { lp: CrmLp; onClose: () => void }) {
+function LpFirmFullView({ lp, onClose }: { lp: CrmLp; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
+      <div className="space-y-2">
+        <SectionHeader title="Basic Information" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">LP Name</p>
-            <p className="font-medium">{lp.lp_name || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Legal Name</p>
-            <p className="font-medium">{lp.lp_legal_name || "-"}</p>
-          </div>
+          <FieldDisplay label="LP Name" value={lp.lp_name} />
+          <FieldDisplay label="Legal Name" value={lp.lp_legal_name} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Firm Type</p>
-            <p className="font-medium">{lp.firm_type || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Investor Type</p>
-            <p className="font-medium">{lp.investor_type || "-"}</p>
-          </div>
+          <FieldDisplay label="Firm Type" value={lp.firm_type} />
+          <FieldDisplay label="Investor Type" value={lp.investor_type} />
         </div>
+
+        <SectionHeader title="Location" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{lp.headquarters_country || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{lp.headquarters_city || "-"}</p>
-          </div>
+          <FieldDisplay label="Country" value={lp.headquarters_country} />
+          <FieldDisplay label="City" value={lp.headquarters_city} />
         </div>
+
+        <SectionHeader title="Financial Information" />
         <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Total AUM" value={lp.total_aum ? `${lp.total_aum} ${lp.aum_currency || "USD"}` : null} />
+          <FieldDisplay label="Currency" value={lp.aum_currency} />
+        </div>
+
+        <SectionHeader title="Contact & Status" />
+        <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Website" value={lp.website} isLink />
           <div>
-            <p className="text-sm text-muted-foreground">Total AUM</p>
-            <p className="font-medium">{lp.total_aum ? `${lp.total_aum} ${lp.aum_currency || "USD"}` : "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Website</p>
-            {lp.website ? (
-              <a href={lp.website.startsWith("http") ? lp.website : `https://${lp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                {lp.website}
-              </a>
-            ) : (
-              <p className="font-medium">-</p>
-            )}
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[lp.status || "active"]}>{lp.status || "active"}</Badge>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[lp.status || "active"]}>{lp.status || "active"}</Badge>
-        </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
@@ -1082,8 +1686,8 @@ function LpFirmView({ lp, onClose }: { lp: CrmLp; onClose: () => void }) {
 
 function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<CrmServiceProvider | null>(null);
-  const [editItem, setEditItem] = useState<CrmServiceProvider | null>(null);
+  const [selectedFirm, setSelectedFirm] = useState<CrmServiceProvider | null>(null);
+  const [dialogMode, setDialogMode] = useState<"view" | "edit" | "contacts">("view");
   const { toast } = useToast();
 
   const { data: sps = [], isLoading, error } = useQuery<CrmServiceProvider[]>({
@@ -1105,6 +1709,21 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/service-providers/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/service-providers"] });
+      setDialogMode("view");
+      toast({ title: "Service Provider updated", description: "Changes have been saved successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating Service Provider", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filteredData = sps.filter((sp) =>
     sp.provider_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -1117,7 +1736,10 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       render: (sp: CrmServiceProvider) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{sp.provider_name || "-"}</span>
+          <div>
+            <span className="font-medium">{sp.provider_name || "-"}</span>
+            <p className="text-xs text-muted-foreground">Click to view full profile</p>
+          </div>
         </div>
       ),
     },
@@ -1148,6 +1770,11 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
   ];
+
+  const openFirmDialog = (firm: CrmServiceProvider, mode: "view" | "edit" | "contacts") => {
+    setSelectedFirm(firm);
+    setDialogMode(mode);
+  };
 
   if (isLoading) {
     return (
@@ -1185,35 +1812,69 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(sp) => setViewItem(sp)}
-        onEdit={(sp) => setEditItem(sp)}
+        onView={(sp) => openFirmDialog(sp, "view")}
+        onEdit={(sp) => openFirmDialog(sp, "edit")}
         emptyMessage="No service providers found"
       />
 
-      <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Service Provider Details</DialogTitle>
+      <Dialog open={!!selectedFirm} onOpenChange={() => setSelectedFirm(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader className="pb-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-xl">{selectedFirm?.provider_name}</DialogTitle>
+                <DialogDescription>
+                  {selectedFirm?.provider_type && <Badge variant="secondary">{selectedFirm.provider_type}</Badge>}
+                </DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={dialogMode === "view" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("view")}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+                <Button
+                  variant={dialogMode === "edit" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("edit")}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={dialogMode === "contacts" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("contacts")}
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  Contacts
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
-          {viewItem && <ServiceProviderView sp={viewItem} onClose={() => setViewItem(null)} />}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Edit Service Provider</DialogTitle>
-          </DialogHeader>
-          {editItem && (
+          
+          {selectedFirm && dialogMode === "view" && (
+            <ServiceProviderFullView sp={selectedFirm} onClose={() => setSelectedFirm(null)} />
+          )}
+          {selectedFirm && dialogMode === "edit" && (
             <ServiceProviderForm
-              defaultValues={editItem}
+              defaultValues={selectedFirm}
               onSubmit={(data) => {
-                toast({ title: "Edit not implemented yet" });
-                setEditItem(null);
+                updateMutation.mutate({ id: selectedFirm.id, data });
               }}
-              isPending={false}
-              onCancel={() => setEditItem(null)}
+              isPending={updateMutation.isPending}
+              onCancel={() => setDialogMode("view")}
               isEdit
+            />
+          )}
+          {selectedFirm && dialogMode === "contacts" && (
+            <FirmContactsSection 
+              entityType="service_provider" 
+              entityId={selectedFirm.id} 
+              entityName={selectedFirm.provider_name}
             />
           )}
         </DialogContent>
@@ -1269,6 +1930,7 @@ function ServiceProviderForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <SectionHeader title="Basic Information" />
           <FormField
             control={form.control}
             name="provider_name"
@@ -1319,6 +1981,7 @@ function ServiceProviderForm({
             />
           </div>
 
+          <SectionHeader title="Location" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -1346,19 +2009,7 @@ function ServiceProviderForm({
             />
           </div>
 
-          <FormField
-            control={form.control}
-            name="website"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="https://example.com" data-testid="input-sp-website" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
+          <SectionHeader title="Services & Expertise" />
           <FormField
             control={form.control}
             name="services_offered"
@@ -1399,6 +2050,20 @@ function ServiceProviderForm({
             />
           </div>
 
+          <SectionHeader title="Contact & Status" />
+          <FormField
+            control={form.control}
+            name="website"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://example.com" data-testid="input-sp-website" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="status"
@@ -1436,64 +2101,39 @@ function ServiceProviderForm({
   );
 }
 
-function ServiceProviderView({ sp, onClose }: { sp: CrmServiceProvider; onClose: () => void }) {
+function ServiceProviderFullView({ sp, onClose }: { sp: CrmServiceProvider; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
+      <div className="space-y-2">
+        <SectionHeader title="Basic Information" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Provider Name</p>
-            <p className="font-medium">{sp.provider_name || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Provider Type</p>
-            <p className="font-medium">{sp.provider_type || "-"}</p>
-          </div>
+          <FieldDisplay label="Provider Name" value={sp.provider_name} />
+          <FieldDisplay label="Provider Type" value={sp.provider_type} />
         </div>
+        <FieldDisplay label="Founded Year" value={sp.founded_year} />
+
+        <SectionHeader title="Location" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{sp.headquarters_country || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{sp.headquarters_city || "-"}</p>
-          </div>
+          <FieldDisplay label="Country" value={sp.headquarters_country} />
+          <FieldDisplay label="City" value={sp.headquarters_city} />
         </div>
+
+        <SectionHeader title="Services & Expertise" />
+        <FieldDisplay label="Services Offered" value={sp.services_offered} />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Website</p>
-            {sp.website ? (
-              <a href={sp.website.startsWith("http") ? sp.website : `https://${sp.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                {sp.website}
-              </a>
-            ) : (
-              <p className="font-medium">-</p>
-            )}
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Founded Year</p>
-            <p className="font-medium">{sp.founded_year || "-"}</p>
-          </div>
+          <FieldDisplay label="Sector Expertise" value={sp.sector_expertise} />
+          <FieldDisplay label="Geographic Coverage" value={sp.geographic_coverage} />
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Services Offered</p>
-          <p className="font-medium">{sp.services_offered || "-"}</p>
-        </div>
+
+        <SectionHeader title="Contact & Status" />
         <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Website" value={sp.website} isLink />
           <div>
-            <p className="text-sm text-muted-foreground">Sector Expertise</p>
-            <p className="font-medium">{sp.sector_expertise || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Geographic Coverage</p>
-            <p className="font-medium">{sp.geographic_coverage || "-"}</p>
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge>
-        </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
@@ -1504,8 +2144,8 @@ function ServiceProviderView({ sp, onClose }: { sp: CrmServiceProvider; onClose:
 
 function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewItem, setViewItem] = useState<CrmPortfolioCompany | null>(null);
-  const [editItem, setEditItem] = useState<CrmPortfolioCompany | null>(null);
+  const [selectedFirm, setSelectedFirm] = useState<CrmPortfolioCompany | null>(null);
+  const [dialogMode, setDialogMode] = useState<"view" | "edit" | "contacts">("view");
   const { toast } = useToast();
 
   const { data: pcs = [], isLoading, error } = useQuery<CrmPortfolioCompany[]>({
@@ -1527,6 +2167,21 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/portfolio-companies/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/portfolio-companies"] });
+      setDialogMode("view");
+      toast({ title: "Portfolio Company updated", description: "Changes have been saved successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating Portfolio Company", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filteredData = pcs.filter((pc) =>
     pc.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -1539,7 +2194,10 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       render: (pc: CrmPortfolioCompany) => (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{pc.company_name || "-"}</span>
+          <div>
+            <span className="font-medium">{pc.company_name || "-"}</span>
+            <p className="text-xs text-muted-foreground">Click to view full profile</p>
+          </div>
         </div>
       ),
     },
@@ -1570,6 +2228,11 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
   ];
+
+  const openFirmDialog = (firm: CrmPortfolioCompany, mode: "view" | "edit" | "contacts") => {
+    setSelectedFirm(firm);
+    setDialogMode(mode);
+  };
 
   if (isLoading) {
     return (
@@ -1607,35 +2270,69 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(pc) => setViewItem(pc)}
-        onEdit={(pc) => setEditItem(pc)}
+        onView={(pc) => openFirmDialog(pc, "view")}
+        onEdit={(pc) => openFirmDialog(pc, "edit")}
         emptyMessage="No portfolio companies found"
       />
 
-      <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Portfolio Company Details</DialogTitle>
+      <Dialog open={!!selectedFirm} onOpenChange={() => setSelectedFirm(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader className="pb-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-xl">{selectedFirm?.company_name}</DialogTitle>
+                <DialogDescription>
+                  {selectedFirm?.primary_industry && <Badge variant="secondary">{selectedFirm.primary_industry}</Badge>}
+                </DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={dialogMode === "view" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("view")}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+                <Button
+                  variant={dialogMode === "edit" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("edit")}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={dialogMode === "contacts" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDialogMode("contacts")}
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  Contacts
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
-          {viewItem && <PortfolioCompanyView pc={viewItem} onClose={() => setViewItem(null)} />}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Edit Portfolio Company</DialogTitle>
-          </DialogHeader>
-          {editItem && (
+          
+          {selectedFirm && dialogMode === "view" && (
+            <PortfolioCompanyFullView pc={selectedFirm} onClose={() => setSelectedFirm(null)} />
+          )}
+          {selectedFirm && dialogMode === "edit" && (
             <PortfolioCompanyForm
-              defaultValues={editItem}
+              defaultValues={selectedFirm}
               onSubmit={(data) => {
-                toast({ title: "Edit not implemented yet" });
-                setEditItem(null);
+                updateMutation.mutate({ id: selectedFirm.id, data });
               }}
-              isPending={false}
-              onCancel={() => setEditItem(null)}
+              isPending={updateMutation.isPending}
+              onCancel={() => setDialogMode("view")}
               isEdit
+            />
+          )}
+          {selectedFirm && dialogMode === "contacts" && (
+            <FirmContactsSection 
+              entityType="portfolio_company" 
+              entityId={selectedFirm.id} 
+              entityName={selectedFirm.company_name}
             />
           )}
         </DialogContent>
@@ -1693,6 +2390,7 @@ function PortfolioCompanyForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <SectionHeader title="Basic Information" />
           <FormField
             control={form.control}
             name="company_name"
@@ -1743,6 +2441,7 @@ function PortfolioCompanyForm({
             />
           </div>
 
+          <SectionHeader title="Location" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -1770,6 +2469,7 @@ function PortfolioCompanyForm({
             />
           </div>
 
+          <SectionHeader title="Company Details" />
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -1812,25 +2512,26 @@ function PortfolioCompanyForm({
 
           <FormField
             control={form.control}
-            name="website"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="https://example.com" data-testid="input-pc-website" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="business_description"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Business Description</FormLabel>
                 <FormControl>
                   <Textarea {...field} placeholder="Describe the business..." data-testid="input-business-desc" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <SectionHeader title="Contact & Status" />
+          <FormField
+            control={form.control}
+            name="website"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://example.com" data-testid="input-pc-website" />
                 </FormControl>
               </FormItem>
             )}
@@ -1873,68 +2574,42 @@ function PortfolioCompanyForm({
   );
 }
 
-function PortfolioCompanyView({ pc, onClose }: { pc: CrmPortfolioCompany; onClose: () => void }) {
+function PortfolioCompanyFullView({ pc, onClose }: { pc: CrmPortfolioCompany; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
-      <div className="space-y-4">
+      <div className="space-y-2">
+        <SectionHeader title="Basic Information" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Company Name</p>
-            <p className="font-medium">{pc.company_name || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Company Type</p>
-            <p className="font-medium">{pc.company_type || "-"}</p>
-          </div>
+          <FieldDisplay label="Company Name" value={pc.company_name} />
+          <FieldDisplay label="Company Type" value={pc.company_type} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Primary Industry</p>
-            <p className="font-medium">{pc.primary_industry || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Business Model</p>
-            <p className="font-medium">{pc.business_model || "-"}</p>
-          </div>
+          <FieldDisplay label="Primary Industry" value={pc.primary_industry} />
+          <FieldDisplay label="Business Model" value={pc.business_model} />
         </div>
+
+        <SectionHeader title="Location" />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{pc.headquarters_country || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">City</p>
-            <p className="font-medium">{pc.headquarters_city || "-"}</p>
-          </div>
+          <FieldDisplay label="Country" value={pc.headquarters_country} />
+          <FieldDisplay label="City" value={pc.headquarters_city} />
         </div>
+
+        <SectionHeader title="Company Details" />
         <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Founded Year" value={pc.founded_year} />
+          <FieldDisplay label="Employee Count" value={pc.employee_count} />
+        </div>
+        <FieldDisplay label="Business Description" value={pc.business_description} />
+
+        <SectionHeader title="Contact & Status" />
+        <div className="grid grid-cols-2 gap-4">
+          <FieldDisplay label="Website" value={pc.website} isLink />
           <div>
-            <p className="text-sm text-muted-foreground">Founded Year</p>
-            <p className="font-medium">{pc.founded_year || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Employee Count</p>
-            <p className="font-medium">{pc.employee_count || "-"}</p>
+            <p className="text-sm text-muted-foreground">Status</p>
+            <Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Website</p>
-          {pc.website ? (
-            <a href={pc.website.startsWith("http") ? pc.website : `https://${pc.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-              {pc.website}
-            </a>
-          ) : (
-            <p className="font-medium">-</p>
-          )}
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Business Description</p>
-          <p className="font-medium">{pc.business_description || "-"}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge>
-        </div>
+
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>

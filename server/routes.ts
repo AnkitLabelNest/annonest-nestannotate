@@ -1216,6 +1216,44 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/gps/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_gp SET
+          gp_name = ${data.gp_name},
+          gp_legal_name = ${data.gp_legal_name || null},
+          firm_type = ${data.firm_type || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_city = ${data.headquarters_city || null},
+          total_aum = ${data.total_aum || null},
+          aum_currency = ${data.aum_currency || null},
+          website = ${data.website || null},
+          primary_asset_classes = ${data.primary_asset_classes || null},
+          status = ${data.status || 'active'}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "GP not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating GP:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // LP Routes
   app.get("/api/crm/lps", async (req: Request, res: Response) => {
     try {
@@ -1252,6 +1290,44 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Authentication required" });
       }
       console.error("Error creating LP:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/lps/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_lp SET
+          lp_name = ${data.lp_name},
+          lp_legal_name = ${data.lp_legal_name || null},
+          firm_type = ${data.firm_type || null},
+          investor_type = ${data.investor_type || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_city = ${data.headquarters_city || null},
+          total_aum = ${data.total_aum || null},
+          aum_currency = ${data.aum_currency || null},
+          website = ${data.website || null},
+          status = ${data.status || 'active'}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "LP not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating LP:", error?.message || error);
       return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
@@ -1336,6 +1412,45 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/portfolio-companies/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_portfolio_company SET
+          company_name = ${data.company_name},
+          company_type = ${data.company_type || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_city = ${data.headquarters_city || null},
+          primary_industry = ${data.primary_industry || null},
+          business_model = ${data.business_model || null},
+          website = ${data.website || null},
+          business_description = ${data.business_description || null},
+          founded_year = ${data.founded_year || null},
+          employee_count = ${data.employee_count || null},
+          status = ${data.status || 'active'}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Portfolio company not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating portfolio company:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // Service Provider Routes
   app.get("/api/crm/service-providers", async (req: Request, res: Response) => {
     try {
@@ -1376,13 +1491,73 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/service-providers/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_service_provider SET
+          provider_name = ${data.provider_name},
+          provider_type = ${data.provider_type || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_city = ${data.headquarters_city || null},
+          website = ${data.website || null},
+          services_offered = ${data.services_offered || null},
+          sector_expertise = ${data.sector_expertise || null},
+          geographic_coverage = ${data.geographic_coverage || null},
+          founded_year = ${data.founded_year || null},
+          status = ${data.status || 'active'}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Service provider not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating service provider:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // Contact Routes (CRM version)
   app.get("/api/crm/contacts", async (req: Request, res: Response) => {
     try {
       const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      
+      const { linked_entity_type, linked_entity_id, unlinked } = req.query;
+      
+      let result;
+      if (linked_entity_type && linked_entity_id) {
+        result = await db.execute(sql`
+          SELECT * FROM entities_contact 
+          WHERE org_id = ${orgId} 
+            AND linked_entity_type = ${linked_entity_type as string} 
+            AND linked_entity_id = ${linked_entity_id as string}
+          ORDER BY created_at DESC
+        `);
+      } else if (unlinked === 'true') {
+        result = await db.execute(sql`
+          SELECT * FROM entities_contact 
+          WHERE org_id = ${orgId} 
+            AND (linked_entity_id IS NULL OR linked_entity_id = '')
+          ORDER BY created_at DESC
+        `);
+      } else {
+        result = await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      }
+      
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -1390,6 +1565,37 @@ export async function registerRoutes(
       }
       console.error("Error fetching CRM contacts:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/contacts/:id/link", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const { linked_entity_type, linked_entity_id, relationship_type } = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_contact 
+        SET linked_entity_type = ${linked_entity_type}, 
+            linked_entity_id = ${linked_entity_id},
+            relationship_type = ${relationship_type || null}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error linking contact:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
 
