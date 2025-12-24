@@ -65,19 +65,6 @@ const modules = [
     ],
   },
   {
-    id: "demo_crm",
-    title: "Demo CRM",
-    icon: PieChart,
-    path: "/demo",
-    requiresRole: ["admin", "manager", "qa"],
-    subItems: [
-      { id: "demo-firms", title: "Firms", icon: Building2, path: "/demo/firms" },
-      { id: "demo-contacts", title: "Contacts", icon: Users, path: "/demo/contacts" },
-      { id: "demo-funds", title: "Funds", icon: Wallet, path: "/demo/funds" },
-      { id: "demo-deals", title: "Deals", icon: Briefcase, path: "/demo/deals" },
-    ],
-  },
-  {
     id: "extraction_engine",
     title: "Extraction Engine",
     icon: Radar,

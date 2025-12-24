@@ -46,8 +46,8 @@ export default function ServiceProvidersPage() {
           <h1 className="text-2xl font-bold" data-testid="text-providers-title">Service Providers</h1>
           <p className="text-muted-foreground">Legal, admin, audit, and advisory firms</p>
         </div>
-        <Button data-testid="button-add-provider" disabled>
-          Add Provider (Coming Soon)
+        <Button data-testid="button-add-provider">
+          Add Provider
         </Button>
       </div>
 

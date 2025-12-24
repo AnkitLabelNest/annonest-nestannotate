@@ -57,8 +57,8 @@ export default function FundsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-funds-title">Funds</h1>
           <p className="text-muted-foreground">Investment vehicles and vintages</p>
         </div>
-        <Button data-testid="button-add-fund" disabled>
-          Add Fund (Coming Soon)
+        <Button data-testid="button-add-fund">
+          Add Fund
         </Button>
       </div>
 

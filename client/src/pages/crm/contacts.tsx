@@ -48,8 +48,8 @@ export default function CRMContactsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-crm-contacts-title">Contacts</h1>
           <p className="text-muted-foreground">Professionals and decision makers</p>
         </div>
-        <Button data-testid="button-add-contact" disabled>
-          Add Contact (Coming Soon)
+        <Button data-testid="button-add-contact">
+          Add Contact
         </Button>
       </div>
 

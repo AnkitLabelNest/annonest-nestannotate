@@ -82,7 +82,8 @@ const modules = [
     path: "/intelligence",
     subModules: [],
     stats: [
-      { label: "Coming Soon", value: "-" },
+      { label: "Contacts Tracked", value: 0 },
+      { label: "Networks Mapped", value: 0 },
     ],
   },
 ];

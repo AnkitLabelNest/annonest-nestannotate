@@ -63,8 +63,8 @@ export default function DealsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-deals-title">Deals</h1>
           <p className="text-muted-foreground">Transactions and investments</p>
         </div>
-        <Button data-testid="button-add-deal" disabled>
-          Add Deal (Coming Soon)
+        <Button data-testid="button-add-deal">
+          Add Deal
         </Button>
       </div>
 

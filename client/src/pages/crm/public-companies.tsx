@@ -65,8 +65,8 @@ export default function PublicCompaniesPage() {
           <h1 className="text-2xl font-bold" data-testid="text-public-companies-title">Public Companies</h1>
           <p className="text-muted-foreground">Market benchmarks and comparable companies</p>
         </div>
-        <Button data-testid="button-add-public-company" disabled>
-          Add Company (Coming Soon)
+        <Button data-testid="button-add-public-company">
+          Add Company
         </Button>
       </div>
 

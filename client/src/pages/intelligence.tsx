@@ -15,7 +15,7 @@ export default function IntelligencePage() {
         </div>
         <Badge variant="secondary" className="w-fit">
           <Sparkles className="h-3 w-3 mr-1" />
-          Coming Soon
+          In Development
         </Badge>
       </div>
 
