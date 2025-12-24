@@ -15,6 +15,13 @@ import {
   insertTaskSchema,
   insertAnnotationSchema,
   insertMonitoredUrlSchema,
+  insertEntityGpSchema,
+  insertEntityLpSchema,
+  insertEntityFundSchema,
+  insertEntityPortfolioCompanySchema,
+  insertEntityServiceProviderSchema,
+  insertEntityContactSchema,
+  insertEntityDealSchema,
   moduleAccessByRole,
   type UserRole,
   type Firm,
@@ -2050,6 +2057,461 @@ export async function registerRoutes(
       return res.status(204).send();
     } catch (error) {
       console.error("Error deleting city:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== GP Firms ==============
+  app.get("/api/entities/gp", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const gps = await storage.getGpFirms(orgId);
+      return res.json(gps);
+    } catch (error) {
+      console.error("Error fetching GP firms:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/gp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const gp = await storage.getGpFirm(req.params.id, orgId);
+      if (!gp) return res.status(404).json({ message: "Not found" });
+      return res.json(gp);
+    } catch (error) {
+      console.error("Error fetching GP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/gp", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityGpSchema.parse({ ...req.body, orgId });
+      const gp = await storage.createGpFirm(parsed);
+      return res.status(201).json(gp);
+    } catch (error) {
+      console.error("Error creating GP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/gp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const gp = await storage.updateGpFirm(req.params.id, orgId, req.body);
+      if (!gp) return res.status(404).json({ message: "Not found" });
+      return res.json(gp);
+    } catch (error) {
+      console.error("Error updating GP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/gp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteGpFirm(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting GP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== LP Firms ==============
+  app.get("/api/entities/lp", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const lps = await storage.getLpFirms(orgId);
+      return res.json(lps);
+    } catch (error) {
+      console.error("Error fetching LP firms:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/lp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const lp = await storage.getLpFirm(req.params.id, orgId);
+      if (!lp) return res.status(404).json({ message: "Not found" });
+      return res.json(lp);
+    } catch (error) {
+      console.error("Error fetching LP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/lp", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityLpSchema.parse({ ...req.body, orgId });
+      const lp = await storage.createLpFirm(parsed);
+      return res.status(201).json(lp);
+    } catch (error) {
+      console.error("Error creating LP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/lp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const lp = await storage.updateLpFirm(req.params.id, orgId, req.body);
+      if (!lp) return res.status(404).json({ message: "Not found" });
+      return res.json(lp);
+    } catch (error) {
+      console.error("Error updating LP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/lp/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteLpFirm(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting LP firm:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== Funds (Entity) ==============
+  app.get("/api/entities/funds", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const funds = await storage.getEntityFunds(orgId);
+      return res.json(funds);
+    } catch (error) {
+      console.error("Error fetching entity funds:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/funds/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const fund = await storage.getEntityFund(req.params.id, orgId);
+      if (!fund) return res.status(404).json({ message: "Not found" });
+      return res.json(fund);
+    } catch (error) {
+      console.error("Error fetching entity fund:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/funds", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityFundSchema.parse({ ...req.body, orgId });
+      const fund = await storage.createEntityFund(parsed);
+      return res.status(201).json(fund);
+    } catch (error) {
+      console.error("Error creating entity fund:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/funds/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const fund = await storage.updateEntityFund(req.params.id, orgId, req.body);
+      if (!fund) return res.status(404).json({ message: "Not found" });
+      return res.json(fund);
+    } catch (error) {
+      console.error("Error updating entity fund:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/funds/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteEntityFund(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting entity fund:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== Portfolio Companies ==============
+  app.get("/api/entities/portfolio-companies", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const pcs = await storage.getPortfolioCompanies(orgId);
+      return res.json(pcs);
+    } catch (error) {
+      console.error("Error fetching portfolio companies:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/portfolio-companies/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const pc = await storage.getPortfolioCompany(req.params.id, orgId);
+      if (!pc) return res.status(404).json({ message: "Not found" });
+      return res.json(pc);
+    } catch (error) {
+      console.error("Error fetching portfolio company:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/portfolio-companies", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityPortfolioCompanySchema.parse({ ...req.body, orgId });
+      const pc = await storage.createPortfolioCompany(parsed);
+      return res.status(201).json(pc);
+    } catch (error) {
+      console.error("Error creating portfolio company:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/portfolio-companies/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const pc = await storage.updatePortfolioCompany(req.params.id, orgId, req.body);
+      if (!pc) return res.status(404).json({ message: "Not found" });
+      return res.json(pc);
+    } catch (error) {
+      console.error("Error updating portfolio company:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/portfolio-companies/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deletePortfolioCompany(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting portfolio company:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== Service Providers ==============
+  app.get("/api/entities/service-providers", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const sps = await storage.getServiceProviders(orgId);
+      return res.json(sps);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/service-providers/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const sp = await storage.getServiceProvider(req.params.id, orgId);
+      if (!sp) return res.status(404).json({ message: "Not found" });
+      return res.json(sp);
+    } catch (error) {
+      console.error("Error fetching service provider:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/service-providers", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityServiceProviderSchema.parse({ ...req.body, orgId });
+      const sp = await storage.createServiceProvider(parsed);
+      return res.status(201).json(sp);
+    } catch (error) {
+      console.error("Error creating service provider:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/service-providers/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const sp = await storage.updateServiceProvider(req.params.id, orgId, req.body);
+      if (!sp) return res.status(404).json({ message: "Not found" });
+      return res.json(sp);
+    } catch (error) {
+      console.error("Error updating service provider:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/service-providers/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteServiceProvider(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting service provider:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== Contacts (Entity) ==============
+  app.get("/api/entities/contacts", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const contacts = await storage.getEntityContacts(orgId);
+      return res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching entity contacts:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/contacts/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const contact = await storage.getEntityContact(req.params.id, orgId);
+      if (!contact) return res.status(404).json({ message: "Not found" });
+      return res.json(contact);
+    } catch (error) {
+      console.error("Error fetching entity contact:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/contacts", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityContactSchema.parse({ ...req.body, orgId });
+      const contact = await storage.createEntityContact(parsed);
+      return res.status(201).json(contact);
+    } catch (error) {
+      console.error("Error creating entity contact:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/contacts/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const contact = await storage.updateEntityContact(req.params.id, orgId, req.body);
+      if (!contact) return res.status(404).json({ message: "Not found" });
+      return res.json(contact);
+    } catch (error) {
+      console.error("Error updating entity contact:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/contacts/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteEntityContact(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting entity contact:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============== Deals (Entity) ==============
+  app.get("/api/entities/deals", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deals = await storage.getEntityDeals(orgId);
+      return res.json(deals);
+    } catch (error) {
+      console.error("Error fetching entity deals:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/entities/deals/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deal = await storage.getEntityDeal(req.params.id, orgId);
+      if (!deal) return res.status(404).json({ message: "Not found" });
+      return res.json(deal);
+    } catch (error) {
+      console.error("Error fetching entity deal:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/entities/deals", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const parsed = insertEntityDealSchema.parse({ ...req.body, orgId });
+      const deal = await storage.createEntityDeal(parsed);
+      return res.status(201).json(deal);
+    } catch (error) {
+      console.error("Error creating entity deal:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/entities/deals/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deal = await storage.updateEntityDeal(req.params.id, orgId, req.body);
+      if (!deal) return res.status(404).json({ message: "Not found" });
+      return res.json(deal);
+    } catch (error) {
+      console.error("Error updating entity deal:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/entities/deals/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    try {
+      const deleted = await storage.deleteEntityDeal(req.params.id, orgId);
+      if (!deleted) return res.status(404).json({ message: "Not found" });
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting entity deal:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
