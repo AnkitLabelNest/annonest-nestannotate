@@ -898,7 +898,7 @@ export async function registerRoutes(
 
       const allAnnotations = await storage.getAnnotations(orgId);
       const completedAnnotations = allAnnotations.filter(a => 
-        a.reviewStatus === "approved" || a.labels?.length > 0
+        a.reviewStatus === "approved" || (a.labels && a.labels.length > 0)
       );
 
       const labelFrequency: Record<string, number> = {};
@@ -963,7 +963,7 @@ export async function registerRoutes(
       const orgId = await getUserOrgId(req);
       const allAnnotations = await storage.getAnnotations(orgId);
       const completedAnnotations = allAnnotations.filter(a => 
-        a.reviewStatus === "approved" || a.labels?.length > 0
+        a.reviewStatus === "approved" || (a.labels && a.labels.length > 0)
       );
 
       const labelFrequency: Record<string, { count: number; examples: string[] }> = {};
@@ -1536,16 +1536,18 @@ export async function registerRoutes(
   });
 
   // Dashboard stats
-  app.get("/api/stats", async (_req: Request, res: Response) => {
-    const [firms, contacts, funds, deals, tasks, projects, urls] = await Promise.all([
-      storage.getFirms(),
-      storage.getContacts(),
-      storage.getFunds(),
-      storage.getDeals(),
-      storage.getTasks(),
-      storage.getProjects(),
-      storage.getMonitoredUrls(),
-    ]);
+  app.get("/api/stats", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const [firms, contacts, funds, deals, tasks, projects, urls] = await Promise.all([
+        storage.getFirms(orgId),
+        storage.getContacts(orgId),
+        storage.getFunds(orgId),
+        storage.getDeals(orgId),
+        storage.getTasks("", orgId),
+        storage.getProjects(orgId),
+        storage.getMonitoredUrls(orgId),
+      ]);
 
     const tasksByStatus = {
       pending: tasks.filter(t => t.status === "pending").length,
@@ -1573,6 +1575,10 @@ export async function registerRoutes(
       tasksByStatus,
       urlsByStatus,
     });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // ============================================
