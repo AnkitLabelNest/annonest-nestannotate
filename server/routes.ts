@@ -509,11 +509,12 @@ export async function registerRoutes(
       
       const org = await storage.createOrganization({ name: name.trim(), slug });
       return res.status(201).json(org);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error creating organization:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      throw error;
+      return res.status(500).json({ message: error?.message || "Failed to create organization" });
     }
   });
 
