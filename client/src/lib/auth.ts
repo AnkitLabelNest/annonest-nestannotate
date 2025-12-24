@@ -2,29 +2,39 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let supabase: SupabaseClient | null = null;
 let supabaseInitialized = false;
+let configPromise: Promise<{ supabaseUrl: string; supabaseAnonKey: string }> | null = null;
 
-function getSupabaseClient(): SupabaseClient | null {
+async function fetchConfig(): Promise<{ supabaseUrl: string; supabaseAnonKey: string }> {
+  if (!configPromise) {
+    configPromise = fetch("/api/config")
+      .then((res) => res.json())
+      .catch(() => ({ supabaseUrl: "", supabaseAnonKey: "" }));
+  }
+  return configPromise;
+}
+
+async function getSupabaseClient(): Promise<SupabaseClient | null> {
   if (!supabaseInitialized) {
     supabaseInitialized = true;
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (url && key) {
-      supabase = createClient(url, key);
+    const config = await fetchConfig();
+    if (config.supabaseUrl && config.supabaseAnonKey) {
+      supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
     } else {
-      console.warn("Supabase not configured. URL:", !!url, "Key:", !!key);
+      console.warn("Supabase not configured from server");
     }
   }
   return supabase;
 }
 
-export function isSupabaseConfigured(): boolean {
-  return getSupabaseClient() !== null;
+export async function isSupabaseConfigured(): Promise<boolean> {
+  const client = await getSupabaseClient();
+  return client !== null;
 }
 
 export async function signIn(email: string, password: string) {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
-    throw new Error("Supabase is not configured. Using local authentication only.");
+    throw new Error("Authentication service not configured");
   }
   
   const { data, error } = await client.auth.signInWithPassword({
@@ -43,9 +53,9 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(email: string, password: string, displayName: string) {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
-    throw new Error("Supabase is not configured. Cannot create account.");
+    throw new Error("Authentication service not configured");
   }
   
   const { data, error } = await client.auth.signUp({
@@ -69,7 +79,7 @@ export async function signUp(email: string, password: string, displayName: strin
 }
 
 export async function signOut() {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
     return;
   }
@@ -81,7 +91,7 @@ export async function signOut() {
 }
 
 export async function getCurrentUser() {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
     return null;
   }
@@ -94,7 +104,7 @@ export async function getCurrentUser() {
 }
 
 export async function getCurrentSession() {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
     return null;
   }
@@ -107,7 +117,7 @@ export async function getCurrentSession() {
 }
 
 export async function resetPassword(email: string) {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
     throw new Error("Authentication service not configured");
   }
@@ -122,7 +132,7 @@ export async function resetPassword(email: string) {
 }
 
 export async function updatePassword(newPassword: string) {
-  const client = getSupabaseClient();
+  const client = await getSupabaseClient();
   if (!client) {
     throw new Error("Authentication service not configured");
   }

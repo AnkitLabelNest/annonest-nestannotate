@@ -37,6 +37,14 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Client config endpoint - provides Supabase credentials at runtime
+  app.get("/api/config", (req: Request, res: Response) => {
+    res.json({
+      supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "",
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "",
+    });
+  });
+
   // Health check endpoint for debugging
   app.get("/api/health", async (req: Request, res: Response) => {
     try {
