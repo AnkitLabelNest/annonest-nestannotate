@@ -177,7 +177,7 @@ export async function registerRoutes(
                            "User";
         
         user = await storage.createUserWithId(supabaseUser.id, {
-          orgId: "default-org-001",
+          orgId: "b650b699-16be-43bc-9119-0250cea2e44e",
           username: supabaseUser.email || supabaseUser.id,
           password: await bcrypt.hash(crypto.randomUUID(), 10), // Random password for Supabase users
           email: supabaseUser.email || "",
@@ -273,7 +273,7 @@ export async function registerRoutes(
       const newUser = await storage.createUserWithId(
         verifiedSupabaseId,
         {
-          orgId: isSupabaseUser ? "default-org-001" : "guest-org-001",
+          orgId: isSupabaseUser ? "b650b699-16be-43bc-9119-0250cea2e44e" : "f971a315-dec1-4bcf-b098-af6e5abd32b5",
           username: parsed.email,
           password: hashedPassword,
           email: parsed.email,

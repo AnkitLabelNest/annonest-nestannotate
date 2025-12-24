@@ -108,7 +108,7 @@ export class MemStorage implements IStorage {
   }
 
   private seedData() {
-    const defaultOrgId = "default-org-001";
+    const defaultOrgId = "b650b699-16be-43bc-9119-0250cea2e44e";
     const adminId = randomUUID();
     const managerId = randomUUID();
     const annotatorId = randomUUID();
