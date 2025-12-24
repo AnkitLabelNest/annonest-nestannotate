@@ -211,6 +211,10 @@ export const entitiesGp = pgTable("entities_gp", {
   website: text("website"),
   primaryAssetClasses: text("primary_asset_classes"),
   status: text("status").default("active"),
+  // Contact information
+  email: text("email"),
+  phone: text("phone"),
+  linkedinUrl: text("linkedin_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -230,6 +234,10 @@ export const entitiesLp = pgTable("entities_lp", {
   website: text("website"),
   investorType: text("investor_type"),
   status: text("status").default("active"),
+  // Contact information
+  email: text("email"),
+  phone: text("phone"),
+  linkedinUrl: text("linkedin_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -298,6 +306,10 @@ export const entitiesServiceProvider = pgTable("entities_service_provider", {
   geographicCoverage: text("geographic_coverage"),
   foundedYear: integer("founded_year"),
   status: text("status").default("active"),
+  // Contact information
+  email: text("email"),
+  phone: text("phone"),
+  linkedinUrl: text("linkedin_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -373,6 +385,42 @@ export const entitiesDeal = pgTable("entities_deal", {
 }, (table) => [
   index("entities_deal_org_id_idx").on(table.orgId),
 ]);
+
+export const urlTypes = [
+  "fundamentals",
+  "about_us",
+  "service",
+  "product",
+  "financial_report",
+  "address",
+  "people",
+  "portfolio",
+  "press_release"
+] as const;
+export type UrlType = typeof urlTypes[number];
+
+export const urlStatuses = ["active", "inactive"] as const;
+export type UrlStatus = typeof urlStatuses[number];
+
+export const entityUrls = pgTable("entity_urls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  urlType: text("url_type").$type<UrlType>().notNull(),
+  urlLink: text("url_link").notNull(),
+  addedDate: timestamp("added_date").defaultNow(),
+  status: text("status").$type<UrlStatus>().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entity_urls_org_id_idx").on(table.orgId),
+  index("entity_urls_entity_idx").on(table.entityType, table.entityId),
+]);
+
+export const insertEntityUrlSchema = createInsertSchema(entityUrls).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEntityUrl = z.infer<typeof insertEntityUrlSchema>;
+export type EntityUrl = typeof entityUrls.$inferSelect;
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

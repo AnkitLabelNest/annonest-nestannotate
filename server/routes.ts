@@ -1264,6 +1264,9 @@ export async function registerRoutes(
           dei_policy_available = ${data.dei_policy_available ?? null},
           sustainability_report_url = ${data.sustainability_report_url || null},
           status = ${data.status || 'active'},
+          email = ${data.email || null},
+          phone = ${data.phone || null},
+          linkedin_url = ${data.linkedin_url || null},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1372,6 +1375,9 @@ export async function registerRoutes(
           dei_policy_available = ${data.dei_policy_available ?? null},
           sustainability_report_url = ${data.sustainability_report_url || null},
           status = ${data.status || 'active'},
+          email = ${data.email || null},
+          phone = ${data.phone || null},
+          linkedin_url = ${data.linkedin_url || null},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1705,6 +1711,9 @@ export async function registerRoutes(
           verification_method = ${data.verification_method || null},
           last_verified_date = ${data.last_verified_date || null},
           source_coverage = ${data.source_coverage || null},
+          email = ${data.email || null},
+          phone = ${data.phone || null},
+          linkedin_url = ${data.linkedin_url || null},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1983,6 +1992,118 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Authentication required" });
       }
       console.error("Error updating deal:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  // Entity URLs Routes
+  app.get("/api/crm/entity-urls", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { entity_type, entity_id } = req.query;
+      
+      let result;
+      if (entity_type && entity_id) {
+        result = await db.execute(sql`
+          SELECT * FROM entity_urls 
+          WHERE org_id = ${orgId} 
+            AND entity_type = ${entity_type as string} 
+            AND entity_id = ${entity_id as string}
+          ORDER BY added_date DESC
+        `);
+      } else {
+        result = await db.execute(sql`SELECT * FROM entity_urls WHERE org_id = ${orgId} ORDER BY added_date DESC`);
+      }
+      
+      return res.json(result.rows);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error fetching entity URLs:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/crm/entity-urls", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO entity_urls (org_id, entity_type, entity_id, url_type, url_link, added_date, status)
+        VALUES (${orgId}, ${data.entity_type}, ${data.entity_id}, ${data.url_type}, ${data.url_link}, ${data.added_date || null}, ${data.status || 'active'})
+        RETURNING *
+      `);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error creating entity URL:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/entity-urls/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entity_urls SET
+          url_type = ${data.url_type || null},
+          url_link = ${data.url_link || null},
+          status = ${data.status || 'active'},
+          updated_at = NOW()
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Entity URL not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating entity URL:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
+  app.delete("/api/crm/entity-urls/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      
+      const result = await db.execute(sql`
+        DELETE FROM entity_urls WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Entity URL not found" });
+      }
+      
+      return res.json({ message: "Entity URL deleted successfully" });
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error deleting entity URL:", error?.message || error);
       return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
