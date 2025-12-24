@@ -949,7 +949,7 @@ function GpFirmFullView({ gp, onClose }: { gp: any; onClose: () => void }) {
         </div>
 
         <SectionHeader title="URLs" />
-        <EntityUrlsSection entityType="gp" entityId={gp.id} readOnly />
+        <EntityUrlsSection entityType="gp" entityId={gp.id} />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -2103,7 +2103,7 @@ function LpFirmFullView({ lp, onClose }: { lp: any; onClose: () => void }) {
         </div>
 
         <SectionHeader title="URLs" />
-        <EntityUrlsSection entityType="lp" entityId={lp.id} readOnly />
+        <EntityUrlsSection entityType="lp" entityId={lp.id} />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -2754,7 +2754,7 @@ function ServiceProviderFullView({ sp, onClose }: { sp: any; onClose: () => void
         </div>
 
         <SectionHeader title="URLs" />
-        <EntityUrlsSection entityType="service_provider" entityId={sp.id} readOnly />
+        <EntityUrlsSection entityType="service_provider" entityId={sp.id} />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -3445,7 +3445,7 @@ function PortfolioCompanyFullView({ pc, onClose }: { pc: any; onClose: () => voi
         </div>
 
         <SectionHeader title="URLs" />
-        <EntityUrlsSection entityType="portfolio_company" entityId={pc.id} readOnly />
+        <EntityUrlsSection entityType="portfolio_company" entityId={pc.id} />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
