@@ -27,13 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Building2, Globe, MapPin, DollarSign, Loader2, Eye, Pencil, Trash2, X } from "lucide-react";
+import { Search, Plus, Building2, Globe, MapPin, DollarSign, Loader2 } from "lucide-react";
 import type { EntityGp, EntityLp, EntityServiceProvider, EntityPortfolioCompany } from "@shared/schema";
 
 const statusColors: Record<string, string> = {
@@ -47,12 +48,12 @@ const currencyOptions = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"]
 const firmTypeOptions = ["Private Equity", "Venture Capital", "Hedge Fund", "Real Estate", "Infrastructure", "Credit", "Multi-Strategy", "Other"];
 const assetClassOptions = ["Buyout", "Growth Equity", "Venture", "Real Estate", "Infrastructure", "Credit", "Distressed", "Secondaries"];
 const investorTypeOptions = ["Pension Fund", "Endowment", "Foundation", "Family Office", "Sovereign Wealth Fund", "Insurance Company", "Fund of Funds", "Bank", "Corporate", "HNWI", "Other"];
-const serviceTypeOptions = ["Law Firm", "Accounting", "Fund Administration", "Consulting", "Placement Agent", "Recruiting", "Technology", "Data Provider", "Other"];
+const providerTypeOptions = ["Law Firm", "Accounting", "Fund Administration", "Consulting", "Placement Agent", "Recruiting", "Technology", "Data Provider", "Other"];
+const industryOptions = ["Technology", "Healthcare", "Financial Services", "Consumer", "Industrial", "Energy", "Real Estate", "Multi-Sector"];
 
 export default function FirmsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("gp");
-  const { toast } = useToast();
 
   return (
     <div className="p-6 space-y-6">
@@ -129,7 +130,7 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       toast({ title: "GP Firm created", description: "The GP firm has been added successfully." });
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error creating GP", description: error.message, variant: "destructive" });
     },
   });
 
@@ -141,20 +142,7 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/entities/gp"] });
       setEditItem(null);
-      toast({ title: "GP Firm updated", description: "The GP firm has been updated successfully." });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/entities/gp/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/gp"] });
-      toast({ title: "GP Firm deleted", description: "The GP firm has been deleted." });
+      toast({ title: "GP Firm updated" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -613,7 +601,7 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
       toast({ title: "LP Firm created", description: "The LP firm has been added successfully." });
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error creating LP", description: error.message, variant: "destructive" });
     },
   });
 
@@ -625,7 +613,7 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/entities/lp"] });
       setEditItem(null);
-      toast({ title: "LP Firm updated", description: "The LP firm has been updated successfully." });
+      toast({ title: "LP Firm updated" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -708,12 +696,12 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
           <DialogTrigger asChild>
             <Button data-testid="button-add-lp">
               <Plus className="h-4 w-4 mr-2" />
-              Add LP Firm
+              Add LP
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh]">
             <DialogHeader>
-              <DialogTitle>Add New LP Firm</DialogTitle>
+              <DialogTitle>Add New Limited Partner</DialogTitle>
             </DialogHeader>
             <LpFirmForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} onCancel={() => setIsAddDialogOpen(false)} />
           </DialogContent>
@@ -774,6 +762,7 @@ function LpFirmForm({
     defaultValues: {
       lpName: defaultValues?.lpName || "",
       lpLegalName: defaultValues?.lpLegalName || "",
+      firmType: defaultValues?.firmType || "",
       investorType: defaultValues?.investorType || "",
       headquartersCountry: defaultValues?.headquartersCountry || "",
       headquartersCity: defaultValues?.headquartersCity || "",
@@ -788,6 +777,7 @@ function LpFirmForm({
     onSubmit({
       lpName: data.lpName || null,
       lpLegalName: data.lpLegalName || null,
+      firmType: data.firmType || null,
       investorType: data.investorType || null,
       headquartersCountry: data.headquartersCountry || null,
       headquartersCity: data.headquartersCity || null,
@@ -810,7 +800,7 @@ function LpFirmForm({
                 <FormItem>
                   <FormLabel>LP Name *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Firm display name" data-testid="input-lp-name" />
+                    <Input {...field} placeholder="LP display name" data-testid="input-lp-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -830,27 +820,50 @@ function LpFirmForm({
             />
           </div>
 
-          <FormField
-            control={form.control}
-            name="investorType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Investor Type</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-investor-type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {investorTypeOptions.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="firmType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Firm Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-firm-type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {firmTypeOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="investorType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Investor Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-investor-type">
+                        <SelectValue placeholder="Select investor type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {investorTypeOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <FormField
@@ -956,7 +969,7 @@ function LpFirmForm({
             </Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-lp">
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEdit ? "Save Changes" : "Add LP Firm"}
+              {isEdit ? "Save Changes" : "Create LP"}
             </Button>
           </div>
         </form>
@@ -981,12 +994,12 @@ function LpFirmView({ lp, onClose }: { lp: EntityLp; onClose: () => void }) {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Investor Type</p>
-            <p className="font-medium">{lp.investorType || "-"}</p>
+            <p className="text-sm text-muted-foreground">Firm Type</p>
+            <p className="font-medium">{lp.firmType || "-"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total AUM</p>
-            <p className="font-medium">{lp.totalAum ? `${lp.totalAum} ${lp.aumCurrency || "USD"}` : "-"}</p>
+            <p className="text-sm text-muted-foreground">Investor Type</p>
+            <p className="font-medium">{lp.investorType || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -999,15 +1012,21 @@ function LpFirmView({ lp, onClose }: { lp: EntityLp; onClose: () => void }) {
             <p className="font-medium">{lp.headquartersCity || "-"}</p>
           </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Website</p>
-          {lp.website ? (
-            <a href={lp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-              {lp.website}
-            </a>
-          ) : (
-            <p className="font-medium">-</p>
-          )}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Total AUM</p>
+            <p className="font-medium">{lp.totalAum ? `${lp.totalAum} ${lp.aumCurrency || "USD"}` : "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Website</p>
+            {lp.website ? (
+              <a href={lp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                {lp.website}
+              </a>
+            ) : (
+              <p className="font-medium">-</p>
+            )}
+          </div>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Status</p>
@@ -1039,7 +1058,7 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/entities/service-providers"] });
       setIsAddDialogOpen(false);
-      toast({ title: "Service Provider created", description: "The service provider has been added." });
+      toast({ title: "Service Provider created" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1062,8 +1081,7 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
   });
 
   const filteredData = sps.filter((sp) =>
-    sp.providerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sp.providerLegalName?.toLowerCase().includes(searchQuery.toLowerCase())
+    sp.providerName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
@@ -1079,9 +1097,9 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
     {
-      key: "serviceType",
-      header: "Service Type",
-      render: (sp: EntityServiceProvider) => <Badge variant="secondary">{sp.serviceType || "-"}</Badge>,
+      key: "providerType",
+      header: "Provider Type",
+      render: (sp: EntityServiceProvider) => <Badge variant="secondary">{sp.providerType || "-"}</Badge>,
     },
     {
       key: "headquarters",
@@ -1148,7 +1166,7 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       />
 
       <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Service Provider Details</DialogTitle>
           </DialogHeader>
@@ -1157,7 +1175,7 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       </Dialog>
 
       <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Edit Service Provider</DialogTitle>
           </DialogHeader>
@@ -1192,12 +1210,14 @@ function ServiceProviderForm({
   const form = useForm({
     defaultValues: {
       providerName: defaultValues?.providerName || "",
-      providerLegalName: defaultValues?.providerLegalName || "",
-      serviceType: defaultValues?.serviceType || "",
+      providerType: defaultValues?.providerType || "",
       headquartersCountry: defaultValues?.headquartersCountry || "",
       headquartersCity: defaultValues?.headquartersCity || "",
       website: defaultValues?.website || "",
-      primaryServices: defaultValues?.primaryServices || "",
+      servicesOffered: defaultValues?.servicesOffered || "",
+      sectorExpertise: defaultValues?.sectorExpertise || "",
+      geographicCoverage: defaultValues?.geographicCoverage || "",
+      foundedYear: defaultValues?.foundedYear?.toString() || "",
       status: defaultValues?.status || "active",
     },
   });
@@ -1205,12 +1225,14 @@ function ServiceProviderForm({
   const handleSubmit = (data: any) => {
     onSubmit({
       providerName: data.providerName || null,
-      providerLegalName: data.providerLegalName || null,
-      serviceType: data.serviceType || null,
+      providerType: data.providerType || null,
       headquartersCountry: data.headquartersCountry || null,
       headquartersCity: data.headquartersCity || null,
       website: data.website || null,
-      primaryServices: data.primaryServices || null,
+      servicesOffered: data.servicesOffered || null,
+      sectorExpertise: data.sectorExpertise || null,
+      geographicCoverage: data.geographicCoverage || null,
+      foundedYear: data.foundedYear ? parseInt(data.foundedYear) : null,
       status: data.status || "active",
     });
   };
@@ -1219,67 +1241,55 @@ function ServiceProviderForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+          <FormField
+            control={form.control}
+            name="providerName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Provider Name *</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Provider name" data-testid="input-sp-name" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="providerName"
+              name="providerType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Provider Name *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Provider name" data-testid="input-sp-name" />
-                  </FormControl>
+                  <FormLabel>Provider Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-provider-type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {providerTypeOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="providerLegalName"
+              name="foundedYear"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Legal Name</FormLabel>
+                  <FormLabel>Founded Year</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Legal entity name" data-testid="input-sp-legal-name" />
+                    <Input {...field} placeholder="e.g., 2015" type="number" data-testid="input-founded-year" />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
-
-          <FormField
-            control={form.control}
-            name="serviceType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Service Type</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-service-type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {serviceTypeOptions.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="primaryServices"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Primary Services</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="e.g., M&A Advisory, Fund Formation" data-testid="input-primary-services" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
 
           <div className="grid grid-cols-2 gap-4">
             <FormField
@@ -1323,6 +1333,46 @@ function ServiceProviderForm({
 
           <FormField
             control={form.control}
+            name="servicesOffered"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Services Offered</FormLabel>
+                <FormControl>
+                  <Textarea {...field} placeholder="Describe services offered..." data-testid="input-services-offered" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="sectorExpertise"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sector Expertise</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g., Technology, Healthcare" data-testid="input-sector-expertise" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="geographicCoverage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Geographic Coverage</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g., North America, Europe" data-testid="input-geo-coverage" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
             name="status"
             render={({ field }) => (
               <FormItem>
@@ -1336,6 +1386,7 @@ function ServiceProviderForm({
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -1343,10 +1394,12 @@ function ServiceProviderForm({
           />
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-sp">
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEdit ? "Save Changes" : "Add Provider"}
+              {isEdit ? "Save Changes" : "Add Service Provider"}
             </Button>
           </div>
         </form>
@@ -1357,23 +1410,67 @@ function ServiceProviderForm({
 
 function ServiceProviderView({ sp, onClose }: { sp: EntityServiceProvider; onClose: () => void }) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Provider Name</p><p className="font-medium">{sp.providerName || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">Legal Name</p><p className="font-medium">{sp.providerLegalName || "-"}</p></div>
+    <ScrollArea className="max-h-[70vh] pr-4">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Provider Name</p>
+            <p className="font-medium">{sp.providerName || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Provider Type</p>
+            <p className="font-medium">{sp.providerType || "-"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Country</p>
+            <p className="font-medium">{sp.headquartersCountry || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">City</p>
+            <p className="font-medium">{sp.headquartersCity || "-"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Website</p>
+            {sp.website ? (
+              <a href={sp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                {sp.website}
+              </a>
+            ) : (
+              <p className="font-medium">-</p>
+            )}
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Founded Year</p>
+            <p className="font-medium">{sp.foundedYear || "-"}</p>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Services Offered</p>
+          <p className="font-medium">{sp.servicesOffered || "-"}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Sector Expertise</p>
+            <p className="font-medium">{sp.sectorExpertise || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Geographic Coverage</p>
+            <p className="font-medium">{sp.geographicCoverage || "-"}</p>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Status</p>
+          <Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge>
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Service Type</p><p className="font-medium">{sp.serviceType || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">Primary Services</p><p className="font-medium">{sp.primaryServices || "-"}</p></div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Country</p><p className="font-medium">{sp.headquartersCountry || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">City</p><p className="font-medium">{sp.headquartersCity || "-"}</p></div>
-      </div>
-      <div><p className="text-sm text-muted-foreground">Website</p>{sp.website ? <a href={sp.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{sp.website}</a> : <p>-</p>}</div>
-      <div><p className="text-sm text-muted-foreground">Status</p><Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge></div>
-      <div className="flex justify-end pt-4"><Button variant="outline" onClick={onClose}>Close</Button></div>
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -1418,8 +1515,7 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
   });
 
   const filteredData = pcs.filter((pc) =>
-    pc.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    pc.companyLegalName?.toLowerCase().includes(searchQuery.toLowerCase())
+    pc.companyName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
@@ -1435,9 +1531,9 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       ),
     },
     {
-      key: "sector",
-      header: "Sector",
-      render: (pc: EntityPortfolioCompany) => <Badge variant="secondary">{pc.sector || "-"}</Badge>,
+      key: "primaryIndustry",
+      header: "Industry",
+      render: (pc: EntityPortfolioCompany) => <Badge variant="secondary">{pc.primaryIndustry || "-"}</Badge>,
     },
     {
       key: "headquarters",
@@ -1450,11 +1546,6 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
             : pc.headquartersCountry || pc.headquartersCity || "-"}
         </div>
       ),
-    },
-    {
-      key: "investmentStage",
-      header: "Stage",
-      render: (pc: EntityPortfolioCompany) => pc.investmentStage || "-",
     },
     {
       key: "status",
@@ -1509,7 +1600,7 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       />
 
       <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Portfolio Company Details</DialogTitle>
           </DialogHeader>
@@ -1518,7 +1609,7 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       </Dialog>
 
       <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Edit Portfolio Company</DialogTitle>
           </DialogHeader>
@@ -1553,12 +1644,15 @@ function PortfolioCompanyForm({
   const form = useForm({
     defaultValues: {
       companyName: defaultValues?.companyName || "",
-      companyLegalName: defaultValues?.companyLegalName || "",
-      sector: defaultValues?.sector || "",
+      companyType: defaultValues?.companyType || "",
       headquartersCountry: defaultValues?.headquartersCountry || "",
       headquartersCity: defaultValues?.headquartersCity || "",
+      primaryIndustry: defaultValues?.primaryIndustry || "",
+      businessModel: defaultValues?.businessModel || "",
       website: defaultValues?.website || "",
-      investmentStage: defaultValues?.investmentStage || "",
+      businessDescription: defaultValues?.businessDescription || "",
+      foundedYear: defaultValues?.foundedYear?.toString() || "",
+      employeeCount: defaultValues?.employeeCount?.toString() || "",
       status: defaultValues?.status || "active",
     },
   });
@@ -1566,12 +1660,15 @@ function PortfolioCompanyForm({
   const handleSubmit = (data: any) => {
     onSubmit({
       companyName: data.companyName || null,
-      companyLegalName: data.companyLegalName || null,
-      sector: data.sector || null,
+      companyType: data.companyType || null,
       headquartersCountry: data.headquartersCountry || null,
       headquartersCity: data.headquartersCity || null,
+      primaryIndustry: data.primaryIndustry || null,
+      businessModel: data.businessModel || null,
       website: data.website || null,
-      investmentStage: data.investmentStage || null,
+      businessDescription: data.businessDescription || null,
+      foundedYear: data.foundedYear ? parseInt(data.foundedYear) : null,
+      employeeCount: data.employeeCount ? parseInt(data.employeeCount) : null,
       status: data.status || "active",
     });
   };
@@ -1580,55 +1677,51 @@ function PortfolioCompanyForm({
     <ScrollArea className="max-h-[70vh] pr-4">
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Name *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Company name" data-testid="input-pc-name" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="companyLegalName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Legal Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Legal entity name" data-testid="input-pc-legal-name" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="companyName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Company Name *</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Company name" data-testid="input-pc-name" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="sector"
+              name="companyType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sector</FormLabel>
+                  <FormLabel>Company Type</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g., Technology, Healthcare" data-testid="input-pc-sector" />
+                    <Input {...field} placeholder="e.g., B2B SaaS, Consumer" data-testid="input-company-type" />
                   </FormControl>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="investmentStage"
+              name="primaryIndustry"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Investment Stage</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="e.g., Seed, Series A, Growth" data-testid="input-pc-stage" />
-                  </FormControl>
+                  <FormLabel>Primary Industry</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-industry">
+                        <SelectValue placeholder="Select industry" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {industryOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormItem>
               )}
             />
@@ -1661,6 +1754,46 @@ function PortfolioCompanyForm({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="foundedYear"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Founded Year</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g., 2015" type="number" data-testid="input-pc-founded" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="employeeCount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Employee Count</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g., 150" type="number" data-testid="input-employee-count" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="businessModel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Business Model</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="e.g., Subscription, Marketplace" data-testid="input-business-model" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="website"
@@ -1669,6 +1802,19 @@ function PortfolioCompanyForm({
                 <FormLabel>Website</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="https://example.com" data-testid="input-pc-website" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="businessDescription"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Business Description</FormLabel>
+                <FormControl>
+                  <Textarea {...field} placeholder="Describe the business..." data-testid="input-business-desc" />
                 </FormControl>
               </FormItem>
             )}
@@ -1688,8 +1834,8 @@ function PortfolioCompanyForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="exited">Exited</SelectItem>
-                    <SelectItem value="written_off">Written Off</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -1697,10 +1843,12 @@ function PortfolioCompanyForm({
           />
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-pc">
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEdit ? "Save Changes" : "Add Company"}
+              {isEdit ? "Save Changes" : "Add Portfolio Company"}
             </Button>
           </div>
         </form>
@@ -1711,22 +1859,70 @@ function PortfolioCompanyForm({
 
 function PortfolioCompanyView({ pc, onClose }: { pc: EntityPortfolioCompany; onClose: () => void }) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Company Name</p><p className="font-medium">{pc.companyName || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">Legal Name</p><p className="font-medium">{pc.companyLegalName || "-"}</p></div>
+    <ScrollArea className="max-h-[70vh] pr-4">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Company Name</p>
+            <p className="font-medium">{pc.companyName || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Company Type</p>
+            <p className="font-medium">{pc.companyType || "-"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Primary Industry</p>
+            <p className="font-medium">{pc.primaryIndustry || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Business Model</p>
+            <p className="font-medium">{pc.businessModel || "-"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Country</p>
+            <p className="font-medium">{pc.headquartersCountry || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">City</p>
+            <p className="font-medium">{pc.headquartersCity || "-"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Founded Year</p>
+            <p className="font-medium">{pc.foundedYear || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Employee Count</p>
+            <p className="font-medium">{pc.employeeCount || "-"}</p>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Website</p>
+          {pc.website ? (
+            <a href={pc.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              {pc.website}
+            </a>
+          ) : (
+            <p className="font-medium">-</p>
+          )}
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Business Description</p>
+          <p className="font-medium">{pc.businessDescription || "-"}</p>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Status</p>
+          <Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge>
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Sector</p><p className="font-medium">{pc.sector || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">Investment Stage</p><p className="font-medium">{pc.investmentStage || "-"}</p></div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><p className="text-sm text-muted-foreground">Country</p><p className="font-medium">{pc.headquartersCountry || "-"}</p></div>
-        <div><p className="text-sm text-muted-foreground">City</p><p className="font-medium">{pc.headquartersCity || "-"}</p></div>
-      </div>
-      <div><p className="text-sm text-muted-foreground">Website</p>{pc.website ? <a href={pc.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{pc.website}</a> : <p>-</p>}</div>
-      <div><p className="text-sm text-muted-foreground">Status</p><Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge></div>
-      <div className="flex justify-end pt-4"><Button variant="outline" onClick={onClose}>Close</Button></div>
-    </div>
+    </ScrollArea>
   );
 }
