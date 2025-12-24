@@ -131,10 +131,10 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const org: Organization = {
       id,
-      isGuestOrg: false,
-      isActive: true,
+      orgType: "client",
+      status: "active",
       createdAt: new Date(),
-      settings: {},
+      createdBy: null,
       ...insertOrg,
     };
     this.organizations.set(id, org);
@@ -819,10 +819,10 @@ export class DatabaseStorage extends MemStorage {
     const id = randomUUID();
     const orgToInsert = {
       id,
-      isGuestOrg: false,
-      isActive: true,
+      orgType: "client" as const,
+      status: "active" as const,
       createdAt: new Date(),
-      settings: {},
+      createdBy: null,
       ...insertOrg,
     };
     const result = await db.insert(organizations).values(orgToInsert).returning();

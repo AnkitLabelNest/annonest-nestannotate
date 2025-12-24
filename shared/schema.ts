@@ -21,14 +21,19 @@ export type AnnotationType = typeof annotationTypes[number];
 export const monitoringStatuses = ["running", "changed", "no_change", "error"] as const;
 export type MonitoringStatus = typeof monitoringStatuses[number];
 
+export const orgTypes = ["internal", "client", "partner"] as const;
+export type OrgType = typeof orgTypes[number];
+
+export const orgStatuses = ["active", "inactive", "pending"] as const;
+export type OrgStatus = typeof orgStatuses[number];
+
 export const organizations = pgTable("organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  isGuestOrg: boolean("is_guest_org").default(false),
-  isActive: boolean("is_active").default(true),
+  orgType: text("org_type").$type<OrgType>().default("client"),
+  status: text("status").$type<OrgStatus>().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
-  settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
+  createdBy: varchar("created_by"),
 });
 
 export const users = pgTable("users", {
