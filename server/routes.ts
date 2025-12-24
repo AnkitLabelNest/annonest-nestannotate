@@ -1372,6 +1372,41 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/funds/:id", async (req: Request, res: Response) => {
+    try {
+      const orgId = await getUserOrgId(req);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE entities_fund SET
+          fund_name = ${data.fund_name || null},
+          fund_type = ${data.fund_type || null},
+          vintage_year = ${data.vintage_year || null},
+          target_size = ${data.target_size || null},
+          target_size_currency = ${data.target_size_currency || 'USD'},
+          fund_status = ${data.fund_status || null},
+          status = ${data.status || 'active'}
+        WHERE id = ${id} AND org_id = ${orgId}
+        RETURNING *
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Fund not found" });
+      }
+      
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.error("Error updating fund:", error?.message || error);
+      return res.status(500).json({ message: error?.message || "Internal server error" });
+    }
+  });
+
   // Portfolio Company Routes
   app.get("/api/crm/portfolio-companies", async (req: Request, res: Response) => {
     try {

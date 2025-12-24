@@ -56,16 +56,16 @@ export default function FundsPage() {
   const { toast } = useToast();
 
   const { data: funds = [], isLoading, error } = useQuery<EntityFund[]>({
-    queryKey: ["/api/entities/funds"],
+    queryKey: ["/api/crm/funds"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<EntityFund>) => {
-      const res = await apiRequest("POST", "/api/entities/funds", data);
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/crm/funds", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/funds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/funds"] });
       setIsAddDialogOpen(false);
       toast({ title: "Fund created", description: "The fund has been added successfully." });
     },
@@ -75,12 +75,12 @@ export default function FundsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EntityFund> }) => {
-      const res = await apiRequest("PUT", `/api/entities/funds/${id}`, data);
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/funds/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/funds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/funds"] });
       setEditItem(null);
       toast({ title: "Fund updated", description: "The fund has been updated successfully." });
     },
@@ -89,64 +89,54 @@ export default function FundsPage() {
     },
   });
 
-  const filteredFunds = funds.filter((f) =>
-    f.fundName?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFunds = funds.filter((f: any) =>
+    f.fund_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
     {
-      key: "fundName",
+      key: "fund_name",
       header: "Fund Name",
       sortable: true,
-      render: (fund: EntityFund) => (
+      render: (fund: any) => (
         <div className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{fund.fundName || "-"}</span>
+          <span className="font-medium">{fund.fund_name || "-"}</span>
         </div>
       ),
     },
     {
-      key: "vintage",
+      key: "vintage_year",
       header: "Vintage",
       sortable: true,
-      render: (fund: EntityFund) => (
+      render: (fund: any) => (
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span>{fund.vintageYear || "-"}</span>
+          <span>{fund.vintage_year || "-"}</span>
         </div>
       ),
     },
     {
-      key: "fundType",
+      key: "fund_type",
       header: "Type",
-      render: (fund: EntityFund) => <Badge variant="secondary">{fund.fundType || "-"}</Badge>,
+      render: (fund: any) => <Badge variant="secondary">{fund.fund_type || "-"}</Badge>,
     },
     {
-      key: "fundSize",
-      header: "Size",
-      render: (fund: EntityFund) => (
+      key: "target_size",
+      header: "Target Size",
+      render: (fund: any) => (
         <div className="flex items-center gap-1">
           <DollarSign className="h-3 w-3 text-muted-foreground" />
-          {fund.fundSize ? `${fund.fundSize} ${fund.fundCurrency || "USD"}` : "-"}
+          {fund.target_size ? `${fund.target_size} ${fund.target_size_currency || "USD"}` : "-"}
         </div>
       ),
     },
     {
-      key: "primarySector",
-      header: "Sector",
-      render: (fund: EntityFund) => fund.primarySector || "-",
-    },
-    {
-      key: "geographicFocus",
-      header: "Geography",
-      render: (fund: EntityFund) => fund.geographicFocus || "-",
-    },
-    {
-      key: "fundStatus",
+      key: "fund_status",
       header: "Status",
-      render: (fund: EntityFund) => (
-        <Badge className={statusColors[fund.fundStatus || "active"] || statusColors.active}>
-          {fund.fundStatus || "active"}
+      render: (fund: any) => (
+        <Badge className={statusColors[fund.fund_status || "active"] || statusColors.active}>
+          {fund.fund_status || "active"}
         </Badge>
       ),
     },
@@ -279,31 +269,30 @@ function FundForm({
   onCancel: () => void;
   isEdit?: boolean;
 }) {
+  const dv = defaultValues as any;
   const form = useForm({
     defaultValues: {
-      fundName: defaultValues?.fundName || "",
-      fundType: defaultValues?.fundType || "",
-      vintageYear: defaultValues?.vintageYear?.toString() || "",
-      fundSize: defaultValues?.fundSize || "",
-      fundCurrency: defaultValues?.fundCurrency || "USD",
-      targetSize: defaultValues?.targetSize || "",
-      primarySector: defaultValues?.primarySector || "",
-      geographicFocus: defaultValues?.geographicFocus || "",
-      fundStatus: defaultValues?.fundStatus || "fundraising",
+      fundName: dv?.fund_name || "",
+      fundType: dv?.fund_type || "",
+      vintageYear: dv?.vintage_year?.toString() || "",
+      fundSize: "",
+      fundCurrency: dv?.target_size_currency || "USD",
+      targetSize: dv?.target_size || "",
+      primarySector: "",
+      geographicFocus: "",
+      fundStatus: dv?.fund_status || "fundraising",
     },
   });
 
   const handleSubmit = (data: any) => {
     onSubmit({
-      fundName: data.fundName || null,
-      fundType: data.fundType || null,
-      vintageYear: data.vintageYear ? parseInt(data.vintageYear) : null,
-      fundSize: data.fundSize || null,
-      fundCurrency: data.fundCurrency || null,
-      targetSize: data.targetSize || null,
-      primarySector: data.primarySector || null,
-      geographicFocus: data.geographicFocus || null,
-      fundStatus: data.fundStatus || "fundraising",
+      fund_name: data.fundName || null,
+      fund_type: data.fundType || null,
+      vintage_year: data.vintageYear ? parseInt(data.vintageYear) : null,
+      target_size: data.targetSize || null,
+      target_size_currency: data.fundCurrency || "USD",
+      fund_status: data.fundStatus || "fundraising",
+      status: "active",
     });
   };
 
@@ -493,48 +482,38 @@ function FundForm({
   );
 }
 
-function FundView({ fund, onClose }: { fund: EntityFund; onClose: () => void }) {
+function FundView({ fund, onClose }: { fund: any; onClose: () => void }) {
   return (
     <ScrollArea className="max-h-[70vh] pr-4">
       <div className="space-y-4">
         <div>
           <p className="text-sm text-muted-foreground">Fund Name</p>
-          <p className="font-medium">{fund.fundName || "-"}</p>
+          <p className="font-medium">{fund.fund_name || "-"}</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Fund Type</p>
-            <p className="font-medium">{fund.fundType || "-"}</p>
+            <p className="font-medium">{fund.fund_type || "-"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Vintage Year</p>
-            <p className="font-medium">{fund.vintageYear || "-"}</p>
+            <p className="font-medium">{fund.vintage_year || "-"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Fund Size</p>
-            <p className="font-medium">{fund.fundSize ? `${fund.fundSize} ${fund.fundCurrency || "USD"}` : "-"}</p>
-          </div>
           <div>
             <p className="text-sm text-muted-foreground">Target Size</p>
-            <p className="font-medium">{fund.targetSize || "-"}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Primary Sector</p>
-            <p className="font-medium">{fund.primarySector || "-"}</p>
+            <p className="font-medium">{fund.target_size ? `${fund.target_size} ${fund.target_size_currency || "USD"}` : "-"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Geographic Focus</p>
-            <p className="font-medium">{fund.geographicFocus || "-"}</p>
+            <p className="text-sm text-muted-foreground">Fund Status</p>
+            <p className="font-medium">{fund.fund_status || "-"}</p>
           </div>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Status</p>
-          <Badge className={statusColors[fund.fundStatus || "fundraising"]}>
-            {fund.fundStatus || "fundraising"}
+          <Badge className={statusColors[fund.status || "active"]}>
+            {fund.status || "active"}
           </Badge>
         </div>
         <div className="flex justify-end pt-4">
