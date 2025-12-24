@@ -577,10 +577,14 @@ export async function registerRoutes(
       });
       
       return res.status(201).json(firm);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Error creating firm:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -601,10 +605,14 @@ export async function registerRoutes(
       });
       
       return res.status(201).json(firm);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Error creating firm (force):", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
