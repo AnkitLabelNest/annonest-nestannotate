@@ -15,8 +15,14 @@ export type FirmType = typeof firmTypes[number];
 export const taskStatuses = ["pending", "in_progress", "review", "completed", "rejected"] as const;
 export type TaskStatus = typeof taskStatuses[number];
 
+export const labelTypes = ["text", "image", "video", "audio", "transcription", "translation"] as const;
+export type LabelType = typeof labelTypes[number];
+
 export const annotationTypes = ["text", "image", "video", "transcription", "translation"] as const;
 export type AnnotationType = typeof annotationTypes[number];
+
+export const workContexts = ["internal", "client"] as const;
+export type WorkContext = typeof workContexts[number];
 
 export const monitoringStatuses = ["running", "changed", "no_change", "error"] as const;
 export type MonitoringStatus = typeof monitoringStatuses[number];
@@ -82,6 +88,36 @@ export const users = pgTable("users", {
 }, (table) => [
   index("users_org_id_idx").on(table.orgId),
 ]);
+
+export const labelProjects = pgTable("label_projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  labelType: text("label_type").notNull().$type<LabelType>(),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  workContext: text("work_context").notNull().$type<WorkContext>().default("internal"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("label_projects_org_id_idx").on(table.orgId),
+]);
+
+export const annotationTaskStatuses = ["pending", "in_progress", "review", "completed"] as const;
+export type AnnotationTaskStatus = typeof annotationTaskStatuses[number];
+
+export const annotationTasks = pgTable("annotation_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => labelProjects.id).notNull(),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  status: text("status").notNull().$type<AnnotationTaskStatus>().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("annotation_tasks_project_id_idx").on(table.projectId),
+  index("annotation_tasks_assigned_to_idx").on(table.assignedTo),
+]);
+
+export type LabelProject = typeof labelProjects.$inferSelect;
+export type InsertLabelProject = typeof labelProjects.$inferInsert;
+export type AnnotationTask = typeof annotationTasks.$inferSelect;
+export type InsertAnnotationTask = typeof annotationTasks.$inferInsert;
 
 export const firms = pgTable("firms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
