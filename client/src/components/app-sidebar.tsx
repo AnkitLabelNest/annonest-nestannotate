@@ -76,14 +76,14 @@ const modules = [
     title: "Contact Intelligence",
     icon: Users,
     path: "/intelligence",
-    requiresRole: ["super_admin", "admin", "manager", "researcher", "annotator", "qa"],
+    requiresRole: ["super_admin", "admin", "manager"],
   },
   {
     id: "data_nest",
     title: "DataNest",
     icon: Database,
     path: "/data",
-    requiresRole: ["super_admin", "admin", "manager", "researcher", "annotator", "qa"],
+    requiresRole: ["super_admin", "admin", "manager", "researcher", "qa"],
     subItems: [
       { id: "gps", title: "General Partners", icon: Building2, path: "/data/gps" },
       { id: "lps", title: "Limited Partners", icon: Wallet, path: "/data/lps" },

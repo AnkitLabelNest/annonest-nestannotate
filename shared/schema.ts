@@ -541,12 +541,12 @@ export type InsertEntityDeal = z.infer<typeof insertEntityDealSchema>;
 export type EntityDeal = typeof entitiesDeal.$inferSelect;
 
 export const moduleAccessByRole: Record<UserRole, string[]> = {
-  super_admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel", "org_management"],
-  admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel"],
-  manager: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "user_approval"],
-  researcher: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
-  annotator: ["nest_annotate", "data_nest", "contact_intelligence"],
-  qa: ["nest_annotate", "data_nest", "contact_intelligence"],
+  super_admin: ["dashboard", "nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel", "org_management", "user_management", "location_data"],
+  admin: ["dashboard", "nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel", "user_management", "location_data"],
+  manager: ["dashboard", "nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "user_management", "location_data"],
+  researcher: ["dashboard", "nest_annotate", "data_nest"],
+  annotator: ["dashboard", "nest_annotate"],
+  qa: ["dashboard", "nest_annotate", "data_nest"],
   guest: ["guest_preview"],
 };
 
