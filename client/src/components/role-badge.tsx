@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import type { UserRole } from "@shared/schema";
 
 const roleColors: Record<UserRole, string> = {
+  super_admin: "bg-rose-600 text-white hover:bg-rose-700",
   admin: "bg-purple-600 text-white hover:bg-purple-700",
   manager: "bg-blue-600 text-white hover:bg-blue-700",
   annotator: "bg-emerald-600 text-white hover:bg-emerald-700",
@@ -9,6 +10,7 @@ const roleColors: Record<UserRole, string> = {
 };
 
 const roleLabels: Record<UserRole, string> = {
+  super_admin: "Super Admin",
   admin: "Admin",
   manager: "Manager",
   annotator: "Annotator",
