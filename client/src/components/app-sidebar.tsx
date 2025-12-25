@@ -54,7 +54,7 @@ const modules = [
     id: "nest_annotate",
     title: "NestAnnotate",
     icon: Tags,
-    path: "/annotate",
+    path: "/nest-annotate",
     requiresRole: null,
     subItems: [
       { id: "text", title: "Text Label", icon: FileText, path: "/annotate/text" },

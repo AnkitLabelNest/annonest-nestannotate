@@ -40,6 +40,73 @@ export async function fetchProjectsWithStats(
   userId: string,
   userRole: UserRole
 ): Promise<LabelProjectWithStats[]> {
+  if (userRole === "annotator") {
+    const { data: assignedTasks, error: tasksError } = await supabase
+      .from("annotation_tasks")
+      .select("project_id, status")
+      .eq("assigned_to", userId);
+
+    if (tasksError) {
+      console.error("Error fetching assigned tasks:", tasksError);
+      throw new Error("Failed to fetch tasks");
+    }
+
+    if (!assignedTasks || assignedTasks.length === 0) {
+      return [];
+    }
+
+    const assignedProjectIds = Array.from(new Set(assignedTasks.map((t: { project_id: string }) => t.project_id)));
+    
+    const { data: projects, error: projectsError } = await supabase
+      .from("label_projects")
+      .select("*")
+      .eq("org_id", orgId)
+      .in("id", assignedProjectIds);
+
+    if (projectsError) {
+      console.error("Error fetching projects:", projectsError);
+      throw new Error("Failed to fetch projects");
+    }
+
+    if (!projects || projects.length === 0) {
+      return [];
+    }
+
+    const tasksByProject = new Map<string, { status: string }[]>();
+    assignedTasks.forEach((task: { project_id: string; status: string }) => {
+      const existing = tasksByProject.get(task.project_id) || [];
+      existing.push(task);
+      tasksByProject.set(task.project_id, existing);
+    });
+
+    return projects.map((project: SupabaseProject) => {
+      const projectTasks = tasksByProject.get(project.id) || [];
+      const totalItems = projectTasks.length;
+      const completedItems = projectTasks.filter((t) => t.status === "completed").length;
+      
+      let projectStatus: "not_started" | "in_progress" | "completed";
+      if (totalItems === 0 || completedItems === 0) {
+        projectStatus = "not_started";
+      } else if (completedItems === totalItems) {
+        projectStatus = "completed";
+      } else {
+        projectStatus = "in_progress";
+      }
+
+      return {
+        id: project.id,
+        name: project.name,
+        labelType: project.label_type as LabelType,
+        orgId: project.org_id,
+        workContext: project.work_context as WorkContext,
+        createdAt: project.created_at,
+        totalItems,
+        completedItems,
+        projectStatus,
+      };
+    });
+  }
+
   const { data: projects, error: projectsError } = await supabase
     .from("label_projects")
     .select("*")
@@ -72,19 +139,7 @@ export async function fetchProjectsWithStats(
     tasksByProject.set(task.project_id, existing);
   });
 
-  let filteredProjects = projects as SupabaseProject[];
-  
-  if (userRole === "annotator") {
-    const assignedProjectIds = new Set<string>();
-    (tasks || []).forEach((task: SupabaseTask) => {
-      if (task.assigned_to === userId) {
-        assignedProjectIds.add(task.project_id);
-      }
-    });
-    filteredProjects = projects.filter((p: SupabaseProject) => assignedProjectIds.has(p.id));
-  }
-
-  return filteredProjects.map((project: SupabaseProject) => {
+  return projects.map((project: SupabaseProject) => {
     const projectTasks = tasksByProject.get(project.id) || [];
     const totalItems = projectTasks.length;
     const completedItems = projectTasks.filter((t: SupabaseTask) => t.status === "completed").length;
