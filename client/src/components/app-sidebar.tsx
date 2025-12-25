@@ -69,21 +69,21 @@ const modules = [
     title: "Extraction Engine",
     icon: Radar,
     path: "/extraction",
-    requiresRole: ["admin", "manager"],
+    requiresRole: ["super_admin", "admin", "manager"],
   },
   {
     id: "contact_intelligence",
     title: "Contact Intelligence",
     icon: Users,
     path: "/intelligence",
-    requiresRole: ["admin", "manager", "researcher", "annotator", "qa"],
+    requiresRole: ["super_admin", "admin", "manager", "researcher", "annotator", "qa"],
   },
   {
     id: "data_nest",
     title: "DataNest",
     icon: Database,
     path: "/data",
-    requiresRole: ["admin", "manager", "researcher", "annotator", "qa"],
+    requiresRole: ["super_admin", "admin", "manager", "researcher", "annotator", "qa"],
     subItems: [
       { id: "gps", title: "General Partners", icon: Building2, path: "/data/gps" },
       { id: "lps", title: "Limited Partners", icon: Wallet, path: "/data/lps" },
@@ -185,7 +185,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {(user?.role === "admin" || user?.role === "manager") && (
+              {(user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/admin/users"}>
                     <Link href="/admin/users" data-testid="nav-admin-users">
@@ -195,7 +195,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {(user?.role === "admin" || user?.role === "manager") && (
+              {(user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/settings/locations"}>
                     <Link href="/settings/locations" data-testid="nav-locations">
