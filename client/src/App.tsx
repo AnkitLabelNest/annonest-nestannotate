@@ -40,6 +40,7 @@ import HealthcarePage from "@/pages/crm/healthcare";
 import PublicMarketPage from "@/pages/crm/public-market";
 import LocationManagementPage from "@/pages/settings/locations";
 import NestAnnotatePage from "@/pages/nest-annotate";
+import NewsIntelligencePage from "@/pages/news-intelligence";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -109,6 +110,7 @@ function AppRoutes() {
         <Route path="/annotate/transcription" component={TranscriptionPage} />
         <Route path="/annotate/translation" component={TranslationPage} />
         <Route path="/nest-annotate" component={NestAnnotatePage} />
+        <Route path="/news-intelligence" component={NewsIntelligencePage} />
         <Route path="/demo" component={DemoDataNestPage} />
         <Route path="/demo/firms" component={() => <FirmsPage />} />
         <Route path="/demo/contacts" component={ContactsPage} />

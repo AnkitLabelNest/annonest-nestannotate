@@ -22,10 +22,12 @@ import {
   FileText,
   FolderOpen,
   AlertCircle,
+  Newspaper,
 } from "lucide-react";
 import {
   fetchProjectsWithStats,
   fetchLabelTypeSummary,
+  fetchNewsIntelligenceCount,
   type LabelProjectWithStats,
   type LabelTypeSummary,
 } from "@/lib/nest-annotate-service";
@@ -221,6 +223,12 @@ export default function NestAnnotatePage() {
     enabled: !!orgId && !!userId,
   });
 
+  const { data: newsCount = 0, isLoading: newsLoading } = useQuery({
+    queryKey: ["news-intelligence-count", orgId, userId, userRole],
+    queryFn: () => fetchNewsIntelligenceCount(orgId, userId, userRole),
+    enabled: !!orgId && !!userId,
+  });
+
   if (!user) {
     return (
       <div className="p-6 flex items-center justify-center h-full">
@@ -261,9 +269,9 @@ export default function NestAnnotatePage() {
         </Card>
       )}
 
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        {summaryLoading ? (
-          [...Array(6)].map((_, i) => (
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
+        {summaryLoading || newsLoading ? (
+          [...Array(7)].map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-20" />
@@ -274,9 +282,25 @@ export default function NestAnnotatePage() {
             </Card>
           ))
         ) : (
-          summaries.map((summary) => (
-            <SummaryCard key={summary.labelType} summary={summary} />
-          ))
+          <>
+            {summaries.map((summary) => (
+              <SummaryCard key={summary.labelType} summary={summary} />
+            ))}
+            <Card data-testid="card-summary-news-intelligence">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  News Intelligence
+                </CardTitle>
+                <Newspaper className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-count-news-intelligence">
+                  {newsCount}
+                </div>
+                <p className="text-xs text-muted-foreground">Open items</p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 

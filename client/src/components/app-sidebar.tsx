@@ -39,6 +39,7 @@ import {
   Handshake,
   TrendingUp,
   Globe,
+  Newspaper,
 } from "lucide-react";
 import type { UserRole } from "@shared/schema";
 
@@ -62,6 +63,7 @@ const modules = [
       { id: "video", title: "Video Label", icon: Video, path: "/annotate/video" },
       { id: "transcription", title: "Transcription", icon: FileAudio, path: "/annotate/transcription" },
       { id: "translation", title: "Translation", icon: Languages, path: "/annotate/translation" },
+      { id: "news", title: "News Intelligence", icon: Newspaper, path: "/news-intelligence" },
     ],
   },
   {
