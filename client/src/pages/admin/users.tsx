@@ -363,7 +363,7 @@ export default function AdminUsersPage() {
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList data-testid="tabs-user-list">
-          <TabsTrigger value="all" data-testid="tab-all-users">All Users ({allUsers.length})</TabsTrigger>
+          <TabsTrigger value="all" data-testid="tab-all-users">All Users ({filteredUsers.length})</TabsTrigger>
           <TabsTrigger value="pending" data-testid="tab-pending">
             Pending Approval ({pendingUsers.length})
           </TabsTrigger>
