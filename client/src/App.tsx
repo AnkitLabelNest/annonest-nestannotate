@@ -30,6 +30,7 @@ import ExtractionPage from "@/pages/extraction";
 import IntelligencePage from "@/pages/intelligence";
 import SettingsPage from "@/pages/settings";
 import AdminUsersPage from "@/pages/admin/users";
+import AdminOrganizationsPage from "@/pages/admin/organizations";
 import DataNestDashboard from "@/pages/crm/index";
 import PublicCompaniesPage from "@/pages/crm/public-companies";
 import RelationshipsPage from "@/pages/crm/relationships";
@@ -128,6 +129,7 @@ function AppRoutes() {
         <Route path="/data/healthcare" component={HealthcarePage} />
         <Route path="/data/public-market" component={PublicMarketPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
+        <Route path="/admin/organizations" component={AdminOrganizationsPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/settings/locations" component={LocationManagementPage} />
         <Route component={NotFound} />

@@ -185,6 +185,16 @@ export function AppSidebar() {
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {user?.role === "super_admin" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/admin/organizations"}>
+                    <Link href="/admin/organizations" data-testid="nav-admin-organizations">
+                      <Building2 className="h-4 w-4" />
+                      <span>Organizations</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {(user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/admin/users"}>
