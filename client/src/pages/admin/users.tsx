@@ -50,7 +50,7 @@ import type { UserRole, User, ApprovalStatus, Organization } from "@shared/schem
 
 type UserWithoutPassword = Omit<User, "password">;
 
-const roleOptions: UserRole[] = ["admin", "manager", "researcher", "annotator", "qa", "guest"];
+const roleOptions: UserRole[] = ["super_admin", "admin", "manager", "researcher", "annotator", "qa", "guest"];
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
@@ -65,6 +65,10 @@ export default function AdminUsersPage() {
   const [newOrgName, setNewOrgName] = useState("");
   const [assignOrgDialogOpen, setAssignOrgDialogOpen] = useState(false);
   const [assignOrgId, setAssignOrgId] = useState<string>("");
+  const [addUsersDialogOpen, setAddUsersDialogOpen] = useState(false);
+  const [bulkUsers, setBulkUsers] = useState<Array<{ email: string; displayName: string; orgId: string }>>([
+    { email: "", displayName: "", orgId: "" }
+  ]);
 
   const { data: organizations = [] } = useQuery<Organization[]>({
     queryKey: ["/api/organizations"],
@@ -153,6 +157,22 @@ export default function AdminUsersPage() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
+    },
+  });
+
+  const bulkCreateUsersMutation = useMutation({
+    mutationFn: async (users: Array<{ email: string; displayName: string; orgId: string }>) => {
+      const res = await apiRequest("POST", "/api/admin/users/bulk", { users });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setAddUsersDialogOpen(false);
+      setBulkUsers([{ email: "", displayName: "", orgId: "" }]);
+      toast({ title: "Users created", description: data.message || "Users have been created successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to create users", variant: "destructive" });
     },
   });
 
@@ -247,7 +267,10 @@ export default function AdminUsersPage() {
   const pendingUsers = filteredUsers.filter(u => u.approvalStatus === "pending");
   const rejectedUsers = filteredUsers.filter(u => u.approvalStatus === "rejected");
 
-  if (currentUser?.role !== "admin" && currentUser?.role !== "manager") {
+  const canManageUsers = currentUser?.role === "super_admin" || currentUser?.role === "admin" || currentUser?.role === "manager";
+  const isSuperAdmin = currentUser?.role === "super_admin";
+
+  if (!canManageUsers) {
     return (
       <div className="p-6 flex items-center justify-center h-full">
         <Card className="max-w-md">
@@ -283,9 +306,15 @@ export default function AdminUsersPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setOrgDialogOpen(true)} data-testid="button-create-org">
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setOrgDialogOpen(true)} data-testid="button-create-org">
+              <Plus className="h-4 w-4 mr-1" />
+              New Org
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setAddUsersDialogOpen(true)} data-testid="button-add-users">
             <Plus className="h-4 w-4 mr-1" />
-            New Org
+            Add Users
           </Button>
           <Badge variant="outline" className="gap-1">
             <Users className="h-3 w-3" />
@@ -522,6 +551,125 @@ export default function AdminUsersPage() {
             >
               {createOrgMutation.isPending && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
               Create Organization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addUsersDialogOpen} onOpenChange={setAddUsersDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Users</DialogTitle>
+            <DialogDescription>
+              Add up to 5 users at a time. Each user must have an email, name, and organization.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[400px] overflow-y-auto">
+            {bulkUsers.map((user, index) => (
+              <div key={index} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-4">
+                  <Label htmlFor={`user-email-${index}`}>Email</Label>
+                  <Input
+                    id={`user-email-${index}`}
+                    type="email"
+                    placeholder="user@example.com"
+                    value={user.email}
+                    onChange={(e) => {
+                      const newUsers = [...bulkUsers];
+                      newUsers[index].email = e.target.value;
+                      setBulkUsers(newUsers);
+                    }}
+                    data-testid={`input-user-email-${index}`}
+                  />
+                </div>
+                <div className="col-span-3">
+                  <Label htmlFor={`user-name-${index}`}>Name</Label>
+                  <Input
+                    id={`user-name-${index}`}
+                    placeholder="Full Name"
+                    value={user.displayName}
+                    onChange={(e) => {
+                      const newUsers = [...bulkUsers];
+                      newUsers[index].displayName = e.target.value;
+                      setBulkUsers(newUsers);
+                    }}
+                    data-testid={`input-user-name-${index}`}
+                  />
+                </div>
+                <div className="col-span-4">
+                  <Label htmlFor={`user-org-${index}`}>Organization</Label>
+                  <Select
+                    value={user.orgId}
+                    onValueChange={(v) => {
+                      const newUsers = [...bulkUsers];
+                      newUsers[index].orgId = v;
+                      setBulkUsers(newUsers);
+                    }}
+                  >
+                    <SelectTrigger data-testid={`select-user-org-${index}`}>
+                      <SelectValue placeholder="Select org" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-1">
+                  {bulkUsers.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const newUsers = bulkUsers.filter((_, i) => i !== index);
+                        setBulkUsers(newUsers);
+                      }}
+                      data-testid={`button-remove-user-${index}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {bulkUsers.length < 5 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkUsers([...bulkUsers, { email: "", displayName: "", orgId: "" }])}
+                data-testid="button-add-another-user"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Another User
+              </Button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setAddUsersDialogOpen(false);
+                setBulkUsers([{ email: "", displayName: "", orgId: "" }]);
+              }} 
+              data-testid="button-cancel-add-users"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                const validUsers = bulkUsers.filter(u => u.email && u.displayName && u.orgId);
+                if (validUsers.length > 0) {
+                  bulkCreateUsersMutation.mutate(validUsers);
+                }
+              }}
+              disabled={bulkCreateUsersMutation.isPending || bulkUsers.every(u => !u.email || !u.displayName || !u.orgId)}
+              data-testid="button-confirm-add-users"
+            >
+              {bulkCreateUsersMutation.isPending && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+              Add {bulkUsers.filter(u => u.email && u.displayName && u.orgId).length} User(s)
             </Button>
           </DialogFooter>
         </DialogContent>

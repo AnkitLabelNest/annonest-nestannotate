@@ -3,7 +3,7 @@ import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, index, nume
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoles = ["admin", "manager", "researcher", "annotator", "qa", "guest"] as const;
+export const userRoles = ["super_admin", "admin", "manager", "researcher", "annotator", "qa", "guest"] as const;
 export type UserRole = typeof userRoles[number];
 
 export const approvalStatuses = ["pending", "approved", "rejected"] as const;
@@ -536,13 +536,32 @@ export type InsertEntityDeal = z.infer<typeof insertEntityDealSchema>;
 export type EntityDeal = typeof entitiesDeal.$inferSelect;
 
 export const moduleAccessByRole: Record<UserRole, string[]> = {
-  admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
-  manager: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
+  super_admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel", "org_management"],
+  admin: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "admin_panel"],
+  manager: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence", "user_approval"],
   researcher: ["nest_annotate", "data_nest", "extraction_engine", "contact_intelligence"],
   annotator: ["nest_annotate", "data_nest", "contact_intelligence"],
   qa: ["nest_annotate", "data_nest", "contact_intelligence"],
   guest: ["guest_preview"],
 };
+
+export const roleHierarchy: Record<UserRole, number> = {
+  super_admin: 100,
+  admin: 80,
+  manager: 60,
+  researcher: 40,
+  annotator: 30,
+  qa: 30,
+  guest: 10,
+};
+
+export function canManageRole(actorRole: UserRole, targetRole: UserRole): boolean {
+  return roleHierarchy[actorRole] > roleHierarchy[targetRole];
+}
+
+export function canManageUsers(role: UserRole): boolean {
+  return ["super_admin", "admin", "manager"].includes(role);
+}
 
 export interface SuggestedEntity {
   type: string;

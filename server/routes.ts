@@ -375,8 +375,26 @@ export async function registerRoutes(
   });
 
   // Users routes
-  app.get("/api/users", async (_req: Request, res: Response) => {
-    const users = await storage.getUsers();
+  app.get("/api/users", async (req: Request, res: Response) => {
+    const requesterId = req.headers["x-user-id"] as string;
+    if (!requesterId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const requester = await storage.getUser(requesterId);
+    if (!requester) {
+      return res.status(403).json({ message: "User not found" });
+    }
+    
+    let users;
+    if (requester.role === "super_admin") {
+      users = await storage.getUsers();
+    } else if (requester.role === "admin" || requester.role === "manager") {
+      users = await storage.getUsersByOrgId(requester.orgId);
+    } else {
+      return res.status(403).json({ message: "Not authorized to view users" });
+    }
+    
     const usersWithoutPasswords = users.map(({ password, ...user }) => user);
     return res.json(usersWithoutPasswords);
   });
@@ -400,10 +418,19 @@ export async function registerRoutes(
     if (!admin) {
       return res.status(403).json({ message: "Admin user not found" });
     }
+
+    const targetUser = await storage.getUser(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (admin.role !== "super_admin" && targetUser.orgId !== admin.orgId) {
+      return res.status(403).json({ message: "Cannot modify users from other organizations" });
+    }
     
     if (req.body.orgId) {
-      if (admin.role !== "admin") {
-        return res.status(403).json({ message: "Only admins can change user organizations" });
+      if (admin.role !== "super_admin") {
+        return res.status(403).json({ message: "Only super admins can change user organizations" });
       }
       const targetOrg = await storage.getOrganization(req.body.orgId);
       if (!targetOrg) {
@@ -411,8 +438,8 @@ export async function registerRoutes(
       }
     }
     
-    if (req.body.role && admin.role !== "admin" && admin.role !== "manager") {
-      return res.status(403).json({ message: "Only admins and managers can change user roles" });
+    if (req.body.role && !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can change user roles" });
     }
     
     const updated = await storage.updateUser(req.params.id, req.body);
@@ -424,12 +451,6 @@ export async function registerRoutes(
   });
 
   // Admin routes for guest management
-  app.get("/api/admin/pending-guests", async (_req: Request, res: Response) => {
-    const pendingGuests = await storage.getPendingGuests();
-    const guestsWithoutPasswords = pendingGuests.map(({ password, ...user }) => user);
-    return res.json(guestsWithoutPasswords);
-  });
-
   app.post("/api/admin/users/:id/approve", async (req: Request, res: Response) => {
     const adminId = req.headers["x-user-id"] as string;
     if (!adminId) {
@@ -437,8 +458,17 @@ export async function registerRoutes(
     }
     
     const admin = await storage.getUser(adminId);
-    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
-      return res.status(403).json({ message: "Only admins and managers can approve users" });
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can approve users" });
+    }
+
+    const targetUser = await storage.getUser(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (admin.role !== "super_admin" && targetUser.orgId !== admin.orgId) {
+      return res.status(403).json({ message: "Cannot approve users from other organizations" });
     }
     
     const { newRole } = req.body;
@@ -459,8 +489,17 @@ export async function registerRoutes(
     }
     
     const admin = await storage.getUser(adminId);
-    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
-      return res.status(403).json({ message: "Only admins and managers can reject users" });
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can reject users" });
+    }
+
+    const targetUser = await storage.getUser(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (admin.role !== "super_admin" && targetUser.orgId !== admin.orgId) {
+      return res.status(403).json({ message: "Cannot reject users from other organizations" });
     }
     
     const rejected = await storage.rejectUser(req.params.id, adminId);
@@ -473,6 +512,96 @@ export async function registerRoutes(
     return res.json(userWithoutPassword);
   });
 
+  app.post("/api/admin/users/bulk", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can add users" });
+    }
+
+    const { users: usersToCreate } = req.body;
+
+    if (!Array.isArray(usersToCreate) || usersToCreate.length === 0) {
+      return res.status(400).json({ message: "No users provided" });
+    }
+
+    if (usersToCreate.length > 5) {
+      return res.status(400).json({ message: "Maximum 5 users can be created at a time" });
+    }
+
+    const validatedUsers: Array<{email: string; displayName: string; orgId: string; role?: string}> = [];
+
+    for (const u of usersToCreate) {
+      if (!u.email || !u.displayName || !u.orgId) {
+        return res.status(400).json({ message: "Each user must have email, displayName, and orgId" });
+      }
+
+      if (admin.role !== "super_admin" && u.orgId !== admin.orgId) {
+        return res.status(403).json({ message: "Cannot add users to other organizations" });
+      }
+
+      const existingUser = await storage.getUserByEmail(u.email);
+      if (existingUser) {
+        return res.status(400).json({ message: `User with email ${u.email} already exists` });
+      }
+
+      validatedUsers.push({
+        email: u.email,
+        displayName: u.displayName,
+        orgId: u.orgId,
+        role: u.role || "guest",
+      });
+    }
+
+    const createdUsers = [];
+    for (const userData of validatedUsers) {
+      const tempPassword = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      
+      const newUser = await storage.createUser({
+        username: userData.email.split("@")[0] + "_" + Date.now(),
+        email: userData.email,
+        displayName: userData.displayName,
+        password: hashedPassword,
+        role: userData.role as UserRole,
+        orgId: userData.orgId,
+      });
+      
+      const { password, ...userWithoutPassword } = newUser;
+      createdUsers.push(userWithoutPassword);
+    }
+
+    return res.status(201).json({ users: createdUsers, message: `Successfully created ${createdUsers.length} users` });
+  });
+
+  app.get("/api/admin/pending-guests", async (req: Request, res: Response) => {
+    const requesterId = req.headers["x-user-id"] as string;
+    if (!requesterId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const requester = await storage.getUser(requesterId);
+    if (!requester) {
+      return res.status(403).json({ message: "User not found" });
+    }
+
+    let pendingGuests;
+    if (requester.role === "super_admin") {
+      pendingGuests = await storage.getPendingGuests();
+    } else if (requester.role === "admin" || requester.role === "manager") {
+      pendingGuests = await storage.getPendingGuestsByOrgId(requester.orgId);
+    } else {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const guestsWithoutPasswords = pendingGuests.map(({ password, ...user }) => user);
+    return res.json(guestsWithoutPasswords);
+  });
+
   // Organizations routes - admin only, returns orgs user can see
   app.get("/api/organizations", async (req: Request, res: Response) => {
     const adminId = req.headers["x-user-id"] as string;
@@ -481,12 +610,17 @@ export async function registerRoutes(
     }
     
     const admin = await storage.getUser(adminId);
-    if (!admin || (admin.role !== "admin" && admin.role !== "manager")) {
-      return res.status(403).json({ message: "Only admins and managers can view organizations" });
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can view organizations" });
     }
     
-    const orgs = await storage.getOrganizations();
-    return res.json(orgs);
+    if (admin.role === "super_admin") {
+      const orgs = await storage.getOrganizations();
+      return res.json(orgs);
+    } else {
+      const org = await storage.getOrganization(admin.orgId);
+      return res.json(org ? [org] : []);
+    }
   });
 
   app.get("/api/organizations/:id", async (req: Request, res: Response) => {

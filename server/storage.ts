@@ -45,9 +45,12 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserBySupabaseId(supabaseId: string): Promise<User | undefined>;
   getUsers(orgId?: string): Promise<User[]>;
+  getUsersByOrgId(orgId: string): Promise<User[]>;
   getPendingGuests(orgId?: string): Promise<User[]>;
+  getPendingGuestsByOrgId(orgId: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   createUserWithId(id: string | undefined, user: InsertUser): Promise<User>;
+  createUsersBulk(usersData: Array<InsertUser>): Promise<User[]>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined>;
   rejectUser(id: string, approvedById: string): Promise<User | undefined>;
@@ -397,9 +400,19 @@ export class MemStorage implements IStorage {
     return users;
   }
 
+  async getUsersByOrgId(orgId: string): Promise<User[]> {
+    return Array.from(this.users.values()).filter(u => u.orgId === orgId);
+  }
+
   async getPendingGuests(orgId?: string): Promise<User[]> {
     return Array.from(this.users.values()).filter(
       (user) => user.role === "guest" && user.approvalStatus === "pending" && (!orgId || user.orgId === orgId)
+    );
+  }
+
+  async getPendingGuestsByOrgId(orgId: string): Promise<User[]> {
+    return Array.from(this.users.values()).filter(
+      (user) => user.role === "guest" && user.approvalStatus === "pending" && user.orgId === orgId
     );
   }
 
@@ -442,6 +455,15 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async createUsersBulk(usersData: Array<InsertUser>): Promise<User[]> {
+    const createdUsers: User[] = [];
+    for (const userData of usersData) {
+      const user = await this.createUser(userData);
+      createdUsers.push(user);
+    }
+    return createdUsers;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
@@ -959,11 +981,25 @@ export class DatabaseStorage extends MemStorage {
     return await db.select().from(users);
   }
 
+  async getUsersByOrgId(orgId: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.orgId, orgId));
+  }
+
   async getPendingGuests(): Promise<User[]> {
     return await db.select().from(users).where(
       and(
         eq(users.role, "guest"),
         eq(users.approvalStatus, "pending")
+      )
+    );
+  }
+
+  async getPendingGuestsByOrgId(orgId: string): Promise<User[]> {
+    return await db.select().from(users).where(
+      and(
+        eq(users.role, "guest"),
+        eq(users.approvalStatus, "pending"),
+        eq(users.orgId, orgId)
       )
     );
   }
@@ -1010,6 +1046,15 @@ export class DatabaseStorage extends MemStorage {
     
     const result = await db.insert(users).values(userToInsert).returning();
     return result[0];
+  }
+
+  async createUsersBulk(usersData: Array<InsertUser>): Promise<User[]> {
+    const createdUsers: User[] = [];
+    for (const userData of usersData) {
+      const user = await this.createUser(userData);
+      createdUsers.push(user);
+    }
+    return createdUsers;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
