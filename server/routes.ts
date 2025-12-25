@@ -807,6 +807,28 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/organizations/user-counts", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || admin.role !== "super_admin") {
+      return res.status(403).json({ message: "Only super admins can view organization user counts" });
+    }
+    
+    const organizations = await storage.getOrganizations();
+    const userCounts: Record<string, number> = {};
+    
+    for (const org of organizations) {
+      const users = await storage.getUsersByOrgId(org.id);
+      userCounts[org.id] = users.length;
+    }
+    
+    return res.json(userCounts);
+  });
+
   app.get("/api/organizations/:id", async (req: Request, res: Response) => {
     const adminId = req.headers["x-user-id"] as string;
     if (!adminId) {
