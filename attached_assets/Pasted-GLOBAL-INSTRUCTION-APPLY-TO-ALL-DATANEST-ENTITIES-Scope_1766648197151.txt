@@ -1,0 +1,174 @@
+GLOBAL INSTRUCTION — APPLY TO ALL DATANEST ENTITIES
+
+Scope:
+Apply the following fields and rules to ALL DataNest entities, including but not limited to:
+
+Firms
+
+Deals
+
+Funds
+
+Contacts
+
+Service Providers
+
+GPs / LPs
+
+Portfolio Companies
+
+Any future DataNest entity
+
+These fields must be identical across all entities.
+
+🧩 FIELDS TO ADD (MANDATORY STRUCTURE)
+1. source_type
+
+Type: Multi-select (array of text / enum)
+
+Max selections: 5
+
+Editable: ✅ Yes
+
+Allowed values (enum, extensible later):
+
+Website
+
+Regulatory Filing
+
+News / Press Release
+
+Company Deck / PDF
+
+Database (Preqin, PitchBook, etc.)
+
+LinkedIn
+
+Email / Direct Confirmation
+
+Internal Research
+
+Client Provided
+
+Other
+
+Validation rule:
+
+Reject save if more than 5 values selected
+
+2. source_url
+
+Type: Array of URLs (text[])
+
+Max entries: 5
+
+Editable: ✅ Yes
+
+Validation:
+
+Must be valid URL format
+
+Reject save if more than 5 URLs
+
+3. source_data_fields
+
+Type: Multi-select (array of text)
+
+Max selections: 5
+
+Editable: ✅ Yes
+
+Purpose:
+Indicates which data points were derived or verified from the provided sources.
+
+Examples (do not hardcode limits by entity):
+
+Firm Name
+
+AUM
+
+Deal Size
+
+Deal Date
+
+Fund Name
+
+Strategy
+
+Geography
+
+Role / Designation
+
+ESG Tag
+
+Website
+
+Regulatory ID
+
+Contact Email
+
+Validation rule:
+
+Reject save if more than 5 selected
+
+4. added_by
+
+Type: User reference (user_id or email)
+
+Auto-populated from authenticated session
+
+Editable: ❌ No
+
+Nullable: ❌ No
+
+5. added_on
+
+Type: Timestamp (UTC)
+
+Auto-populated at record creation
+
+Editable: ❌ No
+
+Nullable: ❌ No
+
+Default: now() / system timestamp
+
+🔐 LOGIC & ENFORCEMENT RULES
+
+Auto-stamping
+
+added_by and added_on must be set automatically on INSERT
+
+Must not change on UPDATE
+
+Max-5 Enforcement
+
+Enforce limits at database or API validation layer
+
+Hard reject payloads exceeding limits (no silent trimming)
+
+Edit Permissions
+
+source_type, source_url, source_data_fields → editable
+
+added_by, added_on → read-only always
+
+Consistency
+
+Same field names
+
+Same data types
+
+Same rules across all DataNest tables
+
+🧠 DESIGN NOTE (DO NOT IMPLEMENT YET)
+
+This structure must be future-compatible with:
+
+QA workflows (NestResolve)
+
+Source confidence scoring
+
+Client-facing transparency (NestLens)
+
+Audit trails
