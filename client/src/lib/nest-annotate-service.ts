@@ -1,6 +1,18 @@
 import { supabase } from "../../lib/supabase";
 import type { LabelType, WorkContext, AnnotationTaskStatus, UserRole } from "@shared/schema";
 
+export interface NewsItem {
+  id: string;
+  projectId: string;
+  projectName: string;
+  headline: string;
+  sourceName: string | null;
+  publishDate: string | null;
+  status: AnnotationTaskStatus;
+  assignedTo: string | null;
+  assignedToName: string | null;
+}
+
 export interface LabelProjectWithStats {
   id: string;
   name: string;
@@ -237,4 +249,151 @@ export async function fetchLabelTypeSummary(
     labelType: labelType as LabelType,
     openCount,
   }));
+}
+
+export async function fetchNewsIntelligenceCount(
+  orgId: string,
+  userId: string,
+  userRole: UserRole
+): Promise<number> {
+  const { data: newsProjects, error: projectsError } = await supabase
+    .from("label_projects")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("label_type", "text")
+    .eq("project_category", "news");
+
+  if (projectsError) {
+    console.error("Error fetching news projects:", projectsError);
+    throw new Error("Failed to fetch news projects");
+  }
+
+  if (!newsProjects || newsProjects.length === 0) {
+    return 0;
+  }
+
+  const projectIds = newsProjects.map((p: { id: string }) => p.id);
+
+  let tasksQuery = supabase
+    .from("annotation_tasks")
+    .select("id", { count: "exact" })
+    .in("project_id", projectIds)
+    .neq("status", "completed");
+
+  if (userRole === "annotator") {
+    tasksQuery = tasksQuery.eq("assigned_to", userId);
+  }
+
+  const { count, error: tasksError } = await tasksQuery;
+
+  if (tasksError) {
+    console.error("Error fetching news tasks:", tasksError);
+    throw new Error("Failed to fetch news tasks");
+  }
+
+  return count || 0;
+}
+
+interface TaskMetadata {
+  headline?: string;
+  source_name?: string;
+  publish_date?: string;
+}
+
+interface SupabaseNewsTask {
+  id: string;
+  project_id: string;
+  assigned_to: string | null;
+  status: string;
+  created_at: string;
+  metadata: TaskMetadata | null;
+}
+
+export async function fetchNewsItems(
+  orgId: string,
+  userId: string,
+  userRole: UserRole
+): Promise<NewsItem[]> {
+  const { data: newsProjects, error: projectsError } = await supabase
+    .from("label_projects")
+    .select("id, name")
+    .eq("org_id", orgId)
+    .eq("label_type", "text")
+    .eq("project_category", "news");
+
+  if (projectsError) {
+    console.error("Error fetching news projects:", projectsError);
+    throw new Error("Failed to fetch news projects");
+  }
+
+  if (!newsProjects || newsProjects.length === 0) {
+    return [];
+  }
+
+  const projectIds = newsProjects.map((p: { id: string }) => p.id);
+  const projectNameMap = new Map<string, string>();
+  newsProjects.forEach((p: { id: string; name: string }) => {
+    projectNameMap.set(p.id, p.name);
+  });
+
+  let tasksQuery = supabase
+    .from("annotation_tasks")
+    .select("id, project_id, assigned_to, status, created_at, metadata")
+    .in("project_id", projectIds)
+    .neq("status", "completed")
+    .order("created_at", { ascending: false });
+
+  if (userRole === "annotator") {
+    tasksQuery = tasksQuery.eq("assigned_to", userId);
+  }
+
+  const { data: tasks, error: tasksError } = await tasksQuery;
+
+  if (tasksError) {
+    console.error("Error fetching news tasks:", tasksError);
+    throw new Error("Failed to fetch news tasks");
+  }
+
+  if (!tasks || tasks.length === 0) {
+    return [];
+  }
+
+  const assignedUserIds = Array.from(
+    new Set(
+      tasks
+        .map((t: SupabaseNewsTask) => t.assigned_to)
+        .filter((id): id is string => id !== null)
+    )
+  );
+
+  let userNameMap = new Map<string, string>();
+  if (assignedUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, display_name")
+      .in("id", assignedUserIds);
+
+    if (users) {
+      users.forEach((u: { id: string; display_name: string }) => {
+        userNameMap.set(u.id, u.display_name);
+      });
+    }
+  }
+
+  return tasks.map((task: SupabaseNewsTask) => {
+    const projectName = projectNameMap.get(task.project_id) || "Unknown Project";
+    const metadata = task.metadata || {};
+
+    return {
+      id: task.id,
+      projectId: task.project_id,
+      projectName,
+      headline: metadata.headline || projectName,
+      sourceName: metadata.source_name || null,
+      publishDate: metadata.publish_date || null,
+      status: task.status as AnnotationTaskStatus,
+      assignedTo: task.assigned_to,
+      assignedToName: task.assigned_to ? userNameMap.get(task.assigned_to) || null : null,
+    };
+  });
 }
