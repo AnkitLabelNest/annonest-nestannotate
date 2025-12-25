@@ -112,6 +112,18 @@ export async function registerRoutes(
     }
   }
 
+  function getUserIdFromRequest(req: Request): string | null {
+    return (req.headers["x-user-id"] as string) || null;
+  }
+
+  function addSourceTrackingFields(data: any, userId: string | null): any {
+    return {
+      ...data,
+      lastUpdatedBy: userId,
+      lastUpdatedOn: new Date(),
+    };
+  }
+
   // Auth routes
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
@@ -2835,7 +2847,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityGpSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityGpSchema.parse(dataWithTracking);
       const gp = await storage.createGpFirm(parsed);
       return res.status(201).json(gp);
     } catch (error) {
@@ -2848,7 +2862,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const gp = await storage.updateGpFirm(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const gp = await storage.updateGpFirm(req.params.id, orgId, dataWithTracking);
       if (!gp) return res.status(404).json({ message: "Not found" });
       return res.json(gp);
     } catch (error) {
@@ -2900,7 +2916,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityLpSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityLpSchema.parse(dataWithTracking);
       const lp = await storage.createLpFirm(parsed);
       return res.status(201).json(lp);
     } catch (error) {
@@ -2913,7 +2931,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const lp = await storage.updateLpFirm(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const lp = await storage.updateLpFirm(req.params.id, orgId, dataWithTracking);
       if (!lp) return res.status(404).json({ message: "Not found" });
       return res.json(lp);
     } catch (error) {
@@ -2965,7 +2985,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityFundSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityFundSchema.parse(dataWithTracking);
       const fund = await storage.createEntityFund(parsed);
       return res.status(201).json(fund);
     } catch (error) {
@@ -2978,7 +3000,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const fund = await storage.updateEntityFund(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const fund = await storage.updateEntityFund(req.params.id, orgId, dataWithTracking);
       if (!fund) return res.status(404).json({ message: "Not found" });
       return res.json(fund);
     } catch (error) {
@@ -3030,7 +3054,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityPortfolioCompanySchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityPortfolioCompanySchema.parse(dataWithTracking);
       const pc = await storage.createPortfolioCompany(parsed);
       return res.status(201).json(pc);
     } catch (error) {
@@ -3043,7 +3069,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const pc = await storage.updatePortfolioCompany(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const pc = await storage.updatePortfolioCompany(req.params.id, orgId, dataWithTracking);
       if (!pc) return res.status(404).json({ message: "Not found" });
       return res.json(pc);
     } catch (error) {
@@ -3095,7 +3123,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityServiceProviderSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityServiceProviderSchema.parse(dataWithTracking);
       const sp = await storage.createServiceProvider(parsed);
       return res.status(201).json(sp);
     } catch (error) {
@@ -3108,7 +3138,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const sp = await storage.updateServiceProvider(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const sp = await storage.updateServiceProvider(req.params.id, orgId, dataWithTracking);
       if (!sp) return res.status(404).json({ message: "Not found" });
       return res.json(sp);
     } catch (error) {
@@ -3160,7 +3192,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityContactSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityContactSchema.parse(dataWithTracking);
       const contact = await storage.createEntityContact(parsed);
       return res.status(201).json(contact);
     } catch (error) {
@@ -3173,7 +3207,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const contact = await storage.updateEntityContact(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const contact = await storage.updateEntityContact(req.params.id, orgId, dataWithTracking);
       if (!contact) return res.status(404).json({ message: "Not found" });
       return res.json(contact);
     } catch (error) {
@@ -3225,7 +3261,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const parsed = insertEntityDealSchema.parse({ ...req.body, orgId });
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
+      const parsed = insertEntityDealSchema.parse(dataWithTracking);
       const deal = await storage.createEntityDeal(parsed);
       return res.status(201).json(deal);
     } catch (error) {
@@ -3238,7 +3276,9 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const deal = await storage.updateEntityDeal(req.params.id, orgId, req.body);
+      const userId = getUserIdFromRequest(req);
+      const dataWithTracking = addSourceTrackingFields(req.body, userId);
+      const deal = await storage.updateEntityDeal(req.params.id, orgId, dataWithTracking);
       if (!deal) return res.status(404).json({ message: "Not found" });
       return res.json(deal);
     } catch (error) {

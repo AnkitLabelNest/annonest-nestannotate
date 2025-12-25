@@ -27,6 +27,27 @@ export type OrgType = typeof orgTypes[number];
 export const orgStatuses = ["active", "inactive", "pending"] as const;
 export type OrgStatus = typeof orgStatuses[number];
 
+export const sourceTypes = [
+  "Website",
+  "Regulatory Filing",
+  "News / Press Release",
+  "Company Deck / PDF",
+  "Database",
+  "LinkedIn",
+  "Email / Direct Confirmation",
+  "Internal Research",
+  "Client Provided",
+  "Other"
+] as const;
+export type SourceType = typeof sourceTypes[number];
+
+export const sourceTrackingSchema = z.object({
+  sourcesUsed: z.array(z.enum(sourceTypes)).max(5, "Maximum 5 sources allowed").optional().default([]),
+  sourceUrls: z.array(z.string().url("Invalid URL format")).max(5, "Maximum 5 source URLs allowed").optional().default([]),
+  lastUpdatedBy: z.string().uuid().optional().nullable(),
+  lastUpdatedOn: z.union([z.string(), z.date()]).optional().nullable(),
+});
+
 export const organizations = pgTable("organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -215,6 +236,11 @@ export const entitiesGp = pgTable("entities_gp", {
   email: text("email"),
   phone: text("phone"),
   linkedinUrl: text("linkedin_url"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -238,6 +264,11 @@ export const entitiesLp = pgTable("entities_lp", {
   email: text("email"),
   phone: text("phone"),
   linkedinUrl: text("linkedin_url"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -257,6 +288,11 @@ export const entitiesFund = pgTable("entities_fund", {
   fundStatus: text("fund_status"),
   primarySector: text("primary_sector"),
   geographicFocus: text("geographic_focus"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -287,6 +323,11 @@ export const entitiesPortfolioCompany = pgTable("entities_portfolio_company", {
   // Intelligence metadata
   confidenceScore: integer("confidence_score"),
   dataSource: text("data_source"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -310,6 +351,11 @@ export const entitiesServiceProvider = pgTable("entities_service_provider", {
   email: text("email"),
   phone: text("phone"),
   linkedinUrl: text("linkedin_url"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -347,6 +393,11 @@ export const entitiesContact = pgTable("entities_contact", {
   // Internal scoring
   confidenceScore: integer("confidence_score"),
   importanceScore: integer("importance_score"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -379,7 +430,11 @@ export const entitiesDeal = pgTable("entities_deal", {
   // Trust & quality
   verificationStatus: text("verification_status"),
   confidenceScore: integer("confidence_score"),
-  sourceUrls: text("source_urls"),
+  // Source tracking
+  sourcesUsed: text("sources_used").array().default([]),
+  sourceUrls: text("source_urls").array().default([]),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedOn: timestamp("last_updated_on").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

@@ -42,6 +42,7 @@ import {
   Briefcase, Mail, Phone, Linkedin
 } from "lucide-react";
 import { EntityUrlsSection } from "@/components/entity-urls-section";
+import { SourceTrackingSection } from "@/components/source-tracking-section";
 
 interface CrmGp {
   id: string;
@@ -470,6 +471,12 @@ function GpFirmForm({
   isEdit?: boolean;
 }) {
   const dv = defaultValues || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       gp_name: dv.gp_name || "",
@@ -563,7 +570,13 @@ function GpFirmForm({
       dei_policy_available: data.dei_policy_available === "true",
       sustainability_report_url: data.sustainability_report_url || null,
       status: data.status || "Active",
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     });
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   const employeeCountOptions = ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+"];
@@ -797,6 +810,13 @@ function GpFirmForm({
             )} />
           </div>
 
+          <SectionHeader title="Source Tracking" />
+          <SourceTrackingSection
+            data={sourceTracking}
+            onChange={handleSourceTrackingChange}
+            isEditing={true}
+          />
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
@@ -947,6 +967,18 @@ function GpFirmFullView({ gp, onClose }: { gp: any; onClose: () => void }) {
             <Badge className={statusColors[gp.status || "active"]}>{gp.status || "active"}</Badge>
           </div>
         </div>
+
+        <SectionHeader title="Source Tracking" />
+        <SourceTrackingSection
+          data={{
+            sourcesUsed: gp.sources_used || [],
+            sourceUrls: gp.source_urls || [],
+            lastUpdatedBy: gp.last_updated_by,
+            lastUpdatedOn: gp.last_updated_on,
+          }}
+          onChange={() => {}}
+          isEditing={false}
+        />
 
         <SectionHeader title="URLs" />
         <EntityUrlsSection entityType="gp" entityId={gp.id} />
@@ -1646,6 +1678,12 @@ function LpFirmForm({
   isEdit?: boolean;
 }) {
   const dv = defaultValues || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       lp_name: dv.lp_name || "",
@@ -1737,7 +1775,13 @@ function LpFirmForm({
       dei_policy_available: data.dei_policy_available === "true",
       sustainability_report_url: data.sustainability_report_url || null,
       status: data.status || "Active",
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     });
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   const ownershipOptions = ["Public", "Private", "Government", "Non-Profit", "Family Office", "Other"];
@@ -1964,6 +2008,13 @@ function LpFirmForm({
             )} />
           </div>
 
+          <SectionHeader title="Source Tracking" />
+          <SourceTrackingSection
+            data={sourceTracking}
+            onChange={handleSourceTrackingChange}
+            isEditing={true}
+          />
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-lp">
@@ -2101,6 +2152,18 @@ function LpFirmFullView({ lp, onClose }: { lp: any; onClose: () => void }) {
             <Badge className={statusColors[lp.status || "active"]}>{lp.status || "active"}</Badge>
           </div>
         </div>
+
+        <SectionHeader title="Source Tracking" />
+        <SourceTrackingSection
+          data={{
+            sourcesUsed: lp.sources_used || [],
+            sourceUrls: lp.source_urls || [],
+            lastUpdatedBy: lp.last_updated_by,
+            lastUpdatedOn: lp.last_updated_on,
+          }}
+          onChange={() => {}}
+          isEditing={false}
+        />
 
         <SectionHeader title="URLs" />
         <EntityUrlsSection entityType="lp" entityId={lp.id} />
@@ -2326,6 +2389,12 @@ function ServiceProviderForm({
   isEdit?: boolean;
 }) {
   const dv = defaultValues || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       provider_name: dv.provider_name || "",
@@ -2415,7 +2484,13 @@ function ServiceProviderForm({
       last_verified_date: data.last_verified_date || null,
       notes: data.notes || null,
       status: data.status || "Active",
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     });
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   const employeeCountBandOptions = ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001+"];
@@ -2630,6 +2705,13 @@ function ServiceProviderForm({
               </Select></FormItem>
           )} />
 
+          <SectionHeader title="Source Tracking" />
+          <SourceTrackingSection
+            data={sourceTracking}
+            onChange={handleSourceTrackingChange}
+            isEditing={true}
+          />
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-sp">
@@ -2752,6 +2834,18 @@ function ServiceProviderFullView({ sp, onClose }: { sp: any; onClose: () => void
           <p className="text-sm text-muted-foreground">Status</p>
           <Badge className={statusColors[sp.status || "active"]}>{sp.status || "active"}</Badge>
         </div>
+
+        <SectionHeader title="Source Tracking" />
+        <SourceTrackingSection
+          data={{
+            sourcesUsed: sp.sources_used || [],
+            sourceUrls: sp.source_urls || [],
+            lastUpdatedBy: sp.last_updated_by,
+            lastUpdatedOn: sp.last_updated_on,
+          }}
+          onChange={() => {}}
+          isEditing={false}
+        />
 
         <SectionHeader title="URLs" />
         <EntityUrlsSection entityType="service_provider" entityId={sp.id} />
@@ -2977,6 +3071,12 @@ function PortfolioCompanyForm({
   isEdit?: boolean;
 }) {
   const dv = defaultValues || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       company_name: dv.company_name || "",
@@ -3078,7 +3178,13 @@ function PortfolioCompanyForm({
       last_verified_date: data.last_verified_date || null,
       notes: data.notes || null,
       status: data.status || "Active",
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     });
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   const employeeCountBandOptions = ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001+"];
@@ -3313,6 +3419,13 @@ function PortfolioCompanyForm({
               </Select></FormItem>
           )} />
 
+          <SectionHeader title="Source Tracking" />
+          <SourceTrackingSection
+            data={sourceTracking}
+            onChange={handleSourceTrackingChange}
+            isEditing={true}
+          />
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-pc">
@@ -3443,6 +3556,18 @@ function PortfolioCompanyFullView({ pc, onClose }: { pc: any; onClose: () => voi
           <p className="text-sm text-muted-foreground">Status</p>
           <Badge className={statusColors[pc.status || "active"]}>{pc.status || "active"}</Badge>
         </div>
+
+        <SectionHeader title="Source Tracking" />
+        <SourceTrackingSection
+          data={{
+            sourcesUsed: pc.sources_used || [],
+            sourceUrls: pc.source_urls || [],
+            lastUpdatedBy: pc.last_updated_by,
+            lastUpdatedOn: pc.last_updated_on,
+          }}
+          onChange={() => {}}
+          isEditing={false}
+        />
 
         <SectionHeader title="URLs" />
         <EntityUrlsSection entityType="portfolio_company" entityId={pc.id} />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SourceTrackingSection } from "@/components/source-tracking-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -303,6 +304,13 @@ function ContactForm({
   onCancel: () => void;
   isEdit?: boolean;
 }) {
+  const dv = defaultValues as any || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       first_name: defaultValues?.firstName || "",
@@ -352,7 +360,13 @@ function ContactForm({
       board_roles: data.board_roles || null,
       confidence_score: data.confidence_score ? parseInt(data.confidence_score) : null,
       importance_score: data.importance_score ? parseInt(data.importance_score) : null,
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     } as any);
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -725,6 +739,15 @@ function ContactForm({
             />
           </div>
 
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Source Tracking</h3>
+            <SourceTrackingSection
+              data={sourceTracking}
+              onChange={handleSourceTrackingChange}
+              isEditing={true}
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
@@ -896,6 +919,22 @@ function ContactView({ contact, onClose }: { contact: EntityContact; onClose: ()
               {contact.status || "active"}
             </Badge>
           </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Source Tracking</h3>
+          <SourceTrackingSection
+            data={{
+              sourcesUsed: c.sources_used || [],
+              sourceUrls: c.source_urls || [],
+              lastUpdatedBy: c.last_updated_by,
+              lastUpdatedOn: c.last_updated_on,
+            }}
+            onChange={() => {}}
+            isEditing={false}
+          />
         </div>
 
         <div className="flex justify-end pt-4">

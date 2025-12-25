@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SourceTrackingSection } from "@/components/source-tracking-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Wallet, Calendar, TrendingUp, DollarSign, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import type { EntityFund } from "@shared/schema";
 
 const statusColors: Record<string, string> = {
@@ -290,6 +292,12 @@ function FundForm({
   isEdit?: boolean;
 }) {
   const dv = defaultValues || {};
+  const [sourceTracking, setSourceTracking] = useState({
+    sourcesUsed: dv.sources_used || [],
+    sourceUrls: dv.source_urls || [],
+    lastUpdatedBy: dv.last_updated_by,
+    lastUpdatedOn: dv.last_updated_on,
+  });
   const form = useForm({
     defaultValues: {
       fund_name: dv.fund_name || "",
@@ -383,7 +391,13 @@ function FundForm({
       notes: data.notes || null,
       fund_status: data.fund_status || "fundraising",
       status: data.status || "Active",
+      sources_used: sourceTracking.sourcesUsed,
+      source_urls: sourceTracking.sourceUrls,
     });
+  };
+
+  const handleSourceTrackingChange = (field: string, value: any) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -588,6 +602,15 @@ function FundForm({
               </Select></FormItem>
           )} />
 
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Source Tracking</h3>
+            <SourceTrackingSection
+              data={sourceTracking}
+              onChange={handleSourceTrackingChange}
+              isEditing={true}
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
             <Button type="submit" disabled={isPending} data-testid="button-submit-fund">
@@ -707,6 +730,22 @@ function FundView({ fund, onClose }: { fund: any; onClose: () => void }) {
         <div>
           <p className="text-sm text-muted-foreground">Record Status</p>
           <Badge className={statusColors[fund.status || "active"]}>{fund.status || "active"}</Badge>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Source Tracking</h3>
+          <SourceTrackingSection
+            data={{
+              sourcesUsed: fund.sources_used || [],
+              sourceUrls: fund.source_urls || [],
+              lastUpdatedBy: fund.last_updated_by,
+              lastUpdatedOn: fund.last_updated_on,
+            }}
+            onChange={() => {}}
+            isEditing={false}
+          />
         </div>
 
         <div className="flex justify-end pt-4">
