@@ -89,10 +89,14 @@ export const users = pgTable("users", {
   index("users_org_id_idx").on(table.orgId),
 ]);
 
+export const projectCategories = ["general", "news", "research", "training"] as const;
+export type ProjectCategory = typeof projectCategories[number];
+
 export const labelProjects = pgTable("label_projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   labelType: text("label_type").notNull().$type<LabelType>(),
+  projectCategory: text("project_category").notNull().$type<ProjectCategory>().default("general"),
   orgId: varchar("org_id").references(() => organizations.id).notNull(),
   workContext: text("work_context").notNull().$type<WorkContext>().default("internal"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -108,6 +112,7 @@ export const annotationTasks = pgTable("annotation_tasks", {
   projectId: varchar("project_id").references(() => labelProjects.id).notNull(),
   assignedTo: varchar("assigned_to").references(() => users.id),
   status: text("status").notNull().$type<AnnotationTaskStatus>().default("pending"),
+  metadata: jsonb("metadata").$type<{ headline?: string; source_name?: string; publish_date?: string }>(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("annotation_tasks_project_id_idx").on(table.projectId),

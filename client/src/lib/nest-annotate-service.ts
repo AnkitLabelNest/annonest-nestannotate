@@ -34,6 +34,7 @@ interface SupabaseProject {
   id: string;
   name: string;
   label_type: string;
+  project_category: string;
   org_id: string;
   work_context: string;
   created_at: string;
@@ -45,6 +46,7 @@ interface SupabaseTask {
   assigned_to: string | null;
   status: string;
   created_at: string;
+  metadata: { headline?: string; source_name?: string; publish_date?: string } | null;
 }
 
 export async function fetchProjectsWithStats(
@@ -294,21 +296,6 @@ export async function fetchNewsIntelligenceCount(
   return count || 0;
 }
 
-interface TaskMetadata {
-  headline?: string;
-  source_name?: string;
-  publish_date?: string;
-}
-
-interface SupabaseNewsTask {
-  id: string;
-  project_id: string;
-  assigned_to: string | null;
-  status: string;
-  created_at: string;
-  metadata: TaskMetadata | null;
-}
-
 export async function fetchNewsItems(
   orgId: string,
   userId: string,
@@ -361,7 +348,7 @@ export async function fetchNewsItems(
   const assignedUserIds = Array.from(
     new Set(
       tasks
-        .map((t: SupabaseNewsTask) => t.assigned_to)
+        .map((t: SupabaseTask) => t.assigned_to)
         .filter((id): id is string => id !== null)
     )
   );
@@ -380,7 +367,7 @@ export async function fetchNewsItems(
     }
   }
 
-  return tasks.map((task: SupabaseNewsTask) => {
+  return tasks.map((task: SupabaseTask) => {
     const projectName = projectNameMap.get(task.project_id) || "Unknown Project";
     const metadata = task.metadata || {};
 

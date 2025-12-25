@@ -3640,5 +3640,251 @@ export async function registerRoutes(
     }
   });
 
+  // NestAnnotate API endpoints
+  app.get("/api/nest-annotate/projects", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    
+    try {
+      const { db } = await import("./db");
+      const { labelProjects, annotationTasks } = await import("@shared/schema");
+      const { eq, and, inArray, sql } = await import("drizzle-orm");
+      
+      let projects;
+      
+      if (userRole === "annotator" && userId) {
+        const assignedTasks = await db
+          .select({ projectId: annotationTasks.projectId, status: annotationTasks.status })
+          .from(annotationTasks)
+          .where(eq(annotationTasks.assignedTo, userId));
+        
+        if (assignedTasks.length === 0) {
+          return res.json([]);
+        }
+        
+        const projectIds = Array.from(new Set(assignedTasks.map(t => t.projectId)));
+        projects = await db
+          .select()
+          .from(labelProjects)
+          .where(and(eq(labelProjects.orgId, orgId), inArray(labelProjects.id, projectIds)));
+      } else {
+        projects = await db.select().from(labelProjects).where(eq(labelProjects.orgId, orgId));
+      }
+      
+      const projectIds = projects.map(p => p.id);
+      if (projectIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const tasks = await db
+        .select()
+        .from(annotationTasks)
+        .where(inArray(annotationTasks.projectId, projectIds));
+      
+      const projectsWithStats = projects.map(project => {
+        const projectTasks = tasks.filter(t => t.projectId === project.id);
+        const totalItems = projectTasks.length;
+        const completedItems = projectTasks.filter(t => t.status === "completed").length;
+        
+        let projectStatus = "not_started";
+        if (totalItems > 0 && completedItems === totalItems) {
+          projectStatus = "completed";
+        } else if (completedItems > 0) {
+          projectStatus = "in_progress";
+        }
+        
+        return {
+          id: project.id,
+          name: project.name,
+          labelType: project.labelType,
+          projectCategory: project.projectCategory,
+          orgId: project.orgId,
+          workContext: project.workContext,
+          createdAt: project.createdAt,
+          totalItems,
+          completedItems,
+          projectStatus,
+        };
+      });
+      
+      return res.json(projectsWithStats);
+    } catch (error) {
+      console.error("Error fetching NestAnnotate projects:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/nest-annotate/summary", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    
+    try {
+      const { db } = await import("./db");
+      const { labelProjects, annotationTasks } = await import("@shared/schema");
+      const { eq, and, ne, inArray } = await import("drizzle-orm");
+      
+      const projects = await db
+        .select({ id: labelProjects.id, labelType: labelProjects.labelType })
+        .from(labelProjects)
+        .where(eq(labelProjects.orgId, orgId));
+      
+      if (projects.length === 0) {
+        return res.json({
+          labelTypeCounts: { text: 0, image: 0, video: 0, audio: 0, transcription: 0, translation: 0 },
+          newsCount: 0
+        });
+      }
+      
+      const projectIds = projects.map(p => p.id);
+      
+      let tasksQuery = db
+        .select({ projectId: annotationTasks.projectId, assignedTo: annotationTasks.assignedTo })
+        .from(annotationTasks)
+        .where(and(inArray(annotationTasks.projectId, projectIds), ne(annotationTasks.status, "completed")));
+      
+      const openTasks = await tasksQuery;
+      
+      const filteredTasks = userRole === "annotator" && userId
+        ? openTasks.filter(t => t.assignedTo === userId)
+        : openTasks;
+      
+      const projectLabelTypeMap = new Map(projects.map(p => [p.id, p.labelType]));
+      const labelTypeCounts: Record<string, number> = { text: 0, image: 0, video: 0, audio: 0, transcription: 0, translation: 0 };
+      
+      filteredTasks.forEach(task => {
+        const labelType = projectLabelTypeMap.get(task.projectId);
+        if (labelType && labelType in labelTypeCounts) {
+          labelTypeCounts[labelType]++;
+        }
+      });
+      
+      return res.json({
+        labelTypeCounts,
+        newsCount: 0
+      });
+    } catch (error) {
+      console.error("Error fetching NestAnnotate summary:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/nest-annotate/news-count", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    
+    try {
+      const { db } = await import("./db");
+      const { labelProjects, annotationTasks } = await import("@shared/schema");
+      const { eq, and, ne, inArray } = await import("drizzle-orm");
+      
+      const newsProjects = await db
+        .select({ id: labelProjects.id })
+        .from(labelProjects)
+        .where(and(
+          eq(labelProjects.orgId, orgId),
+          eq(labelProjects.labelType, "text"),
+          eq(labelProjects.projectCategory, "news")
+        ));
+      
+      if (newsProjects.length === 0) {
+        return res.json({ count: 0 });
+      }
+      
+      const projectIds = newsProjects.map(p => p.id);
+      
+      let openTasks = await db
+        .select({ id: annotationTasks.id, assignedTo: annotationTasks.assignedTo })
+        .from(annotationTasks)
+        .where(and(inArray(annotationTasks.projectId, projectIds), ne(annotationTasks.status, "completed")));
+      
+      if (userRole === "annotator" && userId) {
+        openTasks = openTasks.filter(t => t.assignedTo === userId);
+      }
+      
+      return res.json({ count: openTasks.length });
+    } catch (error) {
+      console.error("Error fetching news count:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/nest-annotate/news-items", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    
+    try {
+      const { db } = await import("./db");
+      const { labelProjects, annotationTasks, users } = await import("@shared/schema");
+      const { eq, and, ne, inArray, desc } = await import("drizzle-orm");
+      
+      const newsProjects = await db
+        .select({ id: labelProjects.id, name: labelProjects.name })
+        .from(labelProjects)
+        .where(and(
+          eq(labelProjects.orgId, orgId),
+          eq(labelProjects.labelType, "text"),
+          eq(labelProjects.projectCategory, "news")
+        ));
+      
+      if (newsProjects.length === 0) {
+        return res.json([]);
+      }
+      
+      const projectIds = newsProjects.map(p => p.id);
+      const projectNameMap = new Map(newsProjects.map(p => [p.id, p.name]));
+      
+      let tasks = await db
+        .select()
+        .from(annotationTasks)
+        .where(and(inArray(annotationTasks.projectId, projectIds), ne(annotationTasks.status, "completed")))
+        .orderBy(desc(annotationTasks.createdAt));
+      
+      if (userRole === "annotator" && userId) {
+        tasks = tasks.filter(t => t.assignedTo === userId);
+      }
+      
+      const assignedUserIds = Array.from(new Set(tasks.map(t => t.assignedTo).filter((id): id is string => id !== null)));
+      
+      let userNameMap = new Map<string, string>();
+      if (assignedUserIds.length > 0) {
+        const usersData = await db
+          .select({ id: users.id, displayName: users.displayName })
+          .from(users)
+          .where(inArray(users.id, assignedUserIds));
+        userNameMap = new Map(usersData.map(u => [u.id, u.displayName]));
+      }
+      
+      const newsItems = tasks.map(task => {
+        const projectName = projectNameMap.get(task.projectId) || "Unknown Project";
+        const metadata = (task.metadata as { headline?: string; source_name?: string; publish_date?: string }) || {};
+        
+        return {
+          id: task.id,
+          projectId: task.projectId,
+          projectName,
+          headline: metadata.headline || projectName,
+          sourceName: metadata.source_name || null,
+          publishDate: metadata.publish_date || null,
+          status: task.status,
+          assignedTo: task.assignedTo,
+          assignedToName: task.assignedTo ? userNameMap.get(task.assignedTo) || null : null,
+        };
+      });
+      
+      return res.json(newsItems);
+    } catch (error) {
+      console.error("Error fetching news items:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }
