@@ -45,8 +45,11 @@ import {
   RefreshCw,
   Building2,
   Plus,
+  Mail,
+  MailCheck,
+  Send,
 } from "lucide-react";
-import type { UserRole, User, ApprovalStatus, Organization } from "@shared/schema";
+import type { UserRole, User, ApprovalStatus, Organization, InviteStatus } from "@shared/schema";
 
 type UserWithoutPassword = Omit<User, "password">;
 
@@ -193,6 +196,20 @@ export default function AdminUsersPage() {
     },
   });
 
+  const resendInviteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/admin/users/invite/${userId}/resend`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Invite sent", description: data.message || "The invitation email has been resent." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to resend invitation", variant: "destructive" });
+    },
+  });
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -212,6 +229,21 @@ export default function AdminUsersPage() {
         return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
       default:
         return <Badge variant="outline">N/A</Badge>;
+    }
+  };
+
+  const getInviteStatusBadge = (status: InviteStatus | null) => {
+    switch (status) {
+      case "sent":
+        return <Badge variant="secondary" className="gap-1"><Mail className="w-3 h-3" />Invite Sent</Badge>;
+      case "accepted":
+        return <Badge variant="default" className="bg-green-600 dark:bg-green-700 gap-1"><MailCheck className="w-3 h-3" />Accepted</Badge>;
+      case "pending":
+        return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" />Pending</Badge>;
+      case "expired":
+        return <Badge variant="destructive" className="gap-1"><Clock className="w-3 h-3" />Expired</Badge>;
+      default:
+        return null;
     }
   };
 
@@ -345,15 +377,18 @@ export default function AdminUsersPage() {
             isLoading={isLoading}
             getInitials={getInitials}
             getApprovalBadge={getApprovalBadge}
+            getInviteStatusBadge={getInviteStatusBadge}
             getOrgName={getOrgName}
             onApprove={openApproveDialog}
             onReject={(userId) => rejectMutation.mutate(userId)}
             onChangeRole={openRoleDialog}
             onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
             onAssignOrg={openAssignOrgDialog}
+            onResendInvite={(userId) => resendInviteMutation.mutate(userId)}
             currentUserId={currentUser?.id}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
+            isResendingInvite={resendInviteMutation.isPending}
           />
         </TabsContent>
 
@@ -371,15 +406,18 @@ export default function AdminUsersPage() {
               isLoading={isLoading}
               getInitials={getInitials}
               getApprovalBadge={getApprovalBadge}
+              getInviteStatusBadge={getInviteStatusBadge}
               getOrgName={getOrgName}
               onApprove={openApproveDialog}
               onReject={(userId) => rejectMutation.mutate(userId)}
               onChangeRole={openRoleDialog}
               onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
               onAssignOrg={openAssignOrgDialog}
+              onResendInvite={(userId) => resendInviteMutation.mutate(userId)}
               currentUserId={currentUser?.id}
               isApproving={approveMutation.isPending}
               isRejecting={rejectMutation.isPending}
+              isResendingInvite={resendInviteMutation.isPending}
               showApprovalActions
             />
           )}
@@ -391,15 +429,18 @@ export default function AdminUsersPage() {
             isLoading={isLoading}
             getInitials={getInitials}
             getApprovalBadge={getApprovalBadge}
+            getInviteStatusBadge={getInviteStatusBadge}
             getOrgName={getOrgName}
             onApprove={openApproveDialog}
             onReject={(userId) => rejectMutation.mutate(userId)}
             onChangeRole={openRoleDialog}
             onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
             onAssignOrg={openAssignOrgDialog}
+            onResendInvite={(userId) => resendInviteMutation.mutate(userId)}
             currentUserId={currentUser?.id}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
+            isResendingInvite={resendInviteMutation.isPending}
           />
         </TabsContent>
 
@@ -416,15 +457,18 @@ export default function AdminUsersPage() {
               isLoading={isLoading}
               getInitials={getInitials}
               getApprovalBadge={getApprovalBadge}
+              getInviteStatusBadge={getInviteStatusBadge}
               getOrgName={getOrgName}
               onApprove={openApproveDialog}
               onReject={(userId) => rejectMutation.mutate(userId)}
               onChangeRole={openRoleDialog}
               onToggleActive={(user) => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.isActive })}
               onAssignOrg={openAssignOrgDialog}
+              onResendInvite={(userId) => resendInviteMutation.mutate(userId)}
               currentUserId={currentUser?.id}
               isApproving={approveMutation.isPending}
               isRejecting={rejectMutation.isPending}
+              isResendingInvite={resendInviteMutation.isPending}
             />
           )}
         </TabsContent>
@@ -735,15 +779,18 @@ interface UserTableProps {
   isLoading: boolean;
   getInitials: (name: string) => string;
   getApprovalBadge: (status: ApprovalStatus | null) => JSX.Element;
+  getInviteStatusBadge: (status: InviteStatus | null) => JSX.Element | null;
   getOrgName: (orgId: string | null) => string;
   onApprove: (user: UserWithoutPassword) => void;
   onReject: (userId: string) => void;
   onChangeRole: (user: UserWithoutPassword) => void;
   onToggleActive: (user: UserWithoutPassword) => void;
   onAssignOrg: (user: UserWithoutPassword) => void;
+  onResendInvite: (userId: string) => void;
   currentUserId?: string;
   isApproving: boolean;
   isRejecting: boolean;
+  isResendingInvite: boolean;
   showApprovalActions?: boolean;
 }
 
@@ -752,15 +799,18 @@ function UserTable({
   isLoading,
   getInitials,
   getApprovalBadge,
+  getInviteStatusBadge,
   getOrgName,
   onApprove,
   onReject,
   onChangeRole,
   onToggleActive,
   onAssignOrg,
+  onResendInvite,
   currentUserId,
   isApproving,
   isRejecting,
+  isResendingInvite,
   showApprovalActions = false,
 }: UserTableProps) {
   if (isLoading) {
@@ -796,6 +846,7 @@ function UserTable({
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Approval</TableHead>
+              <TableHead>Invite</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -831,6 +882,23 @@ function UserTable({
                 </TableCell>
                 <TableCell>
                   {getApprovalBadge(user.approvalStatus as ApprovalStatus | null)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {getInviteStatusBadge(user.inviteStatus as InviteStatus | null)}
+                    {user.inviteStatus === "sent" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onResendInvite(user.id)}
+                        disabled={isResendingInvite}
+                        data-testid={`button-resend-invite-${user.id}`}
+                        title="Resend invitation email"
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1 flex-wrap">

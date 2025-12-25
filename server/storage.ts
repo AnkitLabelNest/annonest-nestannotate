@@ -54,6 +54,7 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   approveUser(id: string, approvedById: string, newRole?: string): Promise<User | undefined>;
   rejectUser(id: string, approvedById: string): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
 
   getFirms(orgId: string): Promise<Firm[]>;
   getFirm(id: string, orgId: string): Promise<Firm | undefined>;
@@ -503,6 +504,10 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, updated);
     return updated;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
   }
 
   async getFirms(orgId: string): Promise<Firm[]> {
@@ -1090,6 +1095,11 @@ export class DatabaseStorage extends MemStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async getFirms(orgId: string): Promise<Firm[]> {

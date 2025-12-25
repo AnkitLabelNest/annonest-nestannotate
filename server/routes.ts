@@ -30,6 +30,7 @@ import { z } from "zod";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Supabase credentials not configured. Some features may not work.");
@@ -37,6 +38,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+const supabaseAdmin = supabaseUrl && supabaseServiceRoleKey
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   : null;
 
 export async function registerRoutes(
@@ -203,6 +213,14 @@ export async function registerRoutes(
         if (user && !user.supabaseId) {
           user = await storage.updateUser(user.id, { supabaseId: supabaseUser.id });
         }
+        // If user was invited and is logging in for first time, activate them
+        if (user && user.inviteStatus === "sent" && !user.isActive) {
+          user = await storage.updateUser(user.id, { 
+            isActive: true, 
+            inviteStatus: "accepted",
+            supabaseId: supabaseUser.id 
+          });
+        }
       }
 
       // If still no user, create one
@@ -238,7 +256,15 @@ export async function registerRoutes(
         return res.status(500).json({ message: "Could not create or find user" });
       }
 
-      if (!user.isActive) {
+      // Activate invited user on first successful Supabase login
+      if (!user.isActive && user.inviteStatus === "sent") {
+        user = await storage.updateUser(user.id, { 
+          isActive: true, 
+          inviteStatus: "accepted" 
+        });
+      }
+
+      if (!user?.isActive) {
         return res.status(403).json({ message: "Account is deactivated" });
       }
 
@@ -512,6 +538,128 @@ export async function registerRoutes(
     return res.json(userWithoutPassword);
   });
 
+  app.post("/api/admin/users/invite", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can invite users" });
+    }
+
+    if (!supabaseAdmin) {
+      return res.status(503).json({ message: "Supabase admin client not configured. Check SUPABASE_SERVICE_ROLE_KEY." });
+    }
+
+    const { email, displayName, orgId, role } = req.body;
+
+    if (!email || !displayName || !orgId) {
+      return res.status(400).json({ message: "Email, displayName, and orgId are required" });
+    }
+
+    if (admin.role !== "super_admin" && orgId !== admin.orgId) {
+      return res.status(403).json({ message: "Cannot invite users to other organizations" });
+    }
+
+    const existingUser = await storage.getUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ message: `User with email ${email} already exists` });
+    }
+
+    const assignedRole = role || "annotator";
+    const placeholderPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+    const pendingUser = await storage.createUser({
+      username: email.split("@")[0] + "_" + Date.now(),
+      email,
+      displayName,
+      password: placeholderPassword,
+      role: assignedRole as UserRole,
+      orgId,
+      isActive: false,
+      inviteStatus: "pending",
+      invitedBy: adminId,
+      invitedAt: new Date(),
+    });
+
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: {
+        displayName,
+        orgId,
+        role: assignedRole,
+        localUserId: pendingUser.id,
+      },
+    });
+
+    if (error) {
+      await storage.deleteUser(pendingUser.id);
+      console.error("Supabase invite error:", error);
+      return res.status(500).json({ message: `Failed to send invite: ${error.message}` });
+    }
+
+    const updatedUser = await storage.updateUser(pendingUser.id, {
+      supabaseId: data.user.id,
+      inviteStatus: "sent",
+    });
+
+    const { password, ...userWithoutPassword } = updatedUser!;
+    return res.status(201).json({ 
+      user: userWithoutPassword, 
+      message: `Invitation sent to ${email}` 
+    });
+  });
+
+  app.post("/api/admin/users/invite/:id/resend", async (req: Request, res: Response) => {
+    const adminId = req.headers["x-user-id"] as string;
+    if (!adminId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const admin = await storage.getUser(adminId);
+    if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
+      return res.status(403).json({ message: "Only super admins, admins and managers can resend invites" });
+    }
+
+    if (!supabaseAdmin) {
+      return res.status(503).json({ message: "Supabase admin client not configured" });
+    }
+
+    const targetUser = await storage.getUser(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (admin.role !== "super_admin" && targetUser.orgId !== admin.orgId) {
+      return res.status(403).json({ message: "Cannot resend invites to users from other organizations" });
+    }
+
+    if (!targetUser.supabaseId) {
+      return res.status(400).json({ message: "User was not invited via Supabase" });
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(targetUser.email, {
+      data: {
+        displayName: targetUser.displayName,
+        orgId: targetUser.orgId,
+        role: targetUser.role,
+        localUserId: targetUser.id,
+      },
+    });
+
+    if (error) {
+      console.error("Supabase resend invite error:", error);
+      return res.status(500).json({ message: `Failed to resend invite: ${error.message}` });
+    }
+
+    await storage.updateUser(targetUser.id, {
+      inviteStatus: "sent",
+      invitedAt: new Date(),
+    });
+
+    return res.json({ message: `Invitation resent to ${targetUser.email}` });
+  });
+
   app.post("/api/admin/users/bulk", async (req: Request, res: Response) => {
     const adminId = req.headers["x-user-id"] as string;
     if (!adminId) {
@@ -521,6 +669,10 @@ export async function registerRoutes(
     const admin = await storage.getUser(adminId);
     if (!admin || !["super_admin", "admin", "manager"].includes(admin.role)) {
       return res.status(403).json({ message: "Only super admins, admins and managers can add users" });
+    }
+
+    if (!supabaseAdmin) {
+      return res.status(503).json({ message: "Supabase admin client not configured. Check SUPABASE_SERVICE_ROLE_KEY." });
     }
 
     const { users: usersToCreate } = req.body;
@@ -553,29 +705,61 @@ export async function registerRoutes(
         email: u.email,
         displayName: u.displayName,
         orgId: u.orgId,
-        role: u.role || "guest",
+        role: u.role || "annotator",
       });
     }
 
     const createdUsers = [];
+    const inviteResults = [];
+
     for (const userData of validatedUsers) {
-      const tempPassword = Math.random().toString(36).slice(-10);
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const placeholderPassword = await bcrypt.hash(crypto.randomUUID(), 10);
       
       const newUser = await storage.createUser({
         username: userData.email.split("@")[0] + "_" + Date.now(),
         email: userData.email,
         displayName: userData.displayName,
-        password: hashedPassword,
+        password: placeholderPassword,
         role: userData.role as UserRole,
         orgId: userData.orgId,
+        isActive: false,
+        inviteStatus: "pending",
+        invitedBy: adminId,
+        invitedAt: new Date(),
       });
       
-      const { password, ...userWithoutPassword } = newUser;
-      createdUsers.push(userWithoutPassword);
+      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(userData.email, {
+        data: {
+          displayName: userData.displayName,
+          orgId: userData.orgId,
+          role: userData.role,
+          localUserId: newUser.id,
+        },
+      });
+
+      if (error) {
+        await storage.deleteUser(newUser.id);
+        inviteResults.push({ email: userData.email, success: false, error: error.message });
+      } else {
+        await storage.updateUser(newUser.id, {
+          supabaseId: data.user.id,
+          inviteStatus: "sent",
+        });
+        const { password, ...userWithoutPassword } = newUser;
+        createdUsers.push({ ...userWithoutPassword, inviteStatus: "sent" });
+        inviteResults.push({ email: userData.email, success: true });
+      }
     }
 
-    return res.status(201).json({ users: createdUsers, message: `Successfully created ${createdUsers.length} users` });
+    const successCount = inviteResults.filter(r => r.success).length;
+    const failedInvites = inviteResults.filter(r => !r.success);
+
+    return res.status(201).json({ 
+      users: createdUsers, 
+      message: `Successfully invited ${successCount} user(s)`,
+      inviteResults,
+      failedInvites: failedInvites.length > 0 ? failedInvites : undefined
+    });
   });
 
   app.get("/api/admin/pending-guests", async (req: Request, res: Response) => {

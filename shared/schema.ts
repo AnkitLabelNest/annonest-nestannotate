@@ -57,6 +57,8 @@ export const organizations = pgTable("organizations", {
   createdBy: varchar("created_by"),
 });
 
+export type InviteStatus = "pending" | "sent" | "accepted" | "expired";
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").references(() => organizations.id).notNull(),
@@ -74,6 +76,9 @@ export const users = pgTable("users", {
   approvalStatus: text("approval_status").$type<ApprovalStatus>(),
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
+  inviteStatus: text("invite_status").$type<InviteStatus>(),
+  invitedBy: varchar("invited_by"),
+  invitedAt: timestamp("invited_at"),
 }, (table) => [
   index("users_org_id_idx").on(table.orgId),
 ]);
