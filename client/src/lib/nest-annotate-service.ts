@@ -296,6 +296,218 @@ export async function fetchNewsIntelligenceCount(
   return count || 0;
 }
 
+export interface ProjectDetails {
+  id: string;
+  name: string;
+  labelType: LabelType;
+  projectCategory: string;
+  orgId: string;
+  workContext: WorkContext;
+  createdAt: string;
+  totalItems: number;
+  completedItems: number;
+  pendingItems: number;
+}
+
+export interface ProjectItem {
+  id: string;
+  projectId: string;
+  headline: string;
+  status: AnnotationTaskStatus;
+  assignedTo: string | null;
+  assignedToEmail: string | null;
+  sourceName: string | null;
+  createdAt: string;
+}
+
+export interface OrgUser {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+export async function fetchProjectById(
+  projectId: string,
+  orgId: string
+): Promise<ProjectDetails | null> {
+  const { data: project, error: projectError } = await supabase
+    .from("label_projects")
+    .select("*")
+    .eq("id", projectId)
+    .eq("org_id", orgId)
+    .single();
+
+  if (projectError) {
+    if (projectError.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching project:", projectError);
+    throw new Error("Failed to fetch project");
+  }
+
+  const { data: tasks, error: tasksError } = await supabase
+    .from("annotation_tasks")
+    .select("id, status")
+    .eq("project_id", projectId);
+
+  if (tasksError) {
+    console.error("Error fetching tasks:", tasksError);
+    throw new Error("Failed to fetch tasks");
+  }
+
+  const totalItems = tasks?.length || 0;
+  const completedItems = tasks?.filter((t: { status: string }) => t.status === "completed").length || 0;
+  const pendingItems = tasks?.filter((t: { status: string }) => t.status === "pending").length || 0;
+
+  return {
+    id: project.id,
+    name: project.name,
+    labelType: project.label_type as LabelType,
+    projectCategory: project.project_category || "general",
+    orgId: project.org_id,
+    workContext: project.work_context as WorkContext,
+    createdAt: project.created_at,
+    totalItems,
+    completedItems,
+    pendingItems,
+  };
+}
+
+export async function fetchProjectItems(
+  projectId: string,
+  orgId: string,
+  userId: string,
+  userRole: UserRole
+): Promise<ProjectItem[]> {
+  const { data: project, error: projectError } = await supabase
+    .from("label_projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("org_id", orgId)
+    .single();
+
+  if (projectError) {
+    console.error("Error verifying project:", projectError);
+    throw new Error("Project not found");
+  }
+
+  let tasksQuery = supabase
+    .from("annotation_tasks")
+    .select("id, project_id, assigned_to, status, created_at, metadata")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  if (userRole === "annotator") {
+    tasksQuery = tasksQuery.eq("assigned_to", userId);
+  }
+
+  const { data: tasks, error: tasksError } = await tasksQuery;
+
+  if (tasksError) {
+    console.error("Error fetching tasks:", tasksError);
+    throw new Error("Failed to fetch tasks");
+  }
+
+  if (!tasks || tasks.length === 0) {
+    return [];
+  }
+
+  const assignedUserIds = Array.from(
+    new Set(
+      tasks
+        .map((t: SupabaseTask) => t.assigned_to)
+        .filter((id): id is string => id !== null)
+    )
+  );
+
+  let userEmailMap = new Map<string, string>();
+  if (assignedUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email")
+      .in("id", assignedUserIds);
+
+    if (users) {
+      users.forEach((u: { id: string; email: string }) => {
+        userEmailMap.set(u.id, u.email);
+      });
+    }
+  }
+
+  return tasks.map((task: SupabaseTask) => {
+    const metadata = task.metadata || {};
+    return {
+      id: task.id,
+      projectId: task.project_id,
+      headline: metadata.headline || `Task ${task.id.slice(0, 8)}`,
+      status: task.status as AnnotationTaskStatus,
+      assignedTo: task.assigned_to,
+      assignedToEmail: task.assigned_to ? userEmailMap.get(task.assigned_to) || null : null,
+      sourceName: metadata.source_name || null,
+      createdAt: task.created_at,
+    };
+  });
+}
+
+export async function fetchOrgUsers(orgId: string): Promise<OrgUser[]> {
+  const { data: users, error } = await supabase
+    .from("users")
+    .select("id, email, display_name")
+    .eq("org_id", orgId);
+
+  if (error) {
+    console.error("Error fetching org users:", error);
+    throw new Error("Failed to fetch users");
+  }
+
+  return (users || []).map((u: { id: string; email: string; display_name: string }) => ({
+    id: u.id,
+    email: u.email,
+    displayName: u.display_name,
+  }));
+}
+
+export async function bulkAssignItems(
+  itemIds: string[],
+  assignToUserId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("annotation_tasks")
+    .update({ assigned_to: assignToUserId })
+    .in("id", itemIds);
+
+  if (error) {
+    console.error("Error bulk assigning items:", error);
+    throw new Error("Failed to assign items");
+  }
+}
+
+export async function assignItemsEvenly(
+  itemIds: string[],
+  userIds: string[]
+): Promise<void> {
+  if (userIds.length === 0 || itemIds.length === 0) {
+    return;
+  }
+
+  const updates = itemIds.map((itemId, index) => ({
+    id: itemId,
+    assignToUserId: userIds[index % userIds.length],
+  }));
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("annotation_tasks")
+      .update({ assigned_to: update.assignToUserId })
+      .eq("id", update.id);
+
+    if (error) {
+      console.error("Error assigning item:", error);
+      throw new Error("Failed to assign items evenly");
+    }
+  }
+}
+
 export async function fetchNewsItems(
   orgId: string,
   userId: string,
