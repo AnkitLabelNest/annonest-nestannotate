@@ -302,7 +302,7 @@ export default function ProjectViewPage() {
   const handleRowClick = (item: ProjectItem) => {
     if (!project) return;
     const labelType = project.labelType;
-    setLocation(`/annotate/${labelType}?taskId=${item.id}`);
+    setLocation(`/annotate/${labelType}/${item.id}`);
   };
 
   if (!user) {

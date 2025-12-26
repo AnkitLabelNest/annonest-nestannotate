@@ -106,7 +106,7 @@ function AppRoutes() {
         <Route path="/" component={() => <Redirect to="/dashboard" />} />
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/annotate" component={AnnotatePage} />
-        <Route path="/annotate/text" component={TextLabelPage} />
+        <Route path="/annotate/text/:taskId" component={TextLabelPage} />
         <Route path="/annotate/image" component={ImageLabelPage} />
         <Route path="/annotate/video" component={VideoLabelPage} />
         <Route path="/annotate/transcription" component={TranscriptionPage} />

@@ -1,192 +1,36 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
-import { WorkflowProgress } from "@/components/workflow-progress";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import {
-  Link as LinkIcon,
+  ArrowLeft,
+  AlertCircle,
   FileText,
-  Globe,
-  Plus,
   Tag,
   Trash2,
   Save,
-  ArrowRight,
   CheckCircle2,
-  Sparkles,
-  TrendingUp,
   Loader2,
 } from "lucide-react";
+import {
+  fetchAnnotationTaskById,
+  type AnnotationTaskDetail,
+} from "@/lib/nest-annotate-service";
+import { supabase } from "../../../lib/supabase";
 
-interface SuggestionData {
-  id: string;
-  taskId: string;
-  suggestedLabels: string[];
-  suggestedEntities: Array<{ type: string; examples: string[] }>;
-  confidence: number;
-  reasoning: string;
-  basedOnPatterns: string[];
-  createdAt: string;
-}
-
-interface PatternData {
-  patterns: Array<{ pattern: string; frequency: number; examples: string[] }>;
-  totalAnnotations: number;
-  uniqueLabels: number;
-}
-
-function AISuggestionsPanel({ taskId, onApplyLabel }: { taskId?: string; onApplyLabel: (type: string) => void }) {
-  const { data: suggestionData, isLoading: suggestionLoading } = useQuery<SuggestionData>({
-    queryKey: ['/api/suggestions', taskId],
-    enabled: !!taskId,
-  });
-
-  const { data: patternData, isLoading: patternLoading } = useQuery<PatternData>({
-    queryKey: ['/api/patterns'],
-    enabled: !taskId,
-  });
-
-  const isLoading = taskId ? suggestionLoading : patternLoading;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (taskId && suggestionData) {
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Confidence</span>
-            <span className="font-medium">{suggestionData.confidence}%</span>
-          </div>
-          <Progress value={suggestionData.confidence} className="h-2" />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground font-medium">Suggested Labels</p>
-          <div className="flex flex-wrap gap-1">
-            {suggestionData.suggestedLabels.length > 0 ? (
-              suggestionData.suggestedLabels.map((label) => (
-                <Badge
-                  key={label}
-                  variant="secondary"
-                  className="cursor-pointer text-xs"
-                  onClick={() => onApplyLabel(label)}
-                  data-testid={`ai-suggestion-${label}`}
-                >
-                  {label}
-                </Badge>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">No label suggestions available</p>
-            )}
-          </div>
-        </div>
-
-        {suggestionData.suggestedEntities.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground font-medium">Entity Patterns</p>
-            <div className="space-y-1">
-              {suggestionData.suggestedEntities.slice(0, 3).map((entity) => (
-                <div key={entity.type} className="text-xs p-2 rounded bg-muted/50">
-                  <span className="font-medium capitalize">{entity.type}</span>
-                  {entity.examples.length > 0 && (
-                    <span className="text-muted-foreground ml-1">
-                      (e.g., {entity.examples.slice(0, 2).join(", ")})
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="text-xs text-muted-foreground p-2 rounded bg-primary/5 border border-primary/10">
-          {suggestionData.reasoning}
-        </div>
-
-        {suggestionData.basedOnPatterns.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">Based on patterns:</p>
-            <ul className="text-xs text-muted-foreground space-y-0.5">
-              {suggestionData.basedOnPatterns.map((pattern, i) => (
-                <li key={i} className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  {pattern}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (!patternData || patternData.patterns.length === 0) {
-    return (
-      <div className="text-center py-4">
-        <TrendingUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          No patterns detected yet
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Complete more annotations to unlock AI suggestions
-        </p>
-      </div>
-    );
-  }
-
-  const confidence = Math.min(95, Math.max(30, 30 + (patternData.totalAnnotations * 5)));
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Confidence</span>
-          <span className="font-medium">{confidence}%</span>
-        </div>
-        <Progress value={confidence} className="h-2" />
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Based on {patternData.totalAnnotations} historical annotations
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {patternData.patterns.slice(0, 6).map((pattern) => (
-            <Badge
-              key={pattern.pattern}
-              variant="secondary"
-              className="cursor-pointer text-xs"
-              onClick={() => onApplyLabel(pattern.pattern)}
-              data-testid={`ai-suggestion-${pattern.pattern}`}
-            >
-              {pattern.pattern}
-              <span className="ml-1 opacity-60">({pattern.frequency})</span>
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {patternData.uniqueLabels > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {patternData.uniqueLabels} unique label types detected
-        </p>
-      )}
-    </div>
-  );
+interface TextLabelMetadata {
+  text_content?: string;
+  labels?: Array<{ text: string; type: string; start: number; end: number }>;
+  confidence?: number;
+  notes?: string;
 }
 
 const entityTypes = [
@@ -199,21 +43,75 @@ const entityTypes = [
 ];
 
 export default function TextLabelPage() {
-  const [inputType, setInputType] = useState<"url" | "pdf" | "text">("text");
-  const [textContent, setTextContent] = useState(
-    "Acme Corporation announced today that its CEO, John Smith, will be stepping down effective January 15, 2025. The San Francisco-based company reported Q4 revenue of $2.3 billion, exceeding analyst expectations. The board has appointed Jane Doe as interim CEO while the search for a permanent replacement continues."
-  );
+  const { taskId } = useParams<{ taskId: string }>();
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const orgId = user?.orgId || "";
+
+  const [textContent, setTextContent] = useState("");
   const [selectedText, setSelectedText] = useState("");
-  const [labels, setLabels] = useState<{ text: string; type: string; start: number; end: number }[]>([
-    { text: "Acme Corporation", type: "organization", start: 0, end: 16 },
-    { text: "John Smith", type: "person", start: 51, end: 61 },
-    { text: "January 15, 2025", type: "date", start: 88, end: 104 },
-    { text: "San Francisco", type: "location", start: 110, end: 123 },
-    { text: "$2.3 billion", type: "amount", start: 163, end: 175 },
-  ]);
+  const [labels, setLabels] = useState<Array<{ text: string; type: string; start: number; end: number }>>([]);
   const [confidence, setConfidence] = useState([85]);
-  const [currentStep, setCurrentStep] = useState("entity_tagging");
-  const currentTaskId = "demo-task-1";
+  const [notes, setNotes] = useState("");
+
+  const isAuthReady = !!user && !!orgId;
+
+  const {
+    data: task,
+    isLoading,
+    error,
+  } = useQuery<AnnotationTaskDetail | null>({
+    queryKey: ["/api/annotation-tasks", taskId],
+    queryFn: () => fetchAnnotationTaskById(taskId!, orgId),
+    enabled: !!taskId && isAuthReady,
+  });
+
+  useEffect(() => {
+    if (task?.metadata) {
+      const meta = task.metadata as TextLabelMetadata;
+      setTextContent(meta.text_content || "");
+      setLabels(meta.labels || []);
+      setConfidence([meta.confidence ?? 85]);
+      setNotes(meta.notes || "");
+    }
+  }, [task]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (status?: string) => {
+      const metadata: TextLabelMetadata = {
+        text_content: textContent,
+        labels,
+        confidence: confidence[0],
+        notes,
+      };
+      const updateData: Record<string, unknown> = { metadata };
+      if (status) {
+        updateData.status = status;
+      }
+      const { error } = await supabase
+        .from("annotation_tasks")
+        .update(updateData)
+        .eq("id", taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/annotation-tasks", taskId] });
+      toast({
+        title: "Saved",
+        description: "Annotation saved successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleTextSelect = () => {
     const selection = window.getSelection();
@@ -271,91 +169,133 @@ export default function TextLabelPage() {
     return elements;
   };
 
+  const handleSaveDraft = () => {
+    saveMutation.mutate(undefined);
+  };
+
+  const handleSubmitForReview = () => {
+    saveMutation.mutate("in_review");
+  };
+
+  if (!user) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <p className="text-muted-foreground">Please log in to access this page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!taskId) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Task ID Required</h2>
+            <p className="text-muted-foreground mb-4">
+              No task ID was provided in the URL.
+            </p>
+            <Button onClick={() => setLocation("/nest-annotate")} data-testid="button-back">
+              Back to Projects
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-64" />
+            <Skeleton className="h-96" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-48" />
+            <Skeleton className="h-32" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !task) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Task Not Found</h2>
+            <p className="text-muted-foreground mb-4">
+              The task you're looking for doesn't exist or you don't have access.
+            </p>
+            <Button onClick={() => setLocation("/nest-annotate")} data-testid="button-back">
+              Back to Projects
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation(`/projects/${task.projectId}`)}
+          data-testid="button-back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">Text Labeling</h1>
           <p className="text-muted-foreground">
-            Entity extraction and text annotation
+            {task.projectName} - Task {task.id.slice(0, 8)}...
           </p>
         </div>
-        <WorkflowProgress currentStep={currentStep} />
+        <Badge variant={task.status === "completed" ? "default" : "secondary"}>
+          {task.status}
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Input Source</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Text Content
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs value={inputType} onValueChange={(v) => setInputType(v as typeof inputType)}>
-                <TabsList className="mb-4">
-                  <TabsTrigger value="url">
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    URL
-                  </TabsTrigger>
-                  <TabsTrigger value="pdf">
-                    <FileText className="h-4 w-4 mr-2" />
-                    PDF
-                  </TabsTrigger>
-                  <TabsTrigger value="text">
-                    <Globe className="h-4 w-4 mr-2" />
-                    Direct Text
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="url">
-                  <div className="space-y-2">
-                    <Label>Document URL</Label>
-                    <Input
-                      placeholder="https://example.com/document.pdf"
-                      data-testid="input-url"
-                    />
-                    <Button variant="outline" size="sm">
-                      Fetch Content
-                    </Button>
+              {textContent ? (
+                <div
+                  className="p-4 rounded-lg border border-border bg-muted/30 min-h-[200px] leading-relaxed cursor-text select-text whitespace-pre-wrap"
+                  onMouseUp={handleTextSelect}
+                  data-testid="annotated-content"
+                >
+                  {getHighlightedText()}
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg border border-dashed border-border text-center text-muted-foreground min-h-[200px] flex items-center justify-center">
+                  <div>
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No text content available for this task.</p>
+                    <p className="text-sm mt-2">You can add content below.</p>
                   </div>
-                </TabsContent>
-                <TabsContent value="pdf">
-                  <div className="space-y-2">
-                    <Label>Upload PDF</Label>
-                    <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                      <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Drag & drop or click to upload
-                      </p>
-                    </div>
-                  </div>
-                </TabsContent>
-                <TabsContent value="text">
-                  <div className="space-y-2">
-                    <Label>Text Content</Label>
-                    <Textarea
-                      value={textContent}
-                      onChange={(e) => setTextContent(e.target.value)}
-                      className="min-h-[120px]"
-                      placeholder="Paste or type text content here..."
-                      data-testid="input-text-content"
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Annotated Content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className="p-4 rounded-lg border border-border bg-muted/30 min-h-[200px] leading-relaxed cursor-text select-text"
-                onMouseUp={handleTextSelect}
-                data-testid="annotated-content"
-              >
-                {getHighlightedText()}
-              </div>
+                </div>
+              )}
               {selectedText && (
                 <div className="mt-4 p-3 rounded-lg border border-primary bg-primary/5">
                   <p className="text-sm mb-2">
@@ -379,18 +319,51 @@ export default function TextLabelPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Edit Text Content</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={textContent}
+                onChange={(e) => setTextContent(e.target.value)}
+                className="min-h-[150px]"
+                placeholder="Enter or edit the text content for annotation..."
+                data-testid="input-text-content"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[100px]"
+                placeholder="Add any notes about this annotation..."
+                data-testid="input-notes"
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Extracted Entities</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Extracted Entities
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {labels.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No entities labeled yet
+                    No entities labeled yet. Select text and choose an entity type.
                   </p>
                 ) : (
                   labels.map((label, index) => {
@@ -427,18 +400,6 @@ export default function TextLabelPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                AI Suggestions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AISuggestionsPanel taskId={currentTaskId} onApplyLabel={addLabel} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle>Confidence Score</CardTitle>
             </CardHeader>
             <CardContent>
@@ -459,12 +420,32 @@ export default function TextLabelPage() {
           </Card>
 
           <div className="flex flex-col gap-2">
-            <Button className="w-full" data-testid="button-save-draft">
-              <Save className="h-4 w-4 mr-2" />
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={saveMutation.isPending}
+              data-testid="button-save-draft"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Save Draft
             </Button>
-            <Button variant="default" className="w-full" data-testid="button-submit-review">
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+            <Button
+              variant="default"
+              className="w-full"
+              onClick={handleSubmitForReview}
+              disabled={saveMutation.isPending}
+              data-testid="button-submit-review"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
               Submit for Review
             </Button>
           </div>

@@ -640,6 +640,55 @@ export interface EntitySearchResult {
   type: string;
 }
 
+export interface AnnotationTaskDetail {
+  id: string;
+  projectId: string;
+  projectName: string;
+  assignedTo: string | null;
+  status: AnnotationTaskStatus;
+  metadata: Record<string, unknown>;
+}
+
+export async function fetchAnnotationTaskById(
+  taskId: string,
+  orgId: string
+): Promise<AnnotationTaskDetail | null> {
+  const { data: task, error: taskError } = await supabase
+    .from("annotation_tasks")
+    .select("id, project_id, assigned_to, status, metadata")
+    .eq("id", taskId)
+    .single();
+
+  if (taskError) {
+    if (taskError.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching task:", taskError);
+    throw new Error("Failed to fetch task");
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("label_projects")
+    .select("id, name, org_id")
+    .eq("id", task.project_id)
+    .eq("org_id", orgId)
+    .single();
+
+  if (projectError) {
+    console.error("Error fetching project:", projectError);
+    throw new Error("Project not found or access denied");
+  }
+
+  return {
+    id: task.id,
+    projectId: project.id,
+    projectName: project.name,
+    assignedTo: task.assigned_to,
+    status: task.status as AnnotationTaskStatus,
+    metadata: (task.metadata || {}) as Record<string, unknown>,
+  };
+}
+
 export async function searchEntities(
   orgId: string,
   searchTerm: string
