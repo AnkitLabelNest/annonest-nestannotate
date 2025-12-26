@@ -144,6 +144,9 @@ export interface NewsItemMetadata {
   source_name?: string;
   publish_date?: string;
   url?: string;
+  raw_text?: string;
+  cleaned_text?: string;
+  news_id?: string;  // FK to news table for entity linking
   relevance_status?: RelevanceStatus;
   relevance_notes?: string;
   firm_type?: NewsFirmType[];

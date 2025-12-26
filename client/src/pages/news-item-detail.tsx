@@ -43,6 +43,8 @@ import {
   addNewsEntityLink,
   removeNewsEntityLink,
   fetchEntityDetails,
+  ensureNewsRecord,
+  createEntity,
   type NewsItemDetail,
   type EntitySearchResult,
   type NewsEntityLinkRecord,
@@ -107,6 +109,17 @@ const actionTypeLabels: Record<NewsActionType, string> = {
   update_existing_profile: "Update Existing Profile",
   no_new_information: "No New Information",
 };
+
+// Simplified entity types for creating new entities (matching DataNest structure)
+const createEntityTypes = [
+  { value: "gp", label: "GP" },
+  { value: "lp", label: "LP" },
+  { value: "service_provider", label: "Service Provider" },
+  { value: "fund", label: "Fund" },
+  { value: "contact", label: "Contact" },
+  { value: "portfolio_company", label: "Portfolio Company" },
+  { value: "company", label: "Company" },
+] as const;
 
 function StatusBadge({ status }: { status: AnnotationTaskStatus }) {
   const statusConfig: Record<AnnotationTaskStatus, { label: string; className: string }> = {
@@ -229,13 +242,15 @@ export default function NewsItemDetailPage() {
     }
   }, [newsItem]);
 
-  // Load entity links from news_entity_links table
+  // Load entity links from news_entity_links table using newsId from metadata
   useEffect(() => {
     async function loadEntityLinks() {
-      if (!taskId || !orgId) return;
+      if (!orgId || !newsItem?.metadata?.news_id) return;
+      
+      const newsId = newsItem.metadata.news_id;
       
       try {
-        const links = await fetchNewsEntityLinks(taskId);
+        const links = await fetchNewsEntityLinks(newsId);
         setEntityLinks(links);
         
         // Resolve entity details in parallel using Promise.all
@@ -259,7 +274,7 @@ export default function NewsItemDetailPage() {
     }
     
     loadEntityLinks();
-  }, [taskId, orgId]);
+  }, [orgId, newsItem?.metadata?.news_id]);
 
   useEffect(() => {
     const searchTimeout = setTimeout(async () => {
@@ -345,8 +360,11 @@ export default function NewsItemDetailPage() {
     
     setIsAddingLink(true);
     try {
+      // Ensure news record exists and get its ID for entity linking
+      const newsId = await ensureNewsRecord(taskId, orgId, userId);
+      
       // Persist to news_entity_links table with org_id verification
-      const newLink = await addNewsEntityLink(taskId, entity.type, entity.id, userId, orgId);
+      const newLink = await addNewsEntityLink(newsId, entity.type, entity.id, userId, orgId);
       setEntityLinks([...entityLinks, newLink]);
       
       const newEntity: TaggedEntity = {
@@ -401,16 +419,47 @@ export default function NewsItemDetailPage() {
     setTaggedEntities(taggedEntities.filter((e) => e.entity_id !== entityId));
   };
 
-  const handleCreateEntity = () => {
-    if (!newEntityName.trim() || !newEntityType) return;
-    const newEntity: TaggedEntity = {
-      entity_id: `new_${Date.now()}`,
-      entity_name: newEntityName.trim(),
-      entity_type: newEntityType,
-    };
-    setCreatedEntities([...createdEntities, newEntity]);
-    setNewEntityName("");
-    setNewEntityType("");
+  const [isCreatingEntity, setIsCreatingEntity] = useState(false);
+
+  const handleCreateEntity = async () => {
+    if (!newEntityName.trim() || !newEntityType || !taskId || !userId || !orgId) return;
+    
+    setIsCreatingEntity(true);
+    try {
+      // Create the entity in the database
+      const newEntity = await createEntity(orgId, newEntityType, newEntityName.trim(), userId);
+      
+      // Ensure news record exists and get its ID
+      const newsId = await ensureNewsRecord(taskId, orgId, userId);
+      
+      // Link the new entity to this news item
+      const newLink = await addNewsEntityLink(newsId, newEntity.type, newEntity.id, userId, orgId);
+      setEntityLinks([...entityLinks, newLink]);
+      
+      // Add to tagged entities display
+      const taggedEntity: TaggedEntity = {
+        entity_id: newEntity.id,
+        entity_name: newEntity.name,
+        entity_type: newEntity.type,
+      };
+      setTaggedEntities([...taggedEntities, taggedEntity]);
+      setNewEntityName("");
+      setNewEntityType("");
+      
+      toast({
+        title: "Entity created and linked",
+        description: `${newEntity.name} has been created and linked to this news item.`,
+      });
+    } catch (error) {
+      console.error("Error creating entity:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create entity. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingEntity(false);
+    }
   };
 
   const handleRemoveCreatedEntity = (entityId: string) => {
@@ -764,9 +813,9 @@ export default function NewsItemDetailPage() {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {newsFirmTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {firmTypeLabels[type]}
+                    {createEntityTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -776,38 +825,18 @@ export default function NewsItemDetailPage() {
             <Button
               variant="secondary"
               onClick={handleCreateEntity}
-              disabled={!newEntityName.trim() || !newEntityType || !isRelevant}
+              disabled={!newEntityName.trim() || !newEntityType || !isRelevant || isCreatingEntity}
               data-testid="button-create-entity"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Entity
+              {isCreatingEntity ? (
+                <>Creating...</>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create and Link Entity
+                </>
+              )}
             </Button>
-
-            {createdEntities.length > 0 && (
-              <div className="space-y-2">
-                <Label>Created Entities</Label>
-                <div className="flex flex-wrap gap-2">
-                  {createdEntities.map((entity) => (
-                    <Badge
-                      key={entity.entity_id}
-                      className="flex items-center gap-1 pr-1 bg-green-500/10 text-green-700 dark:text-green-400"
-                      data-testid={`created-entity-${entity.entity_id}`}
-                    >
-                      <Plus className="h-3 w-3" />
-                      {entity.entity_name}
-                      <span className="text-xs opacity-70">({entity.entity_type})</span>
-                      <button
-                        onClick={() => handleRemoveCreatedEntity(entity.entity_id)}
-                        className="ml-1 p-0.5 rounded hover:bg-green-500/20"
-                        data-testid={`remove-created-${entity.entity_id}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
