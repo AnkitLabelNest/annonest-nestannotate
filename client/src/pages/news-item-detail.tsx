@@ -185,7 +185,7 @@ export default function NewsItemDetailPage() {
 
   const orgId = user?.orgId || "";
   const userRole = (user?.role || "annotator") as UserRole;
-  const canManage = userRole === "admin" || userRole === "manager";
+  const canManage = userRole === "admin" || userRole === "manager" || userRole === "super_admin";
 
   const [relevanceStatus, setRelevanceStatus] = useState<RelevanceStatus | undefined>();
   const [relevanceNotes, setRelevanceNotes] = useState<string>("");
