@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import {
@@ -23,6 +31,7 @@ import {
   FolderOpen,
   AlertCircle,
   Newspaper,
+  Filter,
 } from "lucide-react";
 import {
   fetchProjectsWithStats,
@@ -43,13 +52,15 @@ const labelTypeIcons: Record<LabelType, typeof Type> = {
 };
 
 const labelTypeLabels: Record<LabelType, string> = {
-  text: "Text Label",
-  image: "Image Label",
-  video: "Video Label",
-  audio: "Audio Label",
+  text: "Text Annotation",
+  image: "Image Labeling",
+  video: "Video Labeling",
+  audio: "Audio Labeling",
   transcription: "Transcription",
   translation: "Translation",
 };
+
+type FilterType = LabelType | "news_intelligence" | "all";
 
 const labelTypeColors: Record<LabelType, string> = {
   text: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -60,19 +71,58 @@ const labelTypeColors: Record<LabelType, string> = {
   translation: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
 };
 
-function SummaryCard({ summary }: { summary: LabelTypeSummary }) {
+interface SummaryCardProps {
+  summary: LabelTypeSummary;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function SummaryCard({ summary, isSelected, onClick }: SummaryCardProps) {
   const Icon = labelTypeIcons[summary.labelType];
   return (
-    <Card data-testid={`card-summary-${summary.labelType}`}>
+    <Card 
+      className={`cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary bg-primary/5" : "hover-elevate"}`}
+      onClick={onClick}
+      data-testid={`card-summary-${summary.labelType}`}
+    >
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className={`text-sm font-medium ${isSelected ? "text-primary" : "text-muted-foreground"}`}>
           {labelTypeLabels[summary.labelType]}
         </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold" data-testid={`text-count-${summary.labelType}`}>
           {summary.openCount}
+        </div>
+        <p className="text-xs text-muted-foreground">Open items</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface NewsIntelligenceCardProps {
+  count: number;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function NewsIntelligenceCard({ count, isSelected, onClick }: NewsIntelligenceCardProps) {
+  return (
+    <Card 
+      className={`cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary bg-primary/5" : "hover-elevate"}`}
+      onClick={onClick}
+      data-testid="card-summary-news-intelligence"
+    >
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <CardTitle className={`text-sm font-medium ${isSelected ? "text-primary" : "text-muted-foreground"}`}>
+          News Intelligence
+        </CardTitle>
+        <Newspaper className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold" data-testid="text-count-news-intelligence">
+          {count}
         </div>
         <p className="text-xs text-muted-foreground">Open items</p>
       </CardContent>
@@ -206,6 +256,8 @@ function ProjectsTable({ projects, isLoading }: { projects: LabelProjectWithStat
 
 export default function NestAnnotatePage() {
   const { user } = useAuth();
+  const [selectedLabelType, setSelectedLabelType] = useState<FilterType>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   const orgId = user?.orgId || "";
   const userId = user?.id || "";
@@ -227,6 +279,29 @@ export default function NestAnnotatePage() {
     queryKey: ["news-intelligence-count", orgId, userId, userRole],
     queryFn: () => fetchNewsIntelligenceCount(orgId, userId, userRole),
     enabled: !!orgId && !!userId,
+  });
+
+  const handleCardClick = (type: FilterType) => {
+    setSelectedLabelType(selectedLabelType === type ? "all" : type);
+  };
+
+  const filteredProjects = projects.filter((project) => {
+    let matchesLabelType = true;
+    let matchesStatus = true;
+
+    if (selectedLabelType !== "all") {
+      if (selectedLabelType === "news_intelligence") {
+        matchesLabelType = project.projectCategory === "news";
+      } else {
+        matchesLabelType = project.labelType === selectedLabelType && project.projectCategory !== "news";
+      }
+    }
+
+    if (selectedStatus !== "all") {
+      matchesStatus = project.projectStatus === selectedStatus;
+    }
+
+    return matchesLabelType && matchesStatus;
   });
 
   if (!user) {
@@ -284,23 +359,47 @@ export default function NestAnnotatePage() {
         ) : (
           <>
             {summaries.map((summary) => (
-              <SummaryCard key={summary.labelType} summary={summary} />
+              <SummaryCard 
+                key={summary.labelType} 
+                summary={summary} 
+                isSelected={selectedLabelType === summary.labelType}
+                onClick={() => handleCardClick(summary.labelType)}
+              />
             ))}
-            <Card data-testid="card-summary-news-intelligence">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  News Intelligence
-                </CardTitle>
-                <Newspaper className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-count-news-intelligence">
-                  {newsCount}
-                </div>
-                <p className="text-xs text-muted-foreground">Open items</p>
-              </CardContent>
-            </Card>
+            <NewsIntelligenceCard 
+              count={newsCount}
+              isSelected={selectedLabelType === "news_intelligence"}
+              onClick={() => handleCardClick("news_intelligence")}
+            />
           </>
+        )}
+      </div>
+
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Filters:</span>
+        </div>
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-40" data-testid="select-status-filter">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="not_started">Not Started</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+        {(selectedLabelType !== "all" || selectedStatus !== "all") && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => { setSelectedLabelType("all"); setSelectedStatus("all"); }}
+            data-testid="button-clear-filters"
+          >
+            Clear filters
+          </Button>
         )}
       </div>
 
@@ -315,7 +414,7 @@ export default function NestAnnotatePage() {
           </CardContent>
         </Card>
       ) : (
-        <ProjectsTable projects={projects} isLoading={projectsLoading} />
+        <ProjectsTable projects={filteredProjects} isLoading={projectsLoading} />
       )}
     </div>
   );

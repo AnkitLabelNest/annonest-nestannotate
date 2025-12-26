@@ -21,6 +21,7 @@ export interface LabelProjectWithStats {
   id: string;
   name: string;
   labelType: LabelType;
+  projectCategory: string;
   orgId: string;
   workContext: WorkContext;
   createdAt: string;
@@ -115,6 +116,7 @@ export async function fetchProjectsWithStats(
         id: project.id,
         name: project.name,
         labelType: project.label_type as LabelType,
+        projectCategory: project.project_category || "general",
         orgId: project.org_id,
         workContext: project.work_context as WorkContext,
         createdAt: project.created_at,
@@ -175,6 +177,7 @@ export async function fetchProjectsWithStats(
       id: project.id,
       name: project.name,
       labelType: project.label_type as LabelType,
+      projectCategory: project.project_category || "general",
       orgId: project.org_id,
       workContext: project.work_context as WorkContext,
       createdAt: project.created_at,
