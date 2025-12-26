@@ -1,5 +1,9 @@
 import { supabase } from "../../lib/supabase";
-import type { LabelType, WorkContext, AnnotationTaskStatus, UserRole } from "@shared/schema";
+import type { 
+  LabelType, WorkContext, AnnotationTaskStatus, UserRole,
+  NewsItemMetadata, RelevanceStatus, NewsFirmType, NewsEventType, 
+  NewsAssetClass, NewsActionType, TaggedEntity
+} from "@shared/schema";
 
 export interface NewsItem {
   id: string;
@@ -505,6 +509,128 @@ export async function assignItemsEvenly(
       console.error("Error assigning item:", error);
       throw new Error("Failed to assign items evenly");
     }
+  }
+}
+
+export interface NewsItemDetail {
+  id: string;
+  projectId: string;
+  projectName: string;
+  headline: string;
+  sourceName: string | null;
+  publishDate: string | null;
+  url: string | null;
+  status: AnnotationTaskStatus;
+  assignedTo: string | null;
+  assignedToName: string | null;
+  metadata: NewsItemMetadata;
+}
+
+export async function fetchNewsItemById(
+  taskId: string,
+  orgId: string
+): Promise<NewsItemDetail | null> {
+  const { data: task, error: taskError } = await supabase
+    .from("annotation_tasks")
+    .select("id, project_id, assigned_to, status, metadata")
+    .eq("id", taskId)
+    .single();
+
+  if (taskError) {
+    if (taskError.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching task:", taskError);
+    throw new Error("Failed to fetch task");
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("label_projects")
+    .select("id, name, org_id, project_category")
+    .eq("id", task.project_id)
+    .eq("org_id", orgId)
+    .single();
+
+  if (projectError) {
+    console.error("Error fetching project:", projectError);
+    throw new Error("Project not found or access denied");
+  }
+
+  if (project.project_category !== "news") {
+    throw new Error("This task is not a news item");
+  }
+
+  let assignedToName: string | null = null;
+  if (task.assigned_to) {
+    const { data: user } = await supabase
+      .from("users")
+      .select("display_name")
+      .eq("id", task.assigned_to)
+      .single();
+    assignedToName = user?.display_name || null;
+  }
+
+  const metadata = (task.metadata || {}) as NewsItemMetadata;
+
+  return {
+    id: task.id,
+    projectId: task.project_id,
+    projectName: project.name,
+    headline: metadata.headline || `Task ${task.id.slice(0, 8)}`,
+    sourceName: metadata.source_name || null,
+    publishDate: metadata.publish_date || null,
+    url: metadata.url || null,
+    status: task.status as AnnotationTaskStatus,
+    assignedTo: task.assigned_to,
+    assignedToName,
+    metadata,
+  };
+}
+
+export async function updateNewsItemTags(
+  taskId: string,
+  tags: Partial<NewsItemMetadata>
+): Promise<void> {
+  const { data: existingTask, error: fetchError } = await supabase
+    .from("annotation_tasks")
+    .select("metadata")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching task:", fetchError);
+    throw new Error("Failed to fetch task");
+  }
+
+  const existingMetadata = (existingTask.metadata || {}) as NewsItemMetadata;
+  const updatedMetadata: NewsItemMetadata = {
+    ...existingMetadata,
+    ...tags,
+  };
+
+  const { error: updateError } = await supabase
+    .from("annotation_tasks")
+    .update({ metadata: updatedMetadata })
+    .eq("id", taskId);
+
+  if (updateError) {
+    console.error("Error updating tags:", updateError);
+    throw new Error("Failed to update tags");
+  }
+}
+
+export async function updateNewsItemStatus(
+  taskId: string,
+  status: AnnotationTaskStatus
+): Promise<void> {
+  const { error } = await supabase
+    .from("annotation_tasks")
+    .update({ status })
+    .eq("id", taskId);
+
+  if (error) {
+    console.error("Error updating status:", error);
+    throw new Error("Failed to update status");
   }
 }
 

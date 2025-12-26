@@ -1,0 +1,220 @@
+Implement structured tagging for News Intelligence items.
+
+This applies ONLY to News Intelligence items
+(annotation_tasks whose parent project has project_category = 'news').
+
+====================================================
+GENERAL RULES
+====================================================
+
+- Use Supabase as the only backend.
+- Do NOT create new databases outside Supabase.
+- Do NOT break existing Dashboard or Project View.
+- All tags are stored inside annotation_tasks.metadata (JSONB).
+- No new tables unless explicitly required.
+- UI logic must enforce gated tagging behavior.
+
+====================================================
+TAGGING FLOW (STRICT ORDER)
+====================================================
+
+1. RELEVANCE STATUS (GATEKEEPER)
+--------------------------------
+Field:
+  relevance_status
+
+Type:
+  Single select (required)
+
+Values:
+  - relevant
+  - not_relevant
+
+Behavior:
+  - This field must be selected first.
+  - If value = not_relevant:
+      - Disable all other tagging sections
+      - Allow optional notes field: relevance_notes
+      - Allow task to be marked completed
+      - No entity tagging or creation allowed
+  - If value = relevant:
+      - Enable all sections below
+
+Persist in metadata:
+  metadata.relevance_status
+  metadata.relevance_notes (optional)
+
+====================================================
+2. CORE CLASSIFICATION (ONLY IF RELEVANT)
+====================================================
+
+2.1 FIRM TYPE
+-------------
+Field:
+  firm_type
+
+Type:
+  Multi-select
+
+Values:
+  - gp_pe
+  - gp_vc
+  - lp
+  - fund
+  - portfolio_company
+  - service_provider
+  - bank_trustee
+  - regulator
+  - startup
+  - corporate
+
+Persist in metadata:
+  metadata.firm_type = array<string>
+
+----------------------------------------------------
+
+2.2 EVENT TYPE
+--------------
+Field:
+  event_type
+
+Type:
+  Multi-select
+
+Values:
+  - fundraise
+  - investment
+  - exit
+  - mna
+  - leadership_change
+  - regulatory_update
+  - product_launch
+  - partnership
+  - financial_results
+  - litigation
+
+Persist in metadata:
+  metadata.event_type = array<string>
+
+----------------------------------------------------
+
+2.3 ASSET CLASS
+---------------
+Field:
+  asset_class
+
+Type:
+  Multi-select
+
+Values:
+  - private_equity
+  - venture_capital
+  - private_debt
+  - infrastructure
+  - real_assets
+  - hedge_funds
+  - public_markets
+  - esg
+
+Persist in metadata:
+  metadata.asset_class = array<string>
+
+====================================================
+3. ACTION INTELLIGENCE (REQUIRED IF RELEVANT)
+====================================================
+
+Field:
+  action_type
+
+Type:
+  Multi-select (at least one required)
+
+Values:
+  - add_new_profile
+  - update_existing_profile
+  - no_new_information
+
+Rules:
+  - If no_new_information is selected:
+      - Entity creation must be disabled
+      - Entity tagging is optional
+  - Otherwise:
+      - Entity tagging or creation is expected
+
+Persist in metadata:
+  metadata.action_type = array<string>
+
+====================================================
+4. ENTITY TAGGING
+====================================================
+
+4.1 TAG EXISTING ENTITY
+----------------------
+Field:
+  tagged_entities
+
+Type:
+  Multi-select search
+
+Source:
+  Existing firm / fund / company datasets (read-only lookup)
+
+Persist in metadata:
+  metadata.tagged_entities = array<{
+    entity_id,
+    entity_name,
+    entity_type
+  }>
+
+----------------------------------------------------
+
+4.2 CREATE NEW ENTITY (CONDITIONAL)
+----------------------------------
+
+Enabled only if:
+  - relevance_status = relevant
+  - AND action_type includes add_new_profile
+  - AND entity not found in existing dataset
+
+Fields:
+  - entity_name (required)
+  - entity_type (required; same options as firm_type)
+
+Behavior:
+  - Create a minimal shell entity in the correct dataset
+  - Do NOT require full profile fields
+  - Link created entity back to this news item
+
+Persist in metadata:
+  metadata.created_entities = array<{
+    entity_id,
+    entity_name,
+    entity_type
+  }>
+
+====================================================
+UI & PERMISSIONS
+====================================================
+
+Admin / Manager:
+  - Can edit all tagging fields
+  - Can create new entities
+
+Annotator:
+  - Can fill tagging fields
+  - Cannot create new entities unless explicitly allowed
+
+====================================================
+WHAT THIS MUST NOT DO
+====================================================
+
+- Do NOT auto-assign tasks
+- Do NOT scrape URLs
+- Do NOT run AI summarization
+- Do NOT create duplicate entities
+- Do NOT bypass relevance gating
+- Do NOT modify project-level data
+
+====================================================
+END OF SPEC
+====================================================

@@ -107,6 +107,53 @@ export const labelProjects = pgTable("label_projects", {
 export const annotationTaskStatuses = ["pending", "in_progress", "review", "completed"] as const;
 export type AnnotationTaskStatus = typeof annotationTaskStatuses[number];
 
+export const relevanceStatuses = ["relevant", "not_relevant"] as const;
+export type RelevanceStatus = typeof relevanceStatuses[number];
+
+export const newsFirmTypes = [
+  "gp_pe", "gp_vc", "lp", "fund", "portfolio_company", 
+  "service_provider", "bank_trustee", "regulator", "startup", "corporate"
+] as const;
+export type NewsFirmType = typeof newsFirmTypes[number];
+
+export const newsEventTypes = [
+  "fundraise", "investment", "exit", "mna", "leadership_change",
+  "regulatory_update", "product_launch", "partnership", "financial_results", "litigation"
+] as const;
+export type NewsEventType = typeof newsEventTypes[number];
+
+export const newsAssetClasses = [
+  "private_equity", "venture_capital", "private_debt", "infrastructure",
+  "real_assets", "hedge_funds", "public_markets", "esg"
+] as const;
+export type NewsAssetClass = typeof newsAssetClasses[number];
+
+export const newsActionTypes = [
+  "add_new_profile", "update_existing_profile", "no_new_information"
+] as const;
+export type NewsActionType = typeof newsActionTypes[number];
+
+export interface TaggedEntity {
+  entity_id: string;
+  entity_name: string;
+  entity_type: string;
+}
+
+export interface NewsItemMetadata {
+  headline?: string;
+  source_name?: string;
+  publish_date?: string;
+  url?: string;
+  relevance_status?: RelevanceStatus;
+  relevance_notes?: string;
+  firm_type?: NewsFirmType[];
+  event_type?: NewsEventType[];
+  asset_class?: NewsAssetClass[];
+  action_type?: NewsActionType[];
+  tagged_entities?: TaggedEntity[];
+  created_entities?: TaggedEntity[];
+}
+
 export const annotationTasks = pgTable("annotation_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id").references(() => labelProjects.id).notNull(),
