@@ -570,6 +570,70 @@ export const insertEntityUrlSchema = createInsertSchema(entityUrls).omit({ id: t
 export type InsertEntityUrl = z.infer<typeof insertEntityUrlSchema>;
 export type EntityUrl = typeof entityUrls.$inferSelect;
 
+// News table for article content
+export const news = pgTable("news", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  headline: text("headline"),
+  sourceName: text("source_name"),
+  publishDate: text("publish_date"),
+  url: text("url"),
+  rawText: text("raw_text"),
+  cleanedText: text("cleaned_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by"),
+}, (table) => [
+  index("news_org_id_idx").on(table.orgId),
+]);
+
+export const insertNewsSchema = createInsertSchema(news).omit({ id: true, createdAt: true });
+export type InsertNews = z.infer<typeof insertNewsSchema>;
+export type News = typeof news.$inferSelect;
+
+// Entity linking types for news
+export const newsEntityTypes = ["firm", "fund", "person", "deal", "company"] as const;
+export type NewsEntityType = typeof newsEntityTypes[number];
+
+// Entity linking table for news
+export const newsEntityLinks = pgTable("news_entity_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  newsId: varchar("news_id").references(() => news.id).notNull(),
+  entityType: text("entity_type").notNull().$type<NewsEntityType>(),
+  entityId: varchar("entity_id").notNull(),
+  orgId: varchar("org_id"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("news_entity_links_news_id_idx").on(table.newsId),
+  index("news_entity_links_entity_idx").on(table.entityType, table.entityId),
+  index("news_entity_links_org_id_idx").on(table.orgId),
+]);
+
+export const insertNewsEntityLinkSchema = createInsertSchema(newsEntityLinks).omit({ id: true, createdAt: true });
+export type InsertNewsEntityLink = z.infer<typeof insertNewsEntityLinkSchema>;
+export type NewsEntityLink = typeof newsEntityLinks.$inferSelect;
+
+// Text annotation storage for news
+export const textAnnotations = pgTable("text_annotations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  newsId: varchar("news_id").references(() => news.id).notNull(),
+  entityType: text("entity_type").notNull(),
+  startOffset: integer("start_offset").notNull(),
+  endOffset: integer("end_offset").notNull(),
+  textSpan: text("text_span").notNull(),
+  confidence: integer("confidence"),
+  orgId: varchar("org_id"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("text_annotations_news_id_idx").on(table.newsId),
+  index("text_annotations_org_id_idx").on(table.orgId),
+]);
+
+export const insertTextAnnotationSchema = createInsertSchema(textAnnotations).omit({ id: true, createdAt: true });
+export type InsertTextAnnotation = z.infer<typeof insertTextAnnotationSchema>;
+export type TextAnnotation = typeof textAnnotations.$inferSelect;
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertFirmSchema = createInsertSchema(firms).omit({ id: true });

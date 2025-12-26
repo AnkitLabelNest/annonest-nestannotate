@@ -826,3 +826,308 @@ export async function fetchNewsItems(
     };
   });
 }
+
+// ========================================
+// News Table Service Functions
+// ========================================
+
+export interface NewsRecord {
+  id: string;
+  orgId: string;
+  headline: string | null;
+  sourceName: string | null;
+  publishDate: string | null;
+  url: string | null;
+  rawText: string | null;
+  cleanedText: string | null;
+  createdAt: string | null;
+  createdBy: string | null;
+}
+
+export interface NewsEntityLinkRecord {
+  id: string;
+  newsId: string;
+  entityType: string;
+  entityId: string;
+  createdBy: string | null;
+  createdAt: string | null;
+}
+
+export async function fetchNewsById(
+  newsId: string,
+  orgId: string
+): Promise<NewsRecord | null> {
+  const { data: news, error } = await supabase
+    .from("news")
+    .select("*")
+    .eq("id", newsId)
+    .eq("org_id", orgId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching news:", error);
+    throw new Error("Failed to fetch news");
+  }
+
+  return {
+    id: news.id,
+    orgId: news.org_id,
+    headline: news.headline,
+    sourceName: news.source_name,
+    publishDate: news.publish_date,
+    url: news.url,
+    rawText: news.raw_text,
+    cleanedText: news.cleaned_text,
+    createdAt: news.created_at,
+    createdBy: news.created_by,
+  };
+}
+
+export async function fetchNewsEntityLinks(
+  newsId: string
+): Promise<NewsEntityLinkRecord[]> {
+  const { data: links, error } = await supabase
+    .from("news_entity_links")
+    .select("*")
+    .eq("news_id", newsId);
+
+  if (error) {
+    console.error("Error fetching entity links:", error);
+    throw new Error("Failed to fetch entity links");
+  }
+
+  return (links || []).map((link: {
+    id: string;
+    news_id: string;
+    entity_type: string;
+    entity_id: string;
+    created_by: string | null;
+    created_at: string | null;
+  }) => ({
+    id: link.id,
+    newsId: link.news_id,
+    entityType: link.entity_type,
+    entityId: link.entity_id,
+    createdBy: link.created_by,
+    createdAt: link.created_at,
+  }));
+}
+
+export async function addNewsEntityLink(
+  newsId: string,
+  entityType: string,
+  entityId: string,
+  createdBy: string,
+  orgId: string
+): Promise<NewsEntityLinkRecord> {
+  // First verify the entity belongs to the same org (security check)
+  const entityCheck = await fetchEntityDetails(orgId, entityType, entityId);
+  if (!entityCheck) {
+    throw new Error("Entity not found or access denied");
+  }
+
+  const { data, error } = await supabase
+    .from("news_entity_links")
+    .insert({
+      news_id: newsId,
+      entity_type: entityType,
+      entity_id: entityId,
+      created_by: createdBy,
+      org_id: orgId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error adding entity link:", error);
+    throw new Error("Failed to add entity link");
+  }
+
+  return {
+    id: data.id,
+    newsId: data.news_id,
+    entityType: data.entity_type,
+    entityId: data.entity_id,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+  };
+}
+
+export async function removeNewsEntityLink(linkId: string): Promise<void> {
+  const { error } = await supabase
+    .from("news_entity_links")
+    .delete()
+    .eq("id", linkId);
+
+  if (error) {
+    console.error("Error removing entity link:", error);
+    throw new Error("Failed to remove entity link");
+  }
+}
+
+// Fetch entity details for displaying linked entities
+export async function fetchEntityDetails(
+  orgId: string,
+  entityType: string,
+  entityId: string
+): Promise<{ id: string; name: string; type: string } | null> {
+  try {
+    switch (entityType) {
+      case "firm": {
+        const { data, error } = await supabase
+          .from("firms")
+          .select("id, name")
+          .eq("id", entityId)
+          .eq("org_id", orgId)
+          .single();
+        if (error || !data) return null;
+        return { id: data.id, name: data.name || "Unknown", type: entityType };
+      }
+      case "fund": {
+        const { data, error } = await supabase
+          .from("funds")
+          .select("id, name")
+          .eq("id", entityId)
+          .eq("org_id", orgId)
+          .single();
+        if (error || !data) return null;
+        return { id: data.id, name: data.name || "Unknown", type: entityType };
+      }
+      case "person": {
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("id, first_name, last_name")
+          .eq("id", entityId)
+          .eq("org_id", orgId)
+          .single();
+        if (error || !data) return null;
+        const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+        return { id: data.id, name: fullName || "Unknown", type: entityType };
+      }
+      case "company": {
+        const { data, error } = await supabase
+          .from("entities_portfolio_company")
+          .select("id, company_name")
+          .eq("id", entityId)
+          .eq("org_id", orgId)
+          .single();
+        if (error || !data) return null;
+        return { id: data.id, name: data.company_name || "Unknown", type: entityType };
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+// ========================================
+// Text Annotations Service Functions
+// ========================================
+
+export interface TextAnnotationRecord {
+  id: string;
+  newsId: string;
+  entityType: string;
+  startOffset: number;
+  endOffset: number;
+  textSpan: string;
+  confidence: number | null;
+  createdBy: string | null;
+  createdAt: string | null;
+}
+
+export async function fetchTextAnnotations(
+  newsId: string
+): Promise<TextAnnotationRecord[]> {
+  const { data: annotations, error } = await supabase
+    .from("text_annotations")
+    .select("*")
+    .eq("news_id", newsId);
+
+  if (error) {
+    console.error("Error fetching text annotations:", error);
+    throw new Error("Failed to fetch text annotations");
+  }
+
+  return (annotations || []).map((annotation: {
+    id: string;
+    news_id: string;
+    entity_type: string;
+    start_offset: number;
+    end_offset: number;
+    text_span: string;
+    confidence: number | null;
+    created_by: string | null;
+    created_at: string | null;
+  }) => ({
+    id: annotation.id,
+    newsId: annotation.news_id,
+    entityType: annotation.entity_type,
+    startOffset: annotation.start_offset,
+    endOffset: annotation.end_offset,
+    textSpan: annotation.text_span,
+    confidence: annotation.confidence,
+    createdBy: annotation.created_by,
+    createdAt: annotation.created_at,
+  }));
+}
+
+export async function addTextAnnotation(
+  newsId: string,
+  entityType: string,
+  startOffset: number,
+  endOffset: number,
+  textSpan: string,
+  createdBy: string,
+  orgId: string,
+  confidence?: number
+): Promise<TextAnnotationRecord> {
+  const { data, error } = await supabase
+    .from("text_annotations")
+    .insert({
+      news_id: newsId,
+      entity_type: entityType,
+      start_offset: startOffset,
+      end_offset: endOffset,
+      text_span: textSpan,
+      confidence: confidence || null,
+      created_by: createdBy,
+      org_id: orgId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error adding text annotation:", error);
+    throw new Error("Failed to add text annotation");
+  }
+
+  return {
+    id: data.id,
+    newsId: data.news_id,
+    entityType: data.entity_type,
+    startOffset: data.start_offset,
+    endOffset: data.end_offset,
+    textSpan: data.text_span,
+    confidence: data.confidence,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+  };
+}
+
+export async function removeTextAnnotation(annotationId: string): Promise<void> {
+  const { error } = await supabase
+    .from("text_annotations")
+    .delete()
+    .eq("id", annotationId);
+
+  if (error) {
+    console.error("Error removing text annotation:", error);
+    throw new Error("Failed to remove text annotation");
+  }
+}

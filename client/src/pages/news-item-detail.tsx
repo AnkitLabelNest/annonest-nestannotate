@@ -39,8 +39,13 @@ import {
   updateNewsItemTags,
   updateNewsItemStatus,
   searchEntities,
+  fetchNewsEntityLinks,
+  addNewsEntityLink,
+  removeNewsEntityLink,
+  fetchEntityDetails,
   type NewsItemDetail,
   type EntitySearchResult,
+  type NewsEntityLinkRecord,
 } from "@/lib/nest-annotate-service";
 import type {
   UserRole,
@@ -189,12 +194,15 @@ export default function NewsItemDetailPage() {
   const [assetClasses, setAssetClasses] = useState<NewsAssetClass[]>([]);
   const [actionTypes, setActionTypes] = useState<NewsActionType[]>([]);
   const [taggedEntities, setTaggedEntities] = useState<TaggedEntity[]>([]);
+  const [entityLinks, setEntityLinks] = useState<NewsEntityLinkRecord[]>([]);
   const [createdEntities, setCreatedEntities] = useState<TaggedEntity[]>([]);
   const [entitySearchTerm, setEntitySearchTerm] = useState("");
   const [entitySearchResults, setEntitySearchResults] = useState<EntitySearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isAddingLink, setIsAddingLink] = useState(false);
   const [newEntityName, setNewEntityName] = useState("");
   const [newEntityType, setNewEntityType] = useState<string>("");
+  const userId = user?.id || "";
 
   const isAuthReady = !!user && !!orgId;
 
@@ -217,10 +225,41 @@ export default function NewsItemDetailPage() {
       setEventTypes(meta.event_type || []);
       setAssetClasses(meta.asset_class || []);
       setActionTypes(meta.action_type || []);
-      setTaggedEntities(meta.tagged_entities || []);
       setCreatedEntities(meta.created_entities || []);
     }
   }, [newsItem]);
+
+  // Load entity links from news_entity_links table
+  useEffect(() => {
+    async function loadEntityLinks() {
+      if (!taskId || !orgId) return;
+      
+      try {
+        const links = await fetchNewsEntityLinks(taskId);
+        setEntityLinks(links);
+        
+        // Resolve entity details in parallel using Promise.all
+        const entityPromises = links.map((link) => 
+          fetchEntityDetails(orgId, link.entityType, link.entityId)
+        );
+        const entityResults = await Promise.all(entityPromises);
+        
+        const entities: TaggedEntity[] = entityResults
+          .filter((details): details is NonNullable<typeof details> => details !== null)
+          .map((details) => ({
+            entity_id: details.id,
+            entity_name: details.name,
+            entity_type: details.type,
+          }));
+        
+        setTaggedEntities(entities);
+      } catch (error) {
+        console.error("Error loading entity links:", error);
+      }
+    }
+    
+    loadEntityLinks();
+  }, [taskId, orgId]);
 
   useEffect(() => {
     const searchTimeout = setTimeout(async () => {
@@ -283,6 +322,7 @@ export default function NewsItemDetailPage() {
   });
 
   const handleSaveTags = () => {
+    // Note: tagged_entities are now persisted to news_entity_links table separately
     const tags: Partial<NewsItemMetadata> = {
       relevance_status: relevanceStatus,
       relevance_notes: relevanceNotes || undefined,
@@ -290,7 +330,6 @@ export default function NewsItemDetailPage() {
       event_type: isRelevant ? eventTypes : undefined,
       asset_class: isRelevant ? assetClasses : undefined,
       action_type: isRelevant ? actionTypes : undefined,
-      tagged_entities: isRelevant ? taggedEntities : undefined,
       created_entities: isRelevant ? createdEntities : undefined,
     };
     saveTagsMutation.mutate(tags);
@@ -301,18 +340,64 @@ export default function NewsItemDetailPage() {
     updateStatusMutation.mutate("completed");
   };
 
-  const handleAddTaggedEntity = (entity: EntitySearchResult) => {
-    const newEntity: TaggedEntity = {
-      entity_id: entity.id,
-      entity_name: entity.name,
-      entity_type: entity.type,
-    };
-    setTaggedEntities([...taggedEntities, newEntity]);
-    setEntitySearchTerm("");
-    setEntitySearchResults([]);
+  const handleAddTaggedEntity = async (entity: EntitySearchResult) => {
+    if (!taskId || !userId || !orgId) return;
+    
+    setIsAddingLink(true);
+    try {
+      // Persist to news_entity_links table with org_id verification
+      const newLink = await addNewsEntityLink(taskId, entity.type, entity.id, userId, orgId);
+      setEntityLinks([...entityLinks, newLink]);
+      
+      const newEntity: TaggedEntity = {
+        entity_id: entity.id,
+        entity_name: entity.name,
+        entity_type: entity.type,
+      };
+      setTaggedEntities([...taggedEntities, newEntity]);
+      setEntitySearchTerm("");
+      setEntitySearchResults([]);
+      
+      toast({
+        title: "Entity linked",
+        description: `${entity.name} has been linked to this news item.`,
+      });
+    } catch (error) {
+      console.error("Error adding entity link:", error);
+      toast({
+        title: "Error",
+        description: "Failed to link entity. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingLink(false);
+    }
   };
 
-  const handleRemoveTaggedEntity = (entityId: string) => {
+  const handleRemoveTaggedEntity = async (entityId: string) => {
+    // Find the link record for this entity
+    const linkToRemove = entityLinks.find((link) => link.entityId === entityId);
+    
+    if (linkToRemove) {
+      try {
+        await removeNewsEntityLink(linkToRemove.id);
+        setEntityLinks(entityLinks.filter((link) => link.id !== linkToRemove.id));
+        
+        toast({
+          title: "Entity unlinked",
+          description: "Entity has been removed from this news item.",
+        });
+      } catch (error) {
+        console.error("Error removing entity link:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove entity link. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setTaggedEntities(taggedEntities.filter((e) => e.entity_id !== entityId));
   };
 

@@ -22,7 +22,12 @@ import {
 } from "lucide-react";
 import {
   fetchAnnotationTaskById,
+  fetchNewsById,
+  fetchTextAnnotations,
+  addTextAnnotation,
+  removeTextAnnotation,
   type AnnotationTaskDetail,
+  type TextAnnotationRecord,
 } from "@/lib/nest-annotate-service";
 import { supabase } from "../../../lib/supabase";
 
@@ -54,8 +59,12 @@ export default function TextLabelPage() {
   const [textContent, setTextContent] = useState("");
   const [selectedText, setSelectedText] = useState("");
   const [labels, setLabels] = useState<Array<{ text: string; type: string; start: number; end: number }>>([]);
+  const [annotations, setAnnotations] = useState<TextAnnotationRecord[]>([]);
   const [confidence, setConfidence] = useState([85]);
   const [notes, setNotes] = useState("");
+  const [newsTextLoaded, setNewsTextLoaded] = useState(false);
+  const [textMissing, setTextMissing] = useState(false);
+  const userId = user?.id || "";
 
   const isAuthReady = !!user && !!orgId;
 
@@ -69,21 +78,95 @@ export default function TextLabelPage() {
     enabled: !!taskId && isAuthReady,
   });
 
+  // Try to load text from news table, fall back to metadata
+  useEffect(() => {
+    async function loadNewsText() {
+      if (!taskId || !orgId) return;
+      
+      try {
+        // First try to fetch from news table using taskId as newsId
+        const newsRecord = await fetchNewsById(taskId, orgId);
+        
+        if (newsRecord) {
+          // Use cleaned_text ?? raw_text as per spec
+          const text = newsRecord.cleanedText || newsRecord.rawText || "";
+          if (text) {
+            setTextContent(text);
+            setNewsTextLoaded(true);
+            return;
+          }
+        }
+        
+        // Fall back to metadata if news record not found
+        if (task?.metadata) {
+          const meta = task.metadata as TextLabelMetadata;
+          if (meta.text_content) {
+            setTextContent(meta.text_content);
+            setNewsTextLoaded(true);
+          } else {
+            setTextMissing(true);
+          }
+        } else {
+          setTextMissing(true);
+        }
+      } catch (error) {
+        console.error("Error loading news text:", error);
+        // Fall back to metadata
+        if (task?.metadata) {
+          const meta = task.metadata as TextLabelMetadata;
+          setTextContent(meta.text_content || "");
+        }
+      }
+    }
+    
+    loadNewsText();
+  }, [taskId, orgId, task]);
+
+  // Load saved metadata for notes and confidence
   useEffect(() => {
     if (task?.metadata) {
       const meta = task.metadata as TextLabelMetadata;
-      setTextContent(meta.text_content || "");
-      setLabels(meta.labels || []);
       setConfidence([meta.confidence ?? 85]);
       setNotes(meta.notes || "");
     }
   }, [task]);
 
+  // Load annotations from text_annotations table
+  useEffect(() => {
+    async function loadAnnotations() {
+      if (!taskId) return;
+      
+      try {
+        const savedAnnotations = await fetchTextAnnotations(taskId);
+        setAnnotations(savedAnnotations);
+        
+        // Convert to labels format for display
+        const labelsFromDb = savedAnnotations.map((ann) => ({
+          text: ann.textSpan,
+          type: ann.entityType,
+          start: ann.startOffset,
+          end: ann.endOffset,
+        }));
+        setLabels(labelsFromDb);
+      } catch (error) {
+        console.error("Error loading annotations:", error);
+        // Fall back to metadata labels if available
+        if (task?.metadata) {
+          const meta = task.metadata as TextLabelMetadata;
+          setLabels(meta.labels || []);
+        }
+      }
+    }
+    
+    loadAnnotations();
+  }, [taskId, task]);
+
   const saveMutation = useMutation({
     mutationFn: async (status?: string) => {
+      // Note: labels are now saved directly to text_annotations table
+      // Only save non-label metadata here
       const metadata: TextLabelMetadata = {
         text_content: textContent,
-        labels,
         confidence: confidence[0],
         notes,
       };
@@ -120,19 +203,76 @@ export default function TextLabelPage() {
     }
   };
 
-  const addLabel = (type: string) => {
-    if (!selectedText) return;
+  const addLabel = async (type: string) => {
+    if (!selectedText || !taskId || !userId || !orgId) return;
     const start = textContent.indexOf(selectedText);
     if (start !== -1) {
-      setLabels([
-        ...labels,
-        { text: selectedText, type, start, end: start + selectedText.length },
-      ]);
-      setSelectedText("");
+      try {
+        // Save to text_annotations table with org_id for multi-tenant isolation
+        const annotation = await addTextAnnotation(
+          taskId,
+          type,
+          start,
+          start + selectedText.length,
+          selectedText,
+          userId,
+          orgId,
+          confidence[0]
+        );
+        
+        setAnnotations([...annotations, annotation]);
+        setLabels([
+          ...labels,
+          { text: selectedText, type, start, end: start + selectedText.length },
+        ]);
+        setSelectedText("");
+        
+        toast({
+          title: "Label added",
+          description: `"${selectedText}" labeled as ${type}`,
+        });
+      } catch (error) {
+        console.error("Error adding label:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save label. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const removeLabel = (index: number) => {
+  const removeLabel = async (index: number) => {
+    const labelToRemove = labels[index];
+    
+    // Find the corresponding annotation
+    const annotationToRemove = annotations.find(
+      (ann) => 
+        ann.startOffset === labelToRemove.start && 
+        ann.endOffset === labelToRemove.end &&
+        ann.entityType === labelToRemove.type
+    );
+    
+    if (annotationToRemove) {
+      try {
+        await removeTextAnnotation(annotationToRemove.id);
+        setAnnotations(annotations.filter((ann) => ann.id !== annotationToRemove.id));
+        
+        toast({
+          title: "Label removed",
+          description: "Annotation has been removed.",
+        });
+      } catch (error) {
+        console.error("Error removing annotation:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove label. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setLabels(labels.filter((_, i) => i !== index));
   };
 
