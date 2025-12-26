@@ -693,45 +693,56 @@ export async function searchEntities(
   orgId: string,
   searchTerm: string
 ): Promise<EntitySearchResult[]> {
-  const results: EntitySearchResult[] = [];
-
   if (!searchTerm || searchTerm.length < 2) {
-    return results;
+    return [];
   }
 
   const searchPattern = `%${searchTerm}%`;
 
-  const { data: firms } = await supabase
-    .from("firms")
-    .select("id, name, firm_type")
-    .eq("org_id", orgId)
-    .ilike("name", searchPattern)
-    .limit(10);
+  // Run all searches in parallel for better performance
+  const [gpsResult, lpsResult, fundsResult, companiesResult, contactsResult] = await Promise.all([
+    supabase.from("entities_gp").select("id, gp_name, firm_type").eq("org_id", orgId).ilike("gp_name", searchPattern).limit(5),
+    supabase.from("entities_lp").select("id, lp_name, firm_type").eq("org_id", orgId).ilike("lp_name", searchPattern).limit(5),
+    supabase.from("entities_fund").select("id, fund_name, fund_type").eq("org_id", orgId).ilike("fund_name", searchPattern).limit(5),
+    supabase.from("entities_portfolio_company").select("id, company_name, company_type").eq("org_id", orgId).ilike("company_name", searchPattern).limit(5),
+    supabase.from("entities_contact").select("id, first_name, last_name").eq("org_id", orgId).or(`first_name.ilike.${searchPattern},last_name.ilike.${searchPattern}`).limit(5),
+  ]);
 
-  if (firms) {
-    firms.forEach((f: { id: string; name: string; firm_type: string }) => {
-      results.push({
-        id: f.id,
-        name: f.name,
-        type: f.firm_type || "firm",
-      });
+  const results: EntitySearchResult[] = [];
+
+  // Process GP results
+  if (gpsResult.data) {
+    gpsResult.data.forEach((gp: { id: string; gp_name: string; firm_type: string | null }) => {
+      results.push({ id: gp.id, name: gp.gp_name, type: gp.firm_type || "GP" });
     });
   }
 
-  const { data: funds } = await supabase
-    .from("funds")
-    .select("id, name")
-    .eq("org_id", orgId)
-    .ilike("name", searchPattern)
-    .limit(10);
+  // Process LP results
+  if (lpsResult.data) {
+    lpsResult.data.forEach((lp: { id: string; lp_name: string; firm_type: string | null }) => {
+      results.push({ id: lp.id, name: lp.lp_name, type: lp.firm_type || "LP" });
+    });
+  }
 
-  if (funds) {
-    funds.forEach((f: { id: string; name: string }) => {
-      results.push({
-        id: f.id,
-        name: f.name,
-        type: "fund",
-      });
+  // Process Fund results
+  if (fundsResult.data) {
+    fundsResult.data.forEach((f: { id: string; fund_name: string; fund_type: string | null }) => {
+      results.push({ id: f.id, name: f.fund_name, type: f.fund_type || "Fund" });
+    });
+  }
+
+  // Process Portfolio Company results
+  if (companiesResult.data) {
+    companiesResult.data.forEach((c: { id: string; company_name: string; company_type: string | null }) => {
+      results.push({ id: c.id, name: c.company_name, type: c.company_type || "Company" });
+    });
+  }
+
+  // Process Contact results
+  if (contactsResult.data) {
+    contactsResult.data.forEach((c: { id: string; first_name: string | null; last_name: string | null }) => {
+      const fullName = `${c.first_name || ""} ${c.last_name || ""}`.trim();
+      results.push({ id: c.id, name: fullName || "Unknown", type: "Person" });
     });
   }
 
@@ -975,51 +986,108 @@ export async function fetchEntityDetails(
   entityId: string
 ): Promise<{ id: string; name: string; type: string } | null> {
   try {
-    switch (entityType) {
-      case "firm": {
-        const { data, error } = await supabase
-          .from("firms")
-          .select("id, name")
-          .eq("id", entityId)
-          .eq("org_id", orgId)
-          .single();
-        if (error || !data) return null;
-        return { id: data.id, name: data.name || "Unknown", type: entityType };
-      }
-      case "fund": {
-        const { data, error } = await supabase
-          .from("funds")
-          .select("id, name")
-          .eq("id", entityId)
-          .eq("org_id", orgId)
-          .single();
-        if (error || !data) return null;
-        return { id: data.id, name: data.name || "Unknown", type: entityType };
-      }
-      case "person": {
-        const { data, error } = await supabase
-          .from("contacts")
-          .select("id, first_name, last_name")
-          .eq("id", entityId)
-          .eq("org_id", orgId)
-          .single();
-        if (error || !data) return null;
-        const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-        return { id: data.id, name: fullName || "Unknown", type: entityType };
-      }
-      case "company": {
-        const { data, error } = await supabase
-          .from("entities_portfolio_company")
-          .select("id, company_name")
-          .eq("id", entityId)
-          .eq("org_id", orgId)
-          .single();
-        if (error || !data) return null;
-        return { id: data.id, name: data.company_name || "Unknown", type: entityType };
-      }
-      default:
-        return null;
+    // Handle GP entity types (gp or any GP firm_type like PE, VC, etc.)
+    if (entityType === "gp" || entityType === "PE" || entityType === "VC" || entityType === "Hedge Fund" || entityType === "Private Debt") {
+      const { data, error } = await supabase
+        .from("entities_gp")
+        .select("id, gp_name, firm_type")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (error || !data) return null;
+      return { id: data.id, name: data.gp_name || "Unknown", type: data.firm_type || entityType };
     }
+
+    // Handle LP entity types
+    if (entityType === "lp" || entityType === "Pension Fund" || entityType === "Endowment" || entityType === "Family Office" || entityType === "Sovereign Wealth Fund" || entityType === "Fund of Funds" || entityType === "Insurance Company" || entityType === "Foundation") {
+      const { data, error } = await supabase
+        .from("entities_lp")
+        .select("id, lp_name, firm_type")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (error || !data) return null;
+      return { id: data.id, name: data.lp_name || "Unknown", type: data.firm_type || entityType };
+    }
+
+    // Handle Fund entity types
+    if (entityType === "fund" || entityType === "Buyout" || entityType === "Growth Equity" || entityType === "Venture Capital" || entityType === "Real Estate" || entityType === "Infrastructure" || entityType === "Credit" || entityType === "Secondaries") {
+      const { data, error } = await supabase
+        .from("entities_fund")
+        .select("id, fund_name, fund_type")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (error || !data) return null;
+      return { id: data.id, name: data.fund_name || "Unknown", type: data.fund_type || entityType };
+    }
+
+    // Handle Company/Portfolio Company entity types
+    if (entityType === "company" || entityType === "Private" || entityType === "Public" || entityType === "Subsidiary") {
+      const { data, error } = await supabase
+        .from("entities_portfolio_company")
+        .select("id, company_name, company_type")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (error || !data) return null;
+      return { id: data.id, name: data.company_name || "Unknown", type: data.company_type || entityType };
+    }
+
+    // Handle Person/Contact entity types
+    if (entityType === "person") {
+      const { data, error } = await supabase
+        .from("entities_contact")
+        .select("id, first_name, last_name")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (error || !data) return null;
+      const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+      return { id: data.id, name: fullName || "Unknown", type: entityType };
+    }
+
+    // Legacy support: Handle old firm/fund entity types from legacy tables
+    if (entityType === "firm") {
+      const { data, error } = await supabase
+        .from("firms")
+        .select("id, name")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (!error && data) return { id: data.id, name: data.name || "Unknown", type: entityType };
+    }
+
+    if (entityType === "fund" && !entityType.includes("Buyout") && !entityType.includes("Growth")) {
+      // Try legacy funds table first for backward compatibility
+      const { data, error } = await supabase
+        .from("funds")
+        .select("id, name")
+        .eq("id", entityId)
+        .eq("org_id", orgId)
+        .single();
+      if (!error && data) return { id: data.id, name: data.name || "Unknown", type: entityType };
+    }
+
+    // Fallback: Try to find in any entity table using parallel queries
+    const [gpResult, lpResult, fundResult, companyResult, contactResult] = await Promise.all([
+      supabase.from("entities_gp").select("id, gp_name, firm_type").eq("id", entityId).eq("org_id", orgId).single(),
+      supabase.from("entities_lp").select("id, lp_name, firm_type").eq("id", entityId).eq("org_id", orgId).single(),
+      supabase.from("entities_fund").select("id, fund_name, fund_type").eq("id", entityId).eq("org_id", orgId).single(),
+      supabase.from("entities_portfolio_company").select("id, company_name, company_type").eq("id", entityId).eq("org_id", orgId).single(),
+      supabase.from("entities_contact").select("id, first_name, last_name").eq("id", entityId).eq("org_id", orgId).single(),
+    ]);
+
+    if (gpResult.data) return { id: gpResult.data.id, name: gpResult.data.gp_name || "Unknown", type: gpResult.data.firm_type || "gp" };
+    if (lpResult.data) return { id: lpResult.data.id, name: lpResult.data.lp_name || "Unknown", type: lpResult.data.firm_type || "lp" };
+    if (fundResult.data) return { id: fundResult.data.id, name: fundResult.data.fund_name || "Unknown", type: fundResult.data.fund_type || "fund" };
+    if (companyResult.data) return { id: companyResult.data.id, name: companyResult.data.company_name || "Unknown", type: companyResult.data.company_type || "company" };
+    if (contactResult.data) {
+      const fullName = `${contactResult.data.first_name || ""} ${contactResult.data.last_name || ""}`.trim();
+      return { id: contactResult.data.id, name: fullName || "Unknown", type: "person" };
+    }
+
+    return null;
   } catch {
     return null;
   }
