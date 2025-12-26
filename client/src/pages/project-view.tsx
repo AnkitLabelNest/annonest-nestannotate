@@ -172,22 +172,24 @@ export default function ProjectViewPage() {
   const [selectedAssignUser, setSelectedAssignUser] = useState<string>("");
   const [selectedEvenlyUsers, setSelectedEvenlyUsers] = useState<Set<string>>(new Set());
 
+  const isAuthReady = !!user && !!orgId && !!userId;
+
   const { data: project, isLoading: projectLoading, error: projectError } = useQuery({
     queryKey: ["project", projectId, orgId],
     queryFn: () => fetchProjectById(projectId, orgId),
-    enabled: !!projectId && !!orgId,
+    enabled: !!projectId && isAuthReady,
   });
 
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useQuery({
     queryKey: ["project-items", projectId, orgId, userId, userRole],
     queryFn: () => fetchProjectItems(projectId, orgId, userId, userRole),
-    enabled: !!projectId && !!orgId && !!userId,
+    enabled: !!projectId && isAuthReady,
   });
 
   const { data: orgUsers = [] } = useQuery({
     queryKey: ["org-users", orgId],
     queryFn: () => fetchOrgUsers(orgId),
-    enabled: !!orgId && canManage,
+    enabled: isAuthReady && canManage,
   });
 
   const bulkAssignMutation = useMutation({
