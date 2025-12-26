@@ -1,0 +1,130 @@
+SYSTEM ROLE:
+You are a senior full-stack engineer fixing a broken News + Annotation flow.
+Supabase is the source of truth. Do not invent schemas beyond what is defined.
+Do not change business logic or UI intent.
+
+OBJECTIVE:
+1. News owns article text.
+2. Entity linking must persist and reload correctly.
+3. Annotation must read text from News.
+4. No duplicate text inputs across screens.
+
+--------------------------------
+DATABASE (SUPABASE)
+--------------------------------
+
+-- Ensure article text exists on news
+ALTER TABLE news
+ADD COLUMN IF NOT EXISTS raw_text TEXT,
+ADD COLUMN IF NOT EXISTS cleaned_text TEXT;
+
+-- Entity linking table (mandatory)
+CREATE TABLE IF NOT EXISTS news_entity_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL, -- firm | fund | person | person | deal | company
+  entity_id UUID NOT NULL,
+  created_by UUID,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- Text annotation storage
+CREATE TABLE IF NOT EXISTS text_annotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  start_offset INT NOT NULL,
+  end_offset INT NOT NULL,
+  text_span TEXT NOT NULL,
+  confidence INT,
+  created_by UUID,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------
+NEWS PAGE (/news/:id)
+--------------------------------
+
+ON LOAD:
+- Fetch news record by id
+- Render article body from:
+  cleaned_text ?? raw_text
+- Text is read-only
+
+ENTITY LINKING:
+- Search ONLY existing tables:
+  firms, funds, people
+- Do NOT create new entities
+
+ON ENTITY SELECT:
+INSERT INTO news_entity_links (
+  news_id,
+  entity_type,
+  entity_id,
+  created_by
+)
+
+ON PAGE LOAD:
+SELECT *
+FROM news_entity_links
+WHERE news_id = :newsId
+
+RENDER:
+- Show linked entities as pills
+- Each pill removable
+
+ON REMOVE:
+DELETE FROM news_entity_links
+WHERE id = :linkId
+
+SAVE BEHAVIOR:
+- Save classifications + entity links
+- No annotation logic on this page
+
+--------------------------------
+ANNOTATION PAGE (/annotate/text/:newsId)
+--------------------------------
+
+ON LOAD:
+SELECT raw_text, cleaned_text
+FROM news
+WHERE id = :newsId
+
+IF TEXT IS NULL:
+- Block annotation
+- Show error: "News text missing"
+
+TEXT SOURCE:
+- Always use cleaned_text ?? raw_text
+- Do NOT store independent text copies
+
+ANNOTATION SAVE:
+INSERT INTO text_annotations (
+  news_id,
+  entity_type,
+  start_offset,
+  end_offset,
+  text_span,
+  confidence,
+  created_by
+)
+
+RULE:
+- Annotation must NEVER update news fields
+
+--------------------------------
+UX RULES
+--------------------------------
+- News = intelligence + decisions
+- Annotation = labeling only
+- One article text source (news table)
+- Entity linking persists via news_entity_links only
+- No duplicate text inputs anywhere
+
+--------------------------------
+EXPECTED RESULT
+--------------------------------
+✔ News shows article text
+✔ Entity linking works + reloads
+✔ Annotation always has text
+✔ Clean separation of responsibilities
