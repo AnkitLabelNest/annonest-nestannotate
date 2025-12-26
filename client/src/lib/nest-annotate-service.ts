@@ -634,6 +634,61 @@ export async function updateNewsItemStatus(
   }
 }
 
+export interface EntitySearchResult {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export async function searchEntities(
+  orgId: string,
+  searchTerm: string
+): Promise<EntitySearchResult[]> {
+  const results: EntitySearchResult[] = [];
+
+  if (!searchTerm || searchTerm.length < 2) {
+    return results;
+  }
+
+  const searchPattern = `%${searchTerm}%`;
+
+  const { data: firms } = await supabase
+    .from("firms")
+    .select("id, name, firm_type")
+    .eq("org_id", orgId)
+    .ilike("name", searchPattern)
+    .limit(10);
+
+  if (firms) {
+    firms.forEach((f: { id: string; name: string; firm_type: string }) => {
+      results.push({
+        id: f.id,
+        name: f.name,
+        type: f.firm_type || "firm",
+      });
+    });
+  }
+
+  const { data: funds } = await supabase
+    .from("funds")
+    .select("id, name")
+    .eq("org_id", orgId)
+    .ilike("name", searchPattern)
+    .limit(10);
+
+  if (funds) {
+    funds.forEach((f: { id: string; name: string }) => {
+      results.push({
+        id: f.id,
+        name: f.name,
+        type: "fund",
+      });
+    });
+  }
+
+  return results;
+}
+
 export async function fetchNewsItems(
   orgId: string,
   userId: string,

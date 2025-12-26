@@ -20,12 +20,27 @@ import {
   CheckCircle,
   XCircle,
   Save,
+  Search,
+  Plus,
+  X,
+  Building2,
+  Tag,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   fetchNewsItemById,
   updateNewsItemTags,
   updateNewsItemStatus,
+  searchEntities,
   type NewsItemDetail,
+  type EntitySearchResult,
 } from "@/lib/nest-annotate-service";
 import type {
   UserRole,
@@ -36,6 +51,7 @@ import type {
   NewsAssetClass,
   NewsActionType,
   NewsItemMetadata,
+  TaggedEntity,
 } from "@shared/schema";
 import {
   newsFirmTypes,
@@ -172,6 +188,13 @@ export default function NewsItemDetailPage() {
   const [eventTypes, setEventTypes] = useState<NewsEventType[]>([]);
   const [assetClasses, setAssetClasses] = useState<NewsAssetClass[]>([]);
   const [actionTypes, setActionTypes] = useState<NewsActionType[]>([]);
+  const [taggedEntities, setTaggedEntities] = useState<TaggedEntity[]>([]);
+  const [createdEntities, setCreatedEntities] = useState<TaggedEntity[]>([]);
+  const [entitySearchTerm, setEntitySearchTerm] = useState("");
+  const [entitySearchResults, setEntitySearchResults] = useState<EntitySearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [newEntityName, setNewEntityName] = useState("");
+  const [newEntityType, setNewEntityType] = useState<string>("");
 
   const isAuthReady = !!user && !!orgId;
 
@@ -194,8 +217,32 @@ export default function NewsItemDetailPage() {
       setEventTypes(meta.event_type || []);
       setAssetClasses(meta.asset_class || []);
       setActionTypes(meta.action_type || []);
+      setTaggedEntities(meta.tagged_entities || []);
+      setCreatedEntities(meta.created_entities || []);
     }
   }, [newsItem]);
+
+  useEffect(() => {
+    const searchTimeout = setTimeout(async () => {
+      if (entitySearchTerm.length >= 2 && orgId) {
+        setIsSearching(true);
+        try {
+          const results = await searchEntities(orgId, entitySearchTerm);
+          const filteredResults = results.filter(
+            (r) => !taggedEntities.some((t) => t.entity_id === r.id)
+          );
+          setEntitySearchResults(filteredResults);
+        } catch (error) {
+          console.error("Entity search error:", error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setEntitySearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(searchTimeout);
+  }, [entitySearchTerm, orgId, taggedEntities]);
 
   const saveTagsMutation = useMutation({
     mutationFn: (tags: Partial<NewsItemMetadata>) => updateNewsItemTags(taskId!, tags),
@@ -243,6 +290,8 @@ export default function NewsItemDetailPage() {
       event_type: isRelevant ? eventTypes : undefined,
       asset_class: isRelevant ? assetClasses : undefined,
       action_type: isRelevant ? actionTypes : undefined,
+      tagged_entities: isRelevant ? taggedEntities : undefined,
+      created_entities: isRelevant ? createdEntities : undefined,
     };
     saveTagsMutation.mutate(tags);
   };
@@ -252,8 +301,41 @@ export default function NewsItemDetailPage() {
     updateStatusMutation.mutate("completed");
   };
 
+  const handleAddTaggedEntity = (entity: EntitySearchResult) => {
+    const newEntity: TaggedEntity = {
+      entity_id: entity.id,
+      entity_name: entity.name,
+      entity_type: entity.type,
+    };
+    setTaggedEntities([...taggedEntities, newEntity]);
+    setEntitySearchTerm("");
+    setEntitySearchResults([]);
+  };
+
+  const handleRemoveTaggedEntity = (entityId: string) => {
+    setTaggedEntities(taggedEntities.filter((e) => e.entity_id !== entityId));
+  };
+
+  const handleCreateEntity = () => {
+    if (!newEntityName.trim() || !newEntityType) return;
+    const newEntity: TaggedEntity = {
+      entity_id: `new_${Date.now()}`,
+      entity_name: newEntityName.trim(),
+      entity_type: newEntityType,
+    };
+    setCreatedEntities([...createdEntities, newEntity]);
+    setNewEntityName("");
+    setNewEntityType("");
+  };
+
+  const handleRemoveCreatedEntity = (entityId: string) => {
+    setCreatedEntities(createdEntities.filter((e) => e.entity_id !== entityId));
+  };
+
   const isRelevant = relevanceStatus === "relevant";
   const isNotRelevant = relevanceStatus === "not_relevant";
+  const canAddNewProfile = actionTypes.includes("add_new_profile");
+  const hasNoNewInfo = actionTypes.includes("no_new_information") && actionTypes.length === 1;
   const canComplete = 
     (isNotRelevant) || 
     (isRelevant && actionTypes.length > 0);
@@ -483,6 +565,167 @@ export default function NewsItemDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card className={!isRelevant || hasNoNewInfo ? "opacity-50 pointer-events-none" : ""}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Tag className="h-4 w-4" />
+            4. Entity Tagging
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Tag existing entities mentioned in the article.
+            {hasNoNewInfo && " (Disabled when 'No New Information' is selected)"}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Search Entities</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search firms, funds..."
+                value={entitySearchTerm}
+                onChange={(e) => setEntitySearchTerm(e.target.value)}
+                className="pl-9"
+                disabled={!isRelevant || hasNoNewInfo}
+                data-testid="input-entity-search"
+              />
+            </div>
+            {isSearching && (
+              <p className="text-sm text-muted-foreground">Searching...</p>
+            )}
+            {entitySearchResults.length > 0 && (
+              <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                {entitySearchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                    onClick={() => handleAddTaggedEntity(result)}
+                    data-testid={`entity-result-${result.id}`}
+                  >
+                    <div>
+                      <span className="font-medium">{result.name}</span>
+                      <Badge className="ml-2" variant="secondary">
+                        {result.type}
+                      </Badge>
+                    </div>
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {taggedEntities.length > 0 && (
+            <div className="space-y-2">
+              <Label>Tagged Entities</Label>
+              <div className="flex flex-wrap gap-2">
+                {taggedEntities.map((entity) => (
+                  <Badge
+                    key={entity.entity_id}
+                    className="flex items-center gap-1 pr-1"
+                    data-testid={`tagged-entity-${entity.entity_id}`}
+                  >
+                    <Building2 className="h-3 w-3" />
+                    {entity.entity_name}
+                    <span className="text-xs opacity-70">({entity.entity_type})</span>
+                    <button
+                      onClick={() => handleRemoveTaggedEntity(entity.entity_id)}
+                      className="ml-1 p-0.5 rounded hover:bg-primary-foreground/20"
+                      data-testid={`remove-tagged-${entity.entity_id}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {canAddNewProfile && canManage && (
+        <Card className={!isRelevant ? "opacity-50 pointer-events-none" : ""}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Plus className="h-4 w-4" />
+              5. Create New Entity
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Create a new entity if not found in existing records.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-entity-name">Entity Name</Label>
+                <Input
+                  id="new-entity-name"
+                  placeholder="Enter entity name"
+                  value={newEntityName}
+                  onChange={(e) => setNewEntityName(e.target.value)}
+                  disabled={!isRelevant}
+                  data-testid="input-new-entity-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Entity Type</Label>
+                <Select
+                  value={newEntityType}
+                  onValueChange={setNewEntityType}
+                  disabled={!isRelevant}
+                >
+                  <SelectTrigger data-testid="select-new-entity-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {newsFirmTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {firmTypeLabels[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={handleCreateEntity}
+              disabled={!newEntityName.trim() || !newEntityType || !isRelevant}
+              data-testid="button-create-entity"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Entity
+            </Button>
+
+            {createdEntities.length > 0 && (
+              <div className="space-y-2">
+                <Label>Created Entities</Label>
+                <div className="flex flex-wrap gap-2">
+                  {createdEntities.map((entity) => (
+                    <Badge
+                      key={entity.entity_id}
+                      className="flex items-center gap-1 pr-1 bg-green-500/10 text-green-700 dark:text-green-400"
+                      data-testid={`created-entity-${entity.entity_id}`}
+                    >
+                      <Plus className="h-3 w-3" />
+                      {entity.entity_name}
+                      <span className="text-xs opacity-70">({entity.entity_type})</span>
+                      <button
+                        onClick={() => handleRemoveCreatedEntity(entity.entity_id)}
+                        className="ml-1 p-0.5 rounded hover:bg-green-500/20"
+                        data-testid={`remove-created-${entity.entity_id}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center justify-between gap-4 pt-4">
         <Button
