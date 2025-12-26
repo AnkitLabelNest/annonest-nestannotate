@@ -301,6 +301,14 @@ export default function ProjectViewPage() {
 
   const handleRowClick = (item: ProjectItem) => {
     if (!project) return;
+    
+    // For news projects, navigate to the News Item Detail page
+    if (project.projectCategory === "news") {
+      setLocation(`/news/${item.id}`);
+      return;
+    }
+    
+    // For other projects, use the standard annotate route
     const labelType = project.labelType;
     setLocation(`/annotate/${labelType}/${item.id}`);
   };
