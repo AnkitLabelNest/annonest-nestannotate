@@ -92,10 +92,7 @@ DROP POLICY IF EXISTS "Users can delete annotations in their org" ON public.text
 CREATE POLICY "Users can delete annotations in their org" ON public.text_annotations
   FOR DELETE USING (org_id IN (SELECT org_id FROM public.users WHERE supabase_id = auth.uid()::varchar));
 
--- Grant permissions
+-- Grant permissions to authenticated users only (no anon access for security)
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.news TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.news_entity_links TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.text_annotations TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.news TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.news_entity_links TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.text_annotations TO anon;
