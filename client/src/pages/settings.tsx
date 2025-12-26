@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
   const { data: pendingGuests = [], isLoading: loadingGuests } = useQuery<PendingGuest[]>({
     queryKey: ["/api/admin/pending-guests"],
-    enabled: user?.role === "admin" || user?.role === "manager",
+    enabled: user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager",
   });
 
   const approveMutation = useMutation({
@@ -187,7 +187,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {(user?.role === "admin" || user?.role === "manager") && (
+      {(user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager") && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {(user?.role === "admin" || user?.role === "manager") && (
+      {(user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager") && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
