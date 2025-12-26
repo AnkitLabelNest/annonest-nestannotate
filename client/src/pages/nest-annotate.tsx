@@ -71,6 +71,19 @@ const labelTypeColors: Record<LabelType, string> = {
   translation: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
 };
 
+function getProjectDisplayInfo(labelType: LabelType, projectCategory?: string): { label: string; colorClass: string } {
+  if (projectCategory === "news") {
+    return {
+      label: "News Intelligence",
+      colorClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+    };
+  }
+  return {
+    label: labelTypeLabels[labelType],
+    colorClass: labelTypeColors[labelType],
+  };
+}
+
 interface SummaryCardProps {
   summary: LabelTypeSummary;
   isSelected: boolean;
@@ -152,10 +165,12 @@ function WorkContextBadge({ context }: { context: string }) {
   );
 }
 
-function LabelTypeBadge({ labelType }: { labelType: LabelType }) {
+function LabelTypeBadge({ labelType, projectCategory }: { labelType: LabelType; projectCategory?: string }) {
+  const { label, colorClass } = getProjectDisplayInfo(labelType, projectCategory);
+  
   return (
-    <Badge className={labelTypeColors[labelType]}>
-      {labelTypeLabels[labelType]}
+    <Badge className={colorClass}>
+      {label}
     </Badge>
   );
 }
@@ -221,7 +236,7 @@ function ProjectsTable({ projects, isLoading }: { projects: LabelProjectWithStat
                   {project.name}
                 </TableCell>
                 <TableCell>
-                  <LabelTypeBadge labelType={project.labelType} />
+                  <LabelTypeBadge labelType={project.labelType} projectCategory={project.projectCategory} />
                 </TableCell>
                 <TableCell>
                   <WorkContextBadge context={project.workContext} />
