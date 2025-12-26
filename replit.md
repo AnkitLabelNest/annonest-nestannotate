@@ -84,3 +84,25 @@ Preferred communication style: Simple, everyday language.
 - **React Hook Form**: Form state management
 - **Zod**: Schema validation (shared between client and server)
 - **drizzle-zod**: Generates Zod schemas from Drizzle tables
+
+## News Intelligence & Annotation Architecture
+
+### Data Model
+- **news**: Stores article content (raw_text, cleaned_text) with org_id for multi-tenant isolation
+- **news_entity_links**: Junction table linking news items to entities (firms, funds, etc.) with org_id
+- **text_annotations**: Stores text labeling annotations with org_id for multi-tenant security
+- **annotation_tasks**: Task records for annotation workflows (stored in Supabase)
+
+### Entity Linking Flow
+1. News Item Detail page loads entity links from news_entity_links table using parallel Promise.all
+2. Entity links are persisted immediately when added/removed (real-time persistence)
+3. All write operations include org_id for multi-tenant isolation
+
+### Text Annotation Flow
+1. Annotations saved to text_annotations table with org_id
+2. Labels are persisted immediately when added/removed
+3. Task metadata stores confidence and notes (non-label data)
+
+### Known Architectural Gaps (Future Work)
+- **Task-News Linkage**: annotation_tasks currently lacks a foreign key to news table. Text loading falls back to metadata when news record not found by taskId
+- **Recommended Fix**: Add annotation_tasks.news_id FK column, backfill from existing metadata, update task creation to require newsId for text workflows
