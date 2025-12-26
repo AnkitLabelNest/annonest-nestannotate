@@ -41,6 +41,7 @@ import PublicMarketPage from "@/pages/crm/public-market";
 import LocationManagementPage from "@/pages/settings/locations";
 import NestAnnotatePage from "@/pages/nest-annotate";
 import NewsIntelligencePage from "@/pages/news-intelligence";
+import NewsItemDetailPage from "@/pages/news-item-detail";
 import ProjectViewPage from "@/pages/project-view";
 import NotFound from "@/pages/not-found";
 
@@ -112,6 +113,7 @@ function AppRoutes() {
         <Route path="/annotate/translation" component={TranslationPage} />
         <Route path="/nest-annotate" component={NestAnnotatePage} />
         <Route path="/news-intelligence" component={NewsIntelligencePage} />
+        <Route path="/news/:taskId" component={NewsItemDetailPage} />
         <Route path="/projects/:projectId" component={ProjectViewPage} />
         <Route path="/demo" component={DemoDataNestPage} />
         <Route path="/demo/firms" component={() => <FirmsPage />} />

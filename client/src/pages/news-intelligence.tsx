@@ -99,7 +99,7 @@ function NewsItemsTable({ items, isLoading }: { items: NewsItem[]; isLoading: bo
                 key={item.id} 
                 data-testid={`row-news-item-${item.id}`}
                 className="cursor-pointer hover-elevate"
-                onClick={() => setLocation(`/annotate/text?taskId=${item.id}`)}
+                onClick={() => setLocation(`/news/${item.id}`)}
               >
                 <TableCell className="font-medium max-w-md" data-testid={`text-headline-${item.id}`}>
                   <div className="truncate" title={item.headline}>
