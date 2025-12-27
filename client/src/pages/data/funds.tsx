@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SourceTrackingSection } from "@/components/source-tracking-section";
+import { EntityUrlsSection } from "@/components/entity-urls-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -747,6 +748,9 @@ function FundView({ fund, onClose }: { fund: any; onClose: () => void }) {
             isEditing={false}
           />
         </div>
+
+        <SectionHeader title="URLs" />
+        <EntityUrlsSection entityType="fund" entityId={fund.id} />
 
         <div className="flex justify-end pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>

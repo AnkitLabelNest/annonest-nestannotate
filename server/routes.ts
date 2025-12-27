@@ -2665,6 +2665,38 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/agritech/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ext_agritech_portfolio_company SET
+          crop_types = COALESCE(${data.crop_types}, crop_types),
+          farming_method = COALESCE(${data.farming_method}, farming_method),
+          tech_stack = COALESCE(${data.tech_stack}, tech_stack),
+          sustainability_certifications = COALESCE(${data.sustainability_certifications}, sustainability_certifications),
+          geographic_focus = COALESCE(${data.geographic_focus}, geographic_focus),
+          target_market = COALESCE(${data.target_market}, target_market),
+          notes = COALESCE(${data.notes}, notes),
+          sources_used = COALESCE(${data.sources_used}, sources_used),
+          source_urls = COALESCE(${data.source_urls}, source_urls),
+          last_updated_by = COALESCE(${data.last_updated_by}, last_updated_by),
+          last_updated_on = NOW(),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating agritech:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Blockchain Routes
   app.get("/api/crm/blockchain", async (_req: Request, res: Response) => {
     try {
@@ -2707,6 +2739,39 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/crm/blockchain/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ext_blockchain_portfolio_company SET
+          blockchain_platform = COALESCE(${data.blockchain_platform}, blockchain_platform),
+          token_ticker = COALESCE(${data.token_ticker}, token_ticker),
+          consensus_mechanism = COALESCE(${data.consensus_mechanism}, consensus_mechanism),
+          smart_contract_language = COALESCE(${data.smart_contract_language}, smart_contract_language),
+          defi_category = COALESCE(${data.defi_category}, defi_category),
+          tvl_usd = COALESCE(${data.tvl_usd}, tvl_usd),
+          audit_status = COALESCE(${data.audit_status}, audit_status),
+          notes = COALESCE(${data.notes}, notes),
+          sources_used = COALESCE(${data.sources_used}, sources_used),
+          source_urls = COALESCE(${data.source_urls}, source_urls),
+          last_updated_by = COALESCE(${data.last_updated_by}, last_updated_by),
+          last_updated_on = NOW(),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating blockchain:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Healthcare Routes
   app.get("/api/crm/healthcare", async (_req: Request, res: Response) => {
     try {
@@ -2745,6 +2810,39 @@ export async function registerRoutes(
       return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error("Error creating healthcare:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/crm/healthcare/:id", async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const { id } = req.params;
+      const data = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE ext_healthcare_portfolio_company SET
+          healthcare_segment = COALESCE(${data.healthcare_segment}, healthcare_segment),
+          therapeutic_area = COALESCE(${data.therapeutic_area}, therapeutic_area),
+          regulatory_status = COALESCE(${data.regulatory_status}, regulatory_status),
+          fda_approval_stage = COALESCE(${data.fda_approval_stage}, fda_approval_stage),
+          clinical_trial_phase = COALESCE(${data.clinical_trial_phase}, clinical_trial_phase),
+          target_patient_population = COALESCE(${data.target_patient_population}, target_patient_population),
+          reimbursement_model = COALESCE(${data.reimbursement_model}, reimbursement_model),
+          notes = COALESCE(${data.notes}, notes),
+          sources_used = COALESCE(${data.sources_used}, sources_used),
+          source_urls = COALESCE(${data.source_urls}, source_urls),
+          last_updated_by = COALESCE(${data.last_updated_by}, last_updated_by),
+          last_updated_on = NOW(),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      
+      return res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating healthcare:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

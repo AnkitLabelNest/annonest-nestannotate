@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Search, Heart, ExternalLink, FlaskConical, Users } from "lucide-react";
+import { SourceTrackingSection } from "@/components/source-tracking-section";
 
 interface HealthcareCompany {
   id: string;
@@ -49,6 +50,10 @@ interface HealthcareCompany {
   target_patient_population: string | null;
   reimbursement_model: string | null;
   notes: string | null;
+  sources_used: string[] | null;
+  source_urls: string[] | null;
+  last_updated_by: string | null;
+  last_updated_on: string | null;
 }
 
 interface PortfolioCompany {
@@ -60,6 +65,12 @@ export default function HealthcarePage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<HealthcareCompany | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [sourceTracking, setSourceTracking] = useState<{
+    sourcesUsed: string[];
+    sourceUrls: string[];
+  }>({ sourcesUsed: [], sourceUrls: [] });
   const [newRecord, setNewRecord] = useState({
     portfolio_company_id: "",
     healthcare_segment: "",
@@ -105,6 +116,46 @@ export default function HealthcarePage() {
       toast({ title: "Error creating record", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/healthcare/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/healthcare"] });
+      setIsDetailOpen(false);
+      setSelectedCompany(null);
+      toast({ title: "Record updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating record", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleOpenDetail = (company: HealthcareCompany) => {
+    setSelectedCompany(company);
+    setSourceTracking({
+      sourcesUsed: company.sources_used || [],
+      sourceUrls: company.source_urls || [],
+    });
+    setIsDetailOpen(true);
+  };
+
+  const handleSourceTrackingChange = (field: string, value: string[]) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveSourceTracking = () => {
+    if (!selectedCompany) return;
+    updateMutation.mutate({
+      id: selectedCompany.id,
+      data: {
+        sources_used: sourceTracking.sourcesUsed,
+        source_urls: sourceTracking.sourceUrls,
+      },
+    });
+  };
 
   const filteredCompanies = companies?.filter(c => 
     c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -304,7 +355,7 @@ export default function HealthcarePage() {
                 </TableRow>
               ) : (
                 filteredCompanies.map((company) => (
-                  <TableRow key={company.id} className="cursor-pointer hover-elevate" data-testid={`row-healthcare-${company.id}`}>
+                  <TableRow key={company.id} className="cursor-pointer hover-elevate" data-testid={`row-healthcare-${company.id}`} onClick={() => handleOpenDetail(company)}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Heart className="h-4 w-4 text-red-500" />
@@ -353,6 +404,63 @@ export default function HealthcarePage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedCompany?.company_name || "Healthcare Record"}</DialogTitle>
+            <DialogDescription>View and edit source tracking for this record</DialogDescription>
+          </DialogHeader>
+          
+          {selectedCompany && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">Segment</Label>
+                  <p className="font-medium">{selectedCompany.healthcare_segment || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Therapeutic Area</Label>
+                  <p className="font-medium">{selectedCompany.therapeutic_area || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">FDA Stage</Label>
+                  <p className="font-medium">{selectedCompany.fda_approval_stage || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Trial Phase</Label>
+                  <p className="font-medium">{selectedCompany.clinical_trial_phase || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Target Population</Label>
+                  <p className="font-medium">{selectedCompany.target_patient_population || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Reimbursement</Label>
+                  <p className="font-medium">{selectedCompany.reimbursement_model || "-"}</p>
+                </div>
+              </div>
+
+              <SourceTrackingSection
+                data={sourceTracking}
+                onChange={handleSourceTrackingChange}
+                isEditing={true}
+              />
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={handleSaveSourceTracking}
+                  disabled={updateMutation.isPending}
+                  data-testid="button-save-source-tracking"
+                >
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

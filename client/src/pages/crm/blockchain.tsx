@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Search, Blocks, ExternalLink, DollarSign, Shield } from "lucide-react";
+import { SourceTrackingSection } from "@/components/source-tracking-section";
 
 interface BlockchainCompany {
   id: string;
@@ -49,6 +50,10 @@ interface BlockchainCompany {
   tvl_usd: number | null;
   audit_status: string | null;
   notes: string | null;
+  sources_used: string[] | null;
+  source_urls: string[] | null;
+  last_updated_by: string | null;
+  last_updated_on: string | null;
 }
 
 interface PortfolioCompany {
@@ -60,6 +65,12 @@ export default function BlockchainPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<BlockchainCompany | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [sourceTracking, setSourceTracking] = useState<{
+    sourcesUsed: string[];
+    sourceUrls: string[];
+  }>({ sourcesUsed: [], sourceUrls: [] });
   const [newRecord, setNewRecord] = useState({
     portfolio_company_id: "",
     blockchain_platform: "",
@@ -108,6 +119,46 @@ export default function BlockchainPage() {
       toast({ title: "Error creating record", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await apiRequest("PATCH", `/api/crm/blockchain/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/blockchain"] });
+      setIsDetailOpen(false);
+      setSelectedCompany(null);
+      toast({ title: "Record updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error updating record", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleOpenDetail = (company: BlockchainCompany) => {
+    setSelectedCompany(company);
+    setSourceTracking({
+      sourcesUsed: company.sources_used || [],
+      sourceUrls: company.source_urls || [],
+    });
+    setIsDetailOpen(true);
+  };
+
+  const handleSourceTrackingChange = (field: string, value: string[]) => {
+    setSourceTracking(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveSourceTracking = () => {
+    if (!selectedCompany) return;
+    updateMutation.mutate({
+      id: selectedCompany.id,
+      data: {
+        sources_used: sourceTracking.sourcesUsed,
+        source_urls: sourceTracking.sourceUrls,
+      },
+    });
+  };
 
   const filteredCompanies = companies?.filter(c => 
     c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -310,7 +361,7 @@ export default function BlockchainPage() {
                 </TableRow>
               ) : (
                 filteredCompanies.map((company) => (
-                  <TableRow key={company.id} className="cursor-pointer hover-elevate" data-testid={`row-blockchain-${company.id}`}>
+                  <TableRow key={company.id} className="cursor-pointer hover-elevate" data-testid={`row-blockchain-${company.id}`} onClick={() => handleOpenDetail(company)}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Blocks className="h-4 w-4 text-purple-600" />
@@ -361,6 +412,63 @@ export default function BlockchainPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedCompany?.company_name || "Blockchain Record"}</DialogTitle>
+            <DialogDescription>View and edit source tracking for this record</DialogDescription>
+          </DialogHeader>
+          
+          {selectedCompany && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">Platform</Label>
+                  <p className="font-medium">{selectedCompany.blockchain_platform || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Token</Label>
+                  <p className="font-medium">{selectedCompany.token_ticker || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{selectedCompany.defi_category || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">TVL</Label>
+                  <p className="font-medium">{selectedCompany.tvl_usd ? `$${selectedCompany.tvl_usd.toLocaleString()}` : "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Smart Contract Language</Label>
+                  <p className="font-medium">{selectedCompany.smart_contract_language || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Audit Status</Label>
+                  <p className="font-medium">{selectedCompany.audit_status || "-"}</p>
+                </div>
+              </div>
+
+              <SourceTrackingSection
+                data={sourceTracking}
+                onChange={handleSourceTrackingChange}
+                isEditing={true}
+              />
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={handleSaveSourceTracking}
+                  disabled={updateMutation.isPending}
+                  data-testid="button-save-source-tracking"
+                >
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

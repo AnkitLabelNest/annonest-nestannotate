@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SourceTrackingSection } from "@/components/source-tracking-section";
+import { EntityUrlsSection } from "@/components/entity-urls-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -935,6 +936,13 @@ function ContactView({ contact, onClose }: { contact: EntityContact; onClose: ()
             onChange={() => {}}
             isEditing={false}
           />
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">URLs</h3>
+          <EntityUrlsSection entityType="contact" entityId={contact.id} />
         </div>
 
         <div className="flex justify-end pt-4">

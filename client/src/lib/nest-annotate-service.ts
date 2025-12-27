@@ -708,7 +708,7 @@ export async function searchEntities(
     supabase.from("entities_lp").select("id, lp_name, firm_type").eq("org_id", orgId).ilike("lp_name", searchPattern).limit(5),
     supabase.from("entities_fund").select("id, fund_name, fund_type").eq("org_id", orgId).ilike("fund_name", searchPattern).limit(5),
     supabase.from("entities_portfolio_company").select("id, company_name, company_type").eq("org_id", orgId).ilike("company_name", searchPattern).limit(5),
-    supabase.from("entities_contact").select("id, first_name, last_name").eq("org_id", orgId).or(`first_name.ilike.${searchPattern},last_name.ilike.${searchPattern}`).limit(5),
+    supabase.from("entities_contact").select("id, first_name, last_name, company_name").eq("org_id", orgId).or(`first_name.ilike.${searchPattern},last_name.ilike.${searchPattern}`).limit(5),
     supabase.from("entities_service_provider").select("id, provider_name, provider_type").eq("org_id", orgId).ilike("provider_name", searchPattern).limit(5),
   ]);
 
@@ -742,11 +742,12 @@ export async function searchEntities(
     });
   }
 
-  // Process Contact results - always return normalized "contact" type
+  // Process Contact results - always return normalized "contact" type with company name
   if (contactsResult.data) {
-    contactsResult.data.forEach((c: { id: string; first_name: string | null; last_name: string | null }) => {
+    contactsResult.data.forEach((c: { id: string; first_name: string | null; last_name: string | null; company_name?: string | null }) => {
       const fullName = `${c.first_name || ""} ${c.last_name || ""}`.trim();
-      results.push({ id: c.id, name: fullName || "Unknown", type: "contact" });
+      const displayName = c.company_name ? `${fullName || "Unknown"} (${c.company_name})` : (fullName || "Unknown");
+      results.push({ id: c.id, name: displayName, type: "contact" });
     });
   }
 
@@ -896,8 +897,8 @@ export async function ensureNewsRecord(
     throw new Error("Access denied: task not found or does not belong to your organization");
   }
 
-  // Extract project from the joined result
-  const project = taskWithProject.label_projects as { id: string; org_id: string };
+  // Extract project from the joined result (cast to unknown first to satisfy TypeScript)
+  const project = taskWithProject.label_projects as unknown as { id: string; org_id: string };
 
   const metadata = (taskWithProject.metadata || {}) as NewsItemMetadata;
   
@@ -1138,13 +1139,14 @@ export async function fetchEntityDetails(
     if (entityType === "person" || entityType === "contact") {
       const { data, error } = await supabase
         .from("entities_contact")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, company_name")
         .eq("id", entityId)
         .eq("org_id", orgId)
         .single();
       if (error || !data) return null;
       const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-      return { id: data.id, name: fullName || "Unknown", type: "contact" };
+      const displayName = data.company_name ? `${fullName || "Unknown"} (${data.company_name})` : (fullName || "Unknown");
+      return { id: data.id, name: displayName, type: "contact" };
     }
 
     // Legacy support: Handle old firm/fund entity types from legacy tables
@@ -1175,7 +1177,7 @@ export async function fetchEntityDetails(
       supabase.from("entities_lp").select("id, lp_name, firm_type").eq("id", entityId).eq("org_id", orgId).single(),
       supabase.from("entities_fund").select("id, fund_name, fund_type").eq("id", entityId).eq("org_id", orgId).single(),
       supabase.from("entities_portfolio_company").select("id, company_name, company_type").eq("id", entityId).eq("org_id", orgId).single(),
-      supabase.from("entities_contact").select("id, first_name, last_name").eq("id", entityId).eq("org_id", orgId).single(),
+      supabase.from("entities_contact").select("id, first_name, last_name, company_name").eq("id", entityId).eq("org_id", orgId).single(),
       supabase.from("entities_service_provider").select("id, provider_name, provider_type").eq("id", entityId).eq("org_id", orgId).single(),
     ]);
 
@@ -1185,7 +1187,8 @@ export async function fetchEntityDetails(
     if (companyResult.data) return { id: companyResult.data.id, name: companyResult.data.company_name || "Unknown", type: "portfolio_company" };
     if (contactResult.data) {
       const fullName = `${contactResult.data.first_name || ""} ${contactResult.data.last_name || ""}`.trim();
-      return { id: contactResult.data.id, name: fullName || "Unknown", type: "contact" };
+      const displayName = contactResult.data.company_name ? `${fullName || "Unknown"} (${contactResult.data.company_name})` : (fullName || "Unknown");
+      return { id: contactResult.data.id, name: displayName, type: "contact" };
     }
     if (serviceProviderResult.data) return { id: serviceProviderResult.data.id, name: serviceProviderResult.data.provider_name || "Unknown", type: "service_provider" };
 
