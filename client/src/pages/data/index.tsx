@@ -52,7 +52,7 @@ interface EntityCounts {
 interface Project {
   id: string;
   name: string;
-  projectType: string;
+  type: string; // Supabase uses 'type' not 'projectType'
   status: string;
   totalItems: number;
   pendingItems: number;
@@ -69,14 +69,6 @@ const datasetCards = [
   { id: "contact", title: "Contacts", icon: Users, path: "/data/contacts", color: "bg-pink-500" },
 ];
 
-const quickAddItems = [
-  { id: "lp", label: "Add LP", entityType: "lp" },
-  { id: "gp", label: "Add GP", entityType: "gp" },
-  { id: "fund", label: "Add Fund", entityType: "fund" },
-  { id: "portfolio_company", label: "Add Portfolio Company", entityType: "portfolio_company" },
-  { id: "deal", label: "Add Deal", entityType: "deal" },
-  { id: "contact", label: "Add Contact", entityType: "contact" },
-];
 
 export default function DataNestPage() {
   const { user } = useAuth();
@@ -101,7 +93,7 @@ export default function DataNestPage() {
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: async (data: { name: string; projectType: string }) => {
+    mutationFn: async (data: { name: string; type: string }) => {
       const res = await apiRequest("POST", "/api/datanest/projects", data);
       return res.json();
     },
@@ -124,16 +116,10 @@ export default function DataNestPage() {
     }
   };
 
-  const handleOpenDatasetInNewTab = (path: string) => {
-    const newWindow = window.open(path, "_blank");
-    if (!newWindow) {
-      window.location.href = path;
-    }
-  };
 
   const handleCreateProject = () => {
     if (!newProjectName.trim()) return;
-    createProjectMutation.mutate({ name: newProjectName, projectType: newProjectType });
+    createProjectMutation.mutate({ name: newProjectName, type: newProjectType });
   };
 
   const getStatusBadge = (status: string) => {
@@ -215,43 +201,44 @@ export default function DataNestPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {datasetCards.map((card) => (
-          <Card 
-            key={card.id}
-            className="cursor-pointer hover:border-primary/30 transition-all"
-            onClick={() => handleOpenDatasetInNewTab(card.path)}
-            data-testid={`card-dataset-${card.id}`}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.color} text-white`}>
-                  <card.icon className="h-5 w-5" />
+          <Link key={card.id} href={card.path}>
+            <Card 
+              className="cursor-pointer hover:border-primary/30 transition-all h-full"
+              data-testid={`card-dataset-${card.id}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.color} text-white`}>
+                    <card.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{card.title}</p>
+                    {countsLoading ? (
+                      <Skeleton className="h-6 w-12" />
+                    ) : (
+                      <p className="text-xl font-bold">
+                        {entityCounts?.[card.id as keyof EntityCounts]?.toLocaleString() || 0}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{card.title}</p>
-                  {countsLoading ? (
-                    <Skeleton className="h-6 w-12" />
-                  ) : (
-                    <p className="text-xl font-bold">
-                      {entityCounts?.[card.id as keyof EntityCounts]?.toLocaleString() || 0}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="w-full mt-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenEntityInNewTab(card.id, "create");
-                }}
-                data-testid={`button-add-${card.id}`}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add
-              </Button>
-            </CardContent>
-          </Card>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="w-full mt-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleOpenEntityInNewTab(card.id, "create");
+                  }}
+                  data-testid={`button-add-${card.id}`}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
@@ -292,7 +279,7 @@ export default function DataNestPage() {
                   <TableRow key={project.id} data-testid={`row-project-${project.id}`}>
                     <TableCell className="font-medium">{project.name}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{project.projectType}</Badge>
+                      <Badge variant="secondary">{project.type || "research"}</Badge>
                     </TableCell>
                     <TableCell className="text-center">{project.totalItems}</TableCell>
                     <TableCell className="text-center">{project.pendingItems}</TableCell>
@@ -329,27 +316,6 @@ export default function DataNestPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Quick Add</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {quickAddItems.map((item) => (
-              <Button
-                key={item.id}
-                variant="outline"
-                size="sm"
-                onClick={() => handleOpenEntityInNewTab(item.entityType, "create")}
-                data-testid={`button-quick-add-${item.id}`}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

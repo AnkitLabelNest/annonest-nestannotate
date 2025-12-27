@@ -4280,48 +4280,61 @@ export async function registerRoutes(
     const userRole = req.query.role as string || "annotator";
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProject, entitiesProjectItems, entitiesProjectMembers } = await import("@shared/schema");
-      const { eq, and, inArray, sql } = await import("drizzle-orm");
+      const { pool } = await import("./db");
       
       let projects;
       
       // Manager/Admin/Super Admin see all projects
+      // Use raw pg pool.query to avoid Drizzle schema mapping issues
       if (["super_admin", "admin", "manager"].includes(userRole)) {
-        projects = await db.select().from(entitiesProject).where(eq(entitiesProject.orgId, orgId));
+        const result = await pool.query(
+          `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+           FROM projects WHERE org_id = $1`,
+          [orgId]
+        );
+        projects = result.rows;
       } else {
         // Researcher/Annotator see only projects they are members of
         if (!userId) {
           return res.json([]);
         }
-        const memberProjects = await db
-          .select({ projectId: entitiesProjectMembers.projectId })
-          .from(entitiesProjectMembers)
-          .where(and(eq(entitiesProjectMembers.userId, userId), eq(entitiesProjectMembers.orgId, orgId)));
+        // Get project memberships using raw SQL
+        const memberResult = await pool.query(
+          `SELECT project_id as "projectId" FROM entities_project_members WHERE user_id = $1 AND org_id = $2`,
+          [userId, orgId]
+        );
+        const memberProjects = memberResult.rows as { projectId: string }[];
         
         if (memberProjects.length === 0) {
           return res.json([]);
         }
         
         const projectIds = memberProjects.map(m => m.projectId);
-        projects = await db
-          .select()
-          .from(entitiesProject)
-          .where(and(eq(entitiesProject.orgId, orgId), inArray(entitiesProject.id, projectIds)));
+        const result = await pool.query(
+          `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+           FROM projects WHERE org_id = $1 AND id = ANY($2)`,
+          [orgId, projectIds]
+        );
+        projects = result.rows;
       }
       
       // Get task counts for each project
-      const projectIds = projects.map(p => p.id);
+      const projectIds = projects.map((p: any) => p.id);
       if (projectIds.length === 0) {
         return res.json([]);
       }
       
-      const items = await db
-        .select()
-        .from(entitiesProjectItems)
-        .where(inArray(entitiesProjectItems.projectId, projectIds));
+      // Get items using raw SQL since tables were just created
+      const itemsResult = await pool.query(
+        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
+                task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
+         FROM entities_project_items WHERE project_id = ANY($1)`,
+        [projectIds]
+      );
+      const items = itemsResult.rows as any[];
       
-      const projectsWithStats = projects.map(project => {
+      const projectsWithStats = (projects as any[]).map(project => {
         const projectItems = items.filter(i => i.projectId === project.id);
         const totalItems = projectItems.length;
         const pendingItems = projectItems.filter(i => i.taskStatus === "pending").length;
@@ -4349,34 +4362,38 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProject, entitiesProjectItems, entitiesProjectMembers, users } = await import("@shared/schema");
-      const { eq, and } = await import("drizzle-orm");
+      const { pool } = await import("./db");
       
-      const project = await db
-        .select()
-        .from(entitiesProject)
-        .where(and(eq(entitiesProject.id, projectId), eq(entitiesProject.orgId, orgId)));
+      // Fetch project using raw SQL
+      const projectResult = await pool.query(
+        `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+         FROM projects WHERE id = $1 AND org_id = $2`,
+        [projectId, orgId]
+      );
       
-      if (project.length === 0) {
+      if (projectResult.rows.length === 0) {
         return res.status(404).json({ message: "Project not found" });
       }
+      const project = projectResult.rows;
       
-      const items = await db
-        .select()
-        .from(entitiesProjectItems)
-        .where(eq(entitiesProjectItems.projectId, projectId));
+      // Fetch items using raw SQL
+      const itemsResult = await pool.query(
+        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
+                task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
+         FROM entities_project_items WHERE project_id = $1`,
+        [projectId]
+      );
+      const items = itemsResult.rows;
       
-      const members = await db
-        .select({
-          id: entitiesProjectMembers.id,
-          userId: entitiesProjectMembers.userId,
-          role: entitiesProjectMembers.role,
-          userName: users.displayName,
-        })
-        .from(entitiesProjectMembers)
-        .leftJoin(users, eq(entitiesProjectMembers.userId, users.id))
-        .where(eq(entitiesProjectMembers.projectId, projectId));
+      // Fetch members using raw SQL with user names
+      const membersResult = await pool.query(
+        `SELECT m.id, m.user_id as "userId", m.role, u.display_name as "userName"
+         FROM entities_project_members m LEFT JOIN users u ON m.user_id = u.id
+         WHERE m.project_id = $1`,
+        [projectId]
+      );
+      const members = membersResult.rows;
       
       return res.json({
         ...project[0],
@@ -4418,17 +4435,28 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProject, insertEntitiesProjectSchema } = await import("@shared/schema");
+      const { pool } = await import("./db");
+      const { z } = await import("zod");
       
-      const parsed = insertEntitiesProjectSchema.parse({
-        ...req.body,
-        orgId,
-        createdBy: userId,
+      // Validate input
+      const createSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        type: z.string(),
+        status: z.string().optional().default("active"),
       });
       
-      const result = await db.insert(entitiesProject).values(parsed as any).returning();
-      return res.status(201).json(result[0]);
+      const parsed = createSchema.parse(req.body);
+      
+      // Use raw pool.query to insert
+      const result = await pool.query(
+        `INSERT INTO projects (name, description, type, status, created_by, org_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+        [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
+      );
+      
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error("Error creating project:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -4445,30 +4473,38 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProject } = await import("@shared/schema");
-      const { eq, and } = await import("drizzle-orm");
+      const { pool } = await import("./db");
       
-      // Whitelist only mutable fields - never allow orgId, id, createdBy, createdAt
-      const allowedFields = ["name", "description", "projectType", "status"];
-      const updateData: Record<string, any> = { updatedAt: new Date() };
-      for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-          updateData[field] = req.body[field];
-        }
+      // Whitelist only mutable fields - never allow orgId, id, createdBy
+      const { name, description, type, status } = req.body;
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
+      if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
+      if (type !== undefined) { updates.push(`type = $${paramIndex++}`); values.push(type); }
+      if (status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(status); }
+      
+      if (updates.length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
       }
       
-      const result = await db
-        .update(entitiesProject)
-        .set(updateData)
-        .where(and(eq(entitiesProject.id, projectId), eq(entitiesProject.orgId, orgId)))
-        .returning();
+      // Add WHERE clause params
+      values.push(projectId, orgId);
       
-      if (result.length === 0) {
+      const result = await pool.query(
+        `UPDATE projects SET ${updates.join(", ")}
+         WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+        values
+      );
+      
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      return res.json(result[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error("Error updating project:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -4484,29 +4520,20 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProjectItems, users } = await import("@shared/schema");
-      const { eq, and } = await import("drizzle-orm");
+      const { pool } = await import("./db");
       
-      let query = db
-        .select({
-          id: entitiesProjectItems.id,
-          projectId: entitiesProjectItems.projectId,
-          entityType: entitiesProjectItems.entityType,
-          entityId: entitiesProjectItems.entityId,
-          entityNameSnapshot: entitiesProjectItems.entityNameSnapshot,
-          assignedTo: entitiesProjectItems.assignedTo,
-          taskStatus: entitiesProjectItems.taskStatus,
-          notes: entitiesProjectItems.notes,
-          createdAt: entitiesProjectItems.createdAt,
-          updatedAt: entitiesProjectItems.updatedAt,
-          assignedToName: users.displayName,
-        })
-        .from(entitiesProjectItems)
-        .leftJoin(users, eq(entitiesProjectItems.assignedTo, users.id))
-        .where(eq(entitiesProjectItems.projectId, projectId));
-      
-      const items = await query;
+      // Use raw pool.query to get items with user display names
+      const result = await pool.query(
+        `SELECT i.id, i.project_id as "projectId", i.entity_type as "entityType", 
+                i.entity_id as "entityId", i.entity_name_snapshot as "entityNameSnapshot",
+                i.assigned_to as "assignedTo", i.task_status as "taskStatus", 
+                i.notes, i.created_at as "createdAt", i.updated_at as "updatedAt",
+                u.display_name as "assignedToName"
+         FROM entities_project_items i LEFT JOIN users u ON i.assigned_to = u.id
+         WHERE i.project_id = $1`,
+        [projectId]
+      );
+      const items = result.rows as any[];
       
       // Filter by assigned user for non-admin roles
       if (!["super_admin", "admin", "manager"].includes(userRole) && userId) {
@@ -4530,17 +4557,33 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProjectItems, insertEntitiesProjectItemSchema } = await import("@shared/schema");
+      const { pool } = await import("./db");
+      const { z } = await import("zod");
       
-      const parsed = insertEntitiesProjectItemSchema.parse({
-        ...req.body,
-        projectId,
-        orgId,
+      // Validate input
+      const itemSchema = z.object({
+        entityType: z.string(),
+        entityId: z.string(),
+        entityNameSnapshot: z.string().optional(),
+        assignedTo: z.string().optional(),
+        taskStatus: z.string().optional().default("pending"),
+        notes: z.string().optional(),
       });
       
-      const result = await db.insert(entitiesProjectItems).values(parsed as any).returning();
-      return res.status(201).json(result[0]);
+      const parsed = itemSchema.parse(req.body);
+      
+      // Use raw pool.query to insert
+      const result = await pool.query(
+        `INSERT INTO entities_project_items (project_id, entity_type, entity_id, entity_name_snapshot, assigned_to, task_status, notes, org_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                   entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo", 
+                   task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"`,
+        [projectId, parsed.entityType, parsed.entityId, parsed.entityNameSnapshot || null, 
+         parsed.assignedTo || null, parsed.taskStatus, parsed.notes || null, orgId]
+      );
+      
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error("Error adding project item:", error);
       return res.status(500).json({ message: "Internal server error" });

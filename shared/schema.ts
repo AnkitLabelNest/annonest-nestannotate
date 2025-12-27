@@ -766,7 +766,7 @@ export const insertEntityEditLockSchema = createInsertSchema(entityEditLocks).om
 export type InsertEntityEditLock = z.infer<typeof insertEntityEditLockSchema>;
 export type EntityEditLock = typeof entityEditLocks.$inferSelect;
 
-// DataNest Project Tables
+// DataNest Project Tables - uses existing Supabase 'projects' table
 export const dataProjectStatuses = ["active", "paused", "completed", "archived"] as const;
 export type DataProjectStatus = typeof dataProjectStatuses[number];
 
@@ -776,30 +776,25 @@ export type DataProjectType = typeof dataProjectTypes[number];
 export const projectTaskStatuses = ["pending", "in_progress", "completed", "blocked"] as const;
 export type ProjectTaskStatus = typeof projectTaskStatuses[number];
 
-export const entitiesProject = pgTable("entities_project", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  projectType: text("project_type").$type<DataProjectType>().default("research"),
-  description: text("description"),
-  status: text("status").$type<DataProjectStatus>().default("active"),
-  orgId: varchar("org_id").references(() => organizations.id).notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("entities_project_org_id_idx").on(table.orgId),
-]);
+// Alias to the existing projects table defined earlier in schema
+export const entitiesProject = projects;
 
+// Re-export types with DataNest naming for clarity
+export const insertEntitiesProjectSchema = createInsertSchema(projects).omit({ id: true });
+export type InsertEntitiesProject = z.infer<typeof insertEntitiesProjectSchema>;
+export type EntitiesProject = typeof projects.$inferSelect;
+
+// Project items table - links entities to projects for task management
 export const entitiesProjectItems = pgTable("entities_project_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").references(() => entitiesProject.id).notNull(),
+  projectId: varchar("project_id").notNull(),
   entityType: text("entity_type").$type<EntityType>().notNull(),
   entityId: varchar("entity_id").notNull(),
   entityNameSnapshot: text("entity_name_snapshot"),
-  assignedTo: varchar("assigned_to").references(() => users.id),
+  assignedTo: varchar("assigned_to"),
   taskStatus: text("task_status").$type<ProjectTaskStatus>().default("pending"),
   notes: text("notes"),
-  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  orgId: varchar("org_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -808,24 +803,22 @@ export const entitiesProjectItems = pgTable("entities_project_items", {
   index("entities_project_items_org_id_idx").on(table.orgId),
 ]);
 
+// Project members table - tracks who has access to a project
 export const entitiesProjectMembers = pgTable("entities_project_members", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").references(() => entitiesProject.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  projectId: varchar("project_id").notNull(),
+  userId: varchar("user_id").notNull(),
   role: text("role").default("member"),
-  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  orgId: varchar("org_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("entities_project_members_project_id_idx").on(table.projectId),
   index("entities_project_members_user_id_idx").on(table.userId),
 ]);
 
-export const insertEntitiesProjectSchema = createInsertSchema(entitiesProject).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertEntitiesProjectItemSchema = createInsertSchema(entitiesProjectItems).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertEntitiesProjectMemberSchema = createInsertSchema(entitiesProjectMembers).omit({ id: true, createdAt: true });
 
-export type InsertEntitiesProject = z.infer<typeof insertEntitiesProjectSchema>;
-export type EntitiesProject = typeof entitiesProject.$inferSelect;
 export type InsertEntitiesProjectItem = z.infer<typeof insertEntitiesProjectItemSchema>;
 export type EntitiesProjectItem = typeof entitiesProjectItems.$inferSelect;
 export type InsertEntitiesProjectMember = z.infer<typeof insertEntitiesProjectMemberSchema>;
