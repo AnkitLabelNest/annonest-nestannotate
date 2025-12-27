@@ -222,8 +222,8 @@ export default function FundsPage() {
             <DataTable
               data={filteredFunds}
               columns={columns}
-              onView={(fund) => setViewItem(fund)}
-              onEdit={(fund) => setEditItem(fund)}
+              entityType="fund"
+              openInNewTab={true}
               emptyMessage="No funds found"
             />
           )}

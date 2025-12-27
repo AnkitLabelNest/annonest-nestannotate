@@ -255,8 +255,8 @@ export default function ContactsPage() {
             <DataTable
               data={filteredContacts}
               columns={columns}
-              onView={(contact) => setViewItem(contact)}
-              onEdit={(contact) => setEditItem(contact)}
+              entityType="contact"
+              openInNewTab={true}
               emptyMessage="No contacts found"
             />
           )}

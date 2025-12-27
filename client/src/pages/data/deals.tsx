@@ -257,8 +257,8 @@ export default function DealsPage() {
             <DataTable
               data={filteredDeals}
               columns={columns}
-              onView={(deal) => setViewItem(deal)}
-              onEdit={(deal) => setEditItem(deal)}
+              entityType="deal"
+              openInNewTab={true}
               emptyMessage="No deals found"
             />
           )}

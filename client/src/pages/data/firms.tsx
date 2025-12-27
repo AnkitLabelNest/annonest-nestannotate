@@ -383,8 +383,8 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(gp) => openFirmDialog(gp, "view")}
-        onEdit={(gp) => openFirmDialog(gp, "edit")}
+        entityType="gp"
+        openInNewTab={true}
         emptyMessage="No GP firms found"
       />
 
@@ -1593,8 +1593,8 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(lp) => openFirmDialog(lp, "view")}
-        onEdit={(lp) => openFirmDialog(lp, "edit")}
+        entityType="lp"
+        openInNewTab={true}
         emptyMessage="No LP firms found"
       />
 
@@ -2304,8 +2304,8 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(sp) => openFirmDialog(sp, "view")}
-        onEdit={(sp) => openFirmDialog(sp, "edit")}
+        entityType="service_provider"
+        openInNewTab={true}
         emptyMessage="No service providers found"
       />
 
@@ -2986,8 +2986,8 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
       <DataTable
         data={filteredData}
         columns={columns}
-        onView={(pc) => openFirmDialog(pc, "view")}
-        onEdit={(pc) => openFirmDialog(pc, "edit")}
+        entityType="portfolio_company"
+        openInNewTab={true}
         emptyMessage="No portfolio companies found"
       />
 

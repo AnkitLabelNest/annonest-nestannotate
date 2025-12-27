@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import { createServer, type Server } from "http";
 import bcrypt from "bcrypt";
 import { createClient } from "@supabase/supabase-js";
@@ -4208,6 +4208,62 @@ export async function registerRoutes(
       return res.json({ renewed: true, lock: result[0] });
     } catch (error) {
       console.error("Error renewing lock:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Beacon endpoint for releasing locks on tab close (sendBeacon API)
+  // Handle both text/plain (sendBeacon default) and application/json (Blob with type)
+  app.post("/api/locks/release-beacon", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    let entityType: string, entityId: string;
+    try {
+      let parsed;
+      if (typeof req.body === "string") {
+        parsed = JSON.parse(req.body);
+      } else if (typeof req.body === "object" && req.body !== null) {
+        parsed = req.body;
+      } else {
+        return res.status(400).json({ message: "Invalid payload format" });
+      }
+      entityType = parsed.entityType;
+      entityId = parsed.entityId;
+    } catch {
+      return res.status(400).json({ message: "Invalid JSON payload" });
+    }
+    
+    if (!entityType || !entityId) {
+      return res.status(400).json({ message: "entityType and entityId required" });
+    }
+    
+    try {
+      const { db } = await import("./db");
+      const { entityEditLocks, entityTypes } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      if (!entityTypes.includes(entityType as any)) {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      const typedEntityType = entityType as typeof entityTypes[number];
+      
+      await db
+        .delete(entityEditLocks)
+        .where(and(
+          eq(entityEditLocks.entityType, typedEntityType),
+          eq(entityEditLocks.entityId, entityId),
+          eq(entityEditLocks.lockedBy, userId),
+          eq(entityEditLocks.orgId, orgId)
+        ));
+      
+      return res.json({ released: true });
+    } catch (error) {
+      console.error("Error releasing lock via beacon:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

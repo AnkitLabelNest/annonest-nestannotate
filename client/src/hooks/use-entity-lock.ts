@@ -156,7 +156,9 @@ export function useEntityLock({
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (isOwnLockRef.current && entityId) {
-        navigator.sendBeacon(`/api/locks/${entityType}/${entityId}/release`);
+        const payload = JSON.stringify({ entityType, entityId });
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon(`/api/locks/release-beacon`, blob);
       }
     };
     
@@ -187,5 +189,8 @@ export function openEntityProfile(
   mode: "view" | "edit" = "view"
 ) {
   const url = `/entity/${entityType}/${entityId}?mode=${mode}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newWindow) {
+    window.location.href = url;
+  }
 }

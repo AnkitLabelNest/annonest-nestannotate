@@ -34,7 +34,10 @@ interface DataTableProps<T> {
 
 function openEntityInNewTab(entityType: EntityType, entityId: string, mode: "view" | "edit") {
   const url = `/entity/${entityType}/${entityId}?mode=${mode}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newWindow) {
+    window.location.href = url;
+  }
 }
 
 export function DataTable<T extends { id: string }>({
