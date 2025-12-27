@@ -3999,8 +3999,14 @@ export async function registerRoutes(
     
     try {
       const { db } = await import("./db");
-      const { entityEditLocks } = await import("@shared/schema");
+      const { entityEditLocks, entityTypes } = await import("@shared/schema");
       const { eq, and, gt } = await import("drizzle-orm");
+      
+      // Validate entityType
+      if (!entityTypes.includes(entityType as any)) {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      const typedEntityType = entityType as typeof entityTypes[number];
       
       const cutoffTime = new Date(Date.now() - LOCK_TIMEOUT_MINUTES * 60 * 1000);
       
@@ -4008,7 +4014,7 @@ export async function registerRoutes(
         .select()
         .from(entityEditLocks)
         .where(and(
-          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityType, typedEntityType),
           eq(entityEditLocks.entityId, entityId),
           eq(entityEditLocks.orgId, orgId),
           gt(entityEditLocks.lockedAt, cutoffTime)
@@ -4041,8 +4047,14 @@ export async function registerRoutes(
     
     try {
       const { db } = await import("./db");
-      const { entityEditLocks, users } = await import("@shared/schema");
+      const { entityEditLocks, users, entityTypes } = await import("@shared/schema");
       const { eq, and, gt, lt } = await import("drizzle-orm");
+      
+      // Validate entityType
+      if (!entityTypes.includes(entityType as any)) {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      const typedEntityType = entityType as typeof entityTypes[number];
       
       const cutoffTime = new Date(Date.now() - LOCK_TIMEOUT_MINUTES * 60 * 1000);
       
@@ -4050,7 +4062,7 @@ export async function registerRoutes(
       await db
         .delete(entityEditLocks)
         .where(and(
-          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityType, typedEntityType),
           eq(entityEditLocks.entityId, entityId),
           lt(entityEditLocks.lockedAt, cutoffTime)
         ));
@@ -4060,7 +4072,7 @@ export async function registerRoutes(
         .select()
         .from(entityEditLocks)
         .where(and(
-          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityType, typedEntityType),
           eq(entityEditLocks.entityId, entityId),
           eq(entityEditLocks.orgId, orgId),
           gt(entityEditLocks.lockedAt, cutoffTime)
@@ -4130,14 +4142,20 @@ export async function registerRoutes(
     
     try {
       const { db } = await import("./db");
-      const { entityEditLocks } = await import("@shared/schema");
+      const { entityEditLocks, entityTypes } = await import("@shared/schema");
       const { eq, and } = await import("drizzle-orm");
+      
+      // Validate entityType
+      if (!entityTypes.includes(entityType as any)) {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      const typedEntityType = entityType as typeof entityTypes[number];
       
       // Only allow releasing own locks
       await db
         .delete(entityEditLocks)
         .where(and(
-          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityType, typedEntityType),
           eq(entityEditLocks.entityId, entityId),
           eq(entityEditLocks.lockedBy, userId),
           eq(entityEditLocks.orgId, orgId)
@@ -4163,14 +4181,20 @@ export async function registerRoutes(
     
     try {
       const { db } = await import("./db");
-      const { entityEditLocks } = await import("@shared/schema");
+      const { entityEditLocks, entityTypes } = await import("@shared/schema");
       const { eq, and } = await import("drizzle-orm");
+      
+      // Validate entityType
+      if (!entityTypes.includes(entityType as any)) {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      const typedEntityType = entityType as typeof entityTypes[number];
       
       const result = await db
         .update(entityEditLocks)
         .set({ lockedAt: new Date() })
         .where(and(
-          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityType, typedEntityType),
           eq(entityEditLocks.entityId, entityId),
           eq(entityEditLocks.lockedBy, userId),
           eq(entityEditLocks.orgId, orgId)

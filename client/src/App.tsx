@@ -43,6 +43,7 @@ import NestAnnotatePage from "@/pages/nest-annotate";
 import NewsIntelligencePage from "@/pages/news-intelligence";
 import NewsItemDetailPage from "@/pages/news-item-detail";
 import ProjectViewPage from "@/pages/project-view";
+import EntityProfilePage from "@/pages/entity-profile";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -140,6 +141,7 @@ function AppRoutes() {
         <Route path="/admin/organizations" component={AdminOrganizationsPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/settings/locations" component={LocationManagementPage} />
+        <Route path="/entity/:entityType/:entityId" component={EntityProfilePage} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>

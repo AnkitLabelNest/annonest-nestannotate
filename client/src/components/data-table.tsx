@@ -7,8 +7,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Eye, Edit, Trash2 } from "lucide-react";
+import { ArrowUpDown, Eye, Edit, Trash2, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { EntityType } from "@shared/schema";
 
 interface Column<T> {
   key: keyof T | string;
@@ -27,6 +28,13 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   showAudit?: boolean;
   getAuditInfo?: (item: T) => { viewedBy?: string[]; lastEditedBy?: string };
+  entityType?: EntityType;
+  openInNewTab?: boolean;
+}
+
+function openEntityInNewTab(entityType: EntityType, entityId: string, mode: "view" | "edit") {
+  const url = `/entity/${entityType}/${entityId}?mode=${mode}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export function DataTable<T extends { id: string }>({
@@ -39,7 +47,25 @@ export function DataTable<T extends { id: string }>({
   emptyMessage = "No data available",
   showAudit,
   getAuditInfo,
+  entityType,
+  openInNewTab = false,
 }: DataTableProps<T>) {
+  
+  const handleView = (item: T) => {
+    if (openInNewTab && entityType) {
+      openEntityInNewTab(entityType, item.id, "view");
+    } else if (onView) {
+      onView(item);
+    }
+  };
+
+  const handleEdit = (item: T) => {
+    if (openInNewTab && entityType) {
+      openEntityInNewTab(entityType, item.id, "edit");
+    } else if (onEdit) {
+      onEdit(item);
+    }
+  };
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border">
@@ -100,7 +126,7 @@ export function DataTable<T extends { id: string }>({
                 </div>
               </TableHead>
             ))}
-            {(onView || onEdit || onDelete) && (
+            {(onView || onEdit || onDelete || (openInNewTab && entityType)) && (
               <TableHead className="text-right">Actions</TableHead>
             )}
           </TableRow>
@@ -121,25 +147,27 @@ export function DataTable<T extends { id: string }>({
                       : String((item as Record<string, unknown>)[col.key as string] ?? "")}
                   </TableCell>
                 ))}
-                {(onView || onEdit || onDelete) && (
+                {(onView || onEdit || onDelete || (openInNewTab && entityType)) && (
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
-                      {onView && (
+                      {(onView || (openInNewTab && entityType)) && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => onView(item)}
+                          onClick={() => handleView(item)}
                           data-testid={`button-view-${item.id}`}
+                          title={openInNewTab ? "Open in new tab" : "View"}
                         >
-                          <Eye className="h-4 w-4" />
+                          {openInNewTab ? <ExternalLink className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       )}
-                      {onEdit && (
+                      {(onEdit || (openInNewTab && entityType)) && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => onEdit(item)}
+                          onClick={() => handleEdit(item)}
                           data-testid={`button-edit-${item.id}`}
+                          title={openInNewTab ? "Edit in new tab" : "Edit"}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
