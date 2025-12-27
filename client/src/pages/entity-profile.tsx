@@ -993,11 +993,11 @@ function ContactView({ entity, isEditing, onFieldChange, errors }: { entity: any
 const entityApiEndpoints: Record<EntityType, string> = {
   gp: "/api/entities/gp",
   lp: "/api/entities/lp",
-  fund: "/api/entities/fund",
-  service_provider: "/api/entities/service-provider",
-  portfolio_company: "/api/entities/portfolio-company",
-  deal: "/api/entities/deal",
-  contact: "/api/entities/contact",
+  fund: "/api/entities/funds",
+  service_provider: "/api/entities/service-providers",
+  portfolio_company: "/api/entities/portfolio-companies",
+  deal: "/api/entities/deals",
+  contact: "/api/entities/contacts",
 };
 
 const mandatoryFields: Record<EntityType, string[]> = {
@@ -1104,7 +1104,7 @@ export default function EntityProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("PATCH", `${apiEndpoint}/${entityId}`, data);
+      const res = await apiRequest("PUT", `${apiEndpoint}/${entityId}`, data);
       return res.json();
     },
     onSuccess: async () => {
