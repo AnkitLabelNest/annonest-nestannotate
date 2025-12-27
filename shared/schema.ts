@@ -745,6 +745,27 @@ export interface PatternMatch {
   examples: string[];
 }
 
+// Entity edit locks for concurrent editing prevention
+export const entityTypes = ["gp", "lp", "fund", "service_provider", "portfolio_company", "deal", "contact"] as const;
+export type EntityType = typeof entityTypes[number];
+
+export const entityEditLocks = pgTable("entity_edit_locks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull().$type<EntityType>(),
+  entityId: varchar("entity_id").notNull(),
+  lockedBy: varchar("locked_by").notNull(),
+  lockedByName: text("locked_by_name"),
+  lockedAt: timestamp("locked_at").defaultNow(),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+}, (table) => [
+  index("entity_edit_locks_entity_idx").on(table.entityType, table.entityId),
+  index("entity_edit_locks_org_idx").on(table.orgId),
+]);
+
+export const insertEntityEditLockSchema = createInsertSchema(entityEditLocks).omit({ id: true, lockedAt: true });
+export type InsertEntityEditLock = z.infer<typeof insertEntityEditLockSchema>;
+export type EntityEditLock = typeof entityEditLocks.$inferSelect;
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
