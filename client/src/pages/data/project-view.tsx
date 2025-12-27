@@ -40,6 +40,8 @@ import {
   Clock,
   AlertCircle,
   Ban,
+  Plus,
+  Search,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -101,6 +103,11 @@ export default function DataNestProjectView() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState("");
   const [csvUploadOpen, setCsvUploadOpen] = useState(false);
+  const [addEntityOpen, setAddEntityOpen] = useState(false);
+  const [selectedEntityType, setSelectedEntityType] = useState("gp");
+  const [entitySearch, setEntitySearch] = useState("");
+  const [selectedEntity, setSelectedEntity] = useState<{ id: string; name: string } | null>(null);
+  const [selectedEntityAssignee, setSelectedEntityAssignee] = useState("");
 
   const userRole = user?.role || "annotator";
   const isManager = ["super_admin", "admin", "manager"].includes(userRole);
@@ -127,6 +134,47 @@ export default function DataNestProjectView() {
     queryKey: ["/api/users"],
     enabled: isManager,
   });
+
+  const { data: availableEntities, isLoading: entitiesLoading } = useQuery<Array<{ id: string; name: string; entityType: string }>>({
+    queryKey: ["/api/datanest/entities", selectedEntityType, entitySearch],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/datanest/entities/${selectedEntityType}?search=${encodeURIComponent(entitySearch)}&limit=50`);
+      return res.json();
+    },
+    enabled: addEntityOpen && isManager,
+  });
+
+  const addEntityMutation = useMutation({
+    mutationFn: async (data: { entityType: string; entityId: string; entityNameSnapshot: string; assignedTo: string }) => {
+      const res = await apiRequest("POST", `/api/datanest/projects/${projectId}/items`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchItems();
+      setAddEntityOpen(false);
+      setSelectedEntity(null);
+      setSelectedEntityAssignee("");
+      setEntitySearch("");
+      toast({ title: "Entity added successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to add entity", 
+        description: error.message || "Could not add entity to project",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleAddEntity = () => {
+    if (!selectedEntity || !selectedEntityAssignee) return;
+    addEntityMutation.mutate({
+      entityType: selectedEntityType,
+      entityId: selectedEntity.id,
+      entityNameSnapshot: selectedEntity.name,
+      assignedTo: selectedEntityAssignee,
+    });
+  };
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ itemId, data }: { itemId: string; data: any }) => {
@@ -381,6 +429,124 @@ export default function DataNestProjectView() {
                       <span>Uploading...</span>
                     </div>
                   )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          {isManager && (
+            <Dialog open={addEntityOpen} onOpenChange={(open) => {
+              setAddEntityOpen(open);
+              if (!open) {
+                setSelectedEntity(null);
+                setEntitySearch("");
+                setSelectedEntityAssignee("");
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-entity">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Entity
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add Entity to Project</DialogTitle>
+                  <DialogDescription>
+                    Select an entity type, search for the entity, and assign it to a team member.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Entity Type</Label>
+                    <Select value={selectedEntityType} onValueChange={(val) => {
+                      setSelectedEntityType(val);
+                      setSelectedEntity(null);
+                      setEntitySearch("");
+                    }}>
+                      <SelectTrigger data-testid="select-entity-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gp">GP (General Partner)</SelectItem>
+                        <SelectItem value="lp">LP (Limited Partner)</SelectItem>
+                        <SelectItem value="fund">Fund</SelectItem>
+                        <SelectItem value="portfolio_company">Portfolio Company</SelectItem>
+                        <SelectItem value="service_provider">Service Provider</SelectItem>
+                        <SelectItem value="contact">Contact</SelectItem>
+                        <SelectItem value="deal">Deal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Search Entity</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        value={entitySearch}
+                        onChange={(e) => setEntitySearch(e.target.value)}
+                        placeholder="Type to search..."
+                        className="pl-9"
+                        data-testid="input-entity-search"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Entity</Label>
+                    <div className="border rounded-md max-h-48 overflow-y-auto">
+                      {entitiesLoading ? (
+                        <div className="p-4 flex items-center justify-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <span className="text-sm text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : availableEntities && availableEntities.length > 0 ? (
+                        <div className="divide-y">
+                          {availableEntities.map((entity) => (
+                            <div 
+                              key={entity.id}
+                              className={`p-3 cursor-pointer hover-elevate ${selectedEntity?.id === entity.id ? 'bg-accent' : ''}`}
+                              onClick={() => setSelectedEntity(entity)}
+                              data-testid={`entity-option-${entity.id}`}
+                            >
+                              <span className="text-sm">{entity.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No entities found. Try a different search.
+                        </div>
+                      )}
+                    </div>
+                    {selectedEntity && (
+                      <div className="text-sm text-muted-foreground">
+                        Selected: <span className="font-medium text-foreground">{selectedEntity.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Assign To</Label>
+                    <Select value={selectedEntityAssignee} onValueChange={setSelectedEntityAssignee}>
+                      <SelectTrigger data-testid="select-entity-assignee">
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orgUsers?.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    onClick={handleAddEntity} 
+                    disabled={addEntityMutation.isPending || !selectedEntity || !selectedEntityAssignee}
+                    className="w-full"
+                    data-testid="button-confirm-add-entity"
+                  >
+                    {addEntityMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Add Entity
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>

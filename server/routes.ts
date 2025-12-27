@@ -4269,6 +4269,65 @@ export async function registerRoutes(
   });
 
   // =====================================================
+  // DataNest Entities API Routes (for entity picker)
+  // =====================================================
+
+  // Get available entities by type for entity picker
+  app.get("/api/datanest/entities/:entityType", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    const { entityType } = req.params;
+    const search = (req.query.search as string) || "";
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Map entity type to table and name column
+      const entityTableMap: Record<string, { table: string; nameCol: string }> = {
+        gp: { table: "entities_gp", nameCol: "gp_name" },
+        lp: { table: "entities_lp", nameCol: "lp_name" },
+        fund: { table: "entities_fund", nameCol: "fund_name" },
+        portfolio_company: { table: "entities_portfolio_company", nameCol: "company_name" },
+        service_provider: { table: "entities_service_provider", nameCol: "provider_name" },
+        contact: { table: "entities_contact", nameCol: "full_name" },
+        deal: { table: "entities_deal", nameCol: "deal_name" },
+      };
+      
+      const config = entityTableMap[entityType];
+      if (!config) {
+        return res.status(400).json({ message: `Invalid entity type: ${entityType}` });
+      }
+      
+      // SECURITY: Filter by org_id for multi-tenant isolation
+      let query = `SELECT id, ${config.nameCol} as name FROM ${config.table} WHERE org_id = $1`;
+      const params: any[] = [orgId];
+      let paramIndex = 2;
+      
+      if (search) {
+        query += ` AND LOWER(${config.nameCol}) LIKE $${paramIndex}`;
+        params.push(`%${search.toLowerCase()}%`);
+        paramIndex++;
+      }
+      
+      query += ` ORDER BY ${config.nameCol} LIMIT $${paramIndex}`;
+      params.push(limit);
+      
+      const result = await pool.query(query, params);
+      
+      return res.json(result.rows.map((row: any) => ({
+        id: row.id,
+        name: row.name || `${entityType.toUpperCase()}-${row.id.slice(0, 8)}`,
+        entityType,
+      })));
+    } catch (error) {
+      console.error("Error fetching entities:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // =====================================================
   // DataNest Projects API Routes
   // =====================================================
 
