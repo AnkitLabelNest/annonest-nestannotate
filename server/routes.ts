@@ -3984,5 +3984,209 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // Entity Edit Lock Routes - Prevent concurrent editing
+  // ============================================================
+  
+  const LOCK_TIMEOUT_MINUTES = 30;
+
+  // Check if a lock exists for an entity
+  app.get("/api/locks/:entityType/:entityId", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    const { entityType, entityId } = req.params;
+    
+    try {
+      const { db } = await import("./db");
+      const { entityEditLocks } = await import("@shared/schema");
+      const { eq, and, gt } = await import("drizzle-orm");
+      
+      const cutoffTime = new Date(Date.now() - LOCK_TIMEOUT_MINUTES * 60 * 1000);
+      
+      const locks = await db
+        .select()
+        .from(entityEditLocks)
+        .where(and(
+          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityId, entityId),
+          eq(entityEditLocks.orgId, orgId),
+          gt(entityEditLocks.lockedAt, cutoffTime)
+        ));
+      
+      if (locks.length > 0) {
+        return res.json({
+          isLocked: true,
+          lock: locks[0]
+        });
+      }
+      
+      return res.json({ isLocked: false, lock: null });
+    } catch (error) {
+      console.error("Error checking lock:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Acquire a lock for editing
+  app.post("/api/locks/:entityType/:entityId/acquire", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const { entityType, entityId } = req.params;
+    
+    try {
+      const { db } = await import("./db");
+      const { entityEditLocks, users } = await import("@shared/schema");
+      const { eq, and, gt, lt } = await import("drizzle-orm");
+      
+      const cutoffTime = new Date(Date.now() - LOCK_TIMEOUT_MINUTES * 60 * 1000);
+      
+      // Clean up expired locks first
+      await db
+        .delete(entityEditLocks)
+        .where(and(
+          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityId, entityId),
+          lt(entityEditLocks.lockedAt, cutoffTime)
+        ));
+      
+      // Check for existing active lock
+      const existingLocks = await db
+        .select()
+        .from(entityEditLocks)
+        .where(and(
+          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityId, entityId),
+          eq(entityEditLocks.orgId, orgId),
+          gt(entityEditLocks.lockedAt, cutoffTime)
+        ));
+      
+      if (existingLocks.length > 0) {
+        const existingLock = existingLocks[0];
+        // If user already owns the lock, refresh it
+        if (existingLock.lockedBy === userId) {
+          await db
+            .update(entityEditLocks)
+            .set({ lockedAt: new Date() })
+            .where(eq(entityEditLocks.id, existingLock.id));
+          
+          return res.json({
+            acquired: true,
+            lock: { ...existingLock, lockedAt: new Date() }
+          });
+        }
+        // Another user has the lock
+        return res.json({
+          acquired: false,
+          lock: existingLock
+        });
+      }
+      
+      // Get user's display name
+      const userData = await db
+        .select({ displayName: users.displayName })
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      const displayName = userData.length > 0 ? userData[0].displayName : "Unknown User";
+      
+      // Create new lock
+      const newLock = await db
+        .insert(entityEditLocks)
+        .values({
+          entityType: entityType as any,
+          entityId,
+          lockedBy: userId,
+          lockedByName: displayName,
+          orgId,
+        })
+        .returning();
+      
+      return res.json({
+        acquired: true,
+        lock: newLock[0]
+      });
+    } catch (error) {
+      console.error("Error acquiring lock:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Release a lock
+  app.delete("/api/locks/:entityType/:entityId", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const { entityType, entityId } = req.params;
+    
+    try {
+      const { db } = await import("./db");
+      const { entityEditLocks } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      // Only allow releasing own locks
+      await db
+        .delete(entityEditLocks)
+        .where(and(
+          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityId, entityId),
+          eq(entityEditLocks.lockedBy, userId),
+          eq(entityEditLocks.orgId, orgId)
+        ));
+      
+      return res.json({ released: true });
+    } catch (error) {
+      console.error("Error releasing lock:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Heartbeat to keep lock alive
+  app.post("/api/locks/:entityType/:entityId/heartbeat", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const { entityType, entityId } = req.params;
+    
+    try {
+      const { db } = await import("./db");
+      const { entityEditLocks } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      const result = await db
+        .update(entityEditLocks)
+        .set({ lockedAt: new Date() })
+        .where(and(
+          eq(entityEditLocks.entityType, entityType),
+          eq(entityEditLocks.entityId, entityId),
+          eq(entityEditLocks.lockedBy, userId),
+          eq(entityEditLocks.orgId, orgId)
+        ))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.json({ renewed: false, message: "Lock not found or expired" });
+      }
+      
+      return res.json({ renewed: true, lock: result[0] });
+    } catch (error) {
+      console.error("Error renewing lock:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }
