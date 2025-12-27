@@ -1,0 +1,193 @@
+SYSTEM ROLE:
+You are extending an EXISTING Replit application connected to Supabase.
+Do NOT redesign UI.
+Do NOT ask questions.
+Implement directly.
+
+====================================================
+AUTHORITATIVE BACKEND TABLES
+====================================================
+
+Core entity tables already exist.
+
+Project-related tables (already created in Supabase):
+- entities_project
+- entities_project_items
+- entities_project_members
+
+Use these tables exactly as named.
+Do NOT invent new tables.
+Do NOT change schemas.
+
+====================================================
+ROLE DEFINITIONS (LOCKED)
+====================================================
+
+Annotator:
+- Can view entities
+- Can work ONLY via Projects
+- Cannot edit entity master data
+- Can create projects
+
+Researcher:
+- Can edit entities assigned to them
+- Can work via Projects
+- Sees only projects they are members of
+
+Manager / Admin / Super Admin:
+- Full access
+- See all projects
+- Assign / reassign tasks
+- Bulk assignment
+- CSV task upload
+
+====================================================
+DASHBOARD IMPLEMENTATION
+====================================================
+
+Create a DataNest Dashboard with the following sections.
+
+--------------------------------
+SECTION 1: DATASET CARDS (TOP)
+--------------------------------
+
+Show clickable cards for:
+- LP
+- GP
+- Fund
+- Portfolio Company
+- Deal
+- Contacts
+- Agritech (Portfolio subset)
+- Healthcare (Portfolio subset)
+- Blockchain (Portfolio subset)
+- Public Market (Portfolio subset)
+
+Each card:
+- Shows total count
+- Click opens searchable table view
+- Small "+ Add" action
+- Opens in NEW TAB
+
+Cards are for DATA NAVIGATION only.
+
+--------------------------------
+SECTION 2: PROJECTS (MAIN)
+--------------------------------
+
+Show a Projects table.
+
+Columns:
+- Project Name
+- Project Type
+- Total Items
+- Pending
+- Completed
+- Status
+- Action: Open Project
+
+Visibility rules:
+- Manager/Admin → all projects
+- Researcher/Annotator → only projects where user exists in entities_project_members
+
+--------------------------------
+SECTION 3: QUICK ADD
+--------------------------------
+
+Small buttons:
+- Add LP
+- Add GP
+- Add Fund
+- Add Portfolio Company
+- Add Deal
+- Add Contact
+
+Open in NEW TAB.
+
+====================================================
+PROJECT VIEW (INSIDE A PROJECT)
+====================================================
+
+Inside a project, render Project Items (tasks).
+
+Columns:
+- Entity Name
+- Entity Type
+- Assigned To
+- Task Status (Pending / In Progress / Completed / Blocked)
+- Last Updated
+- Action: Start
+
+Rules:
+- Each row = one task from entities_project_items
+- Clicking "Start":
+  - Opens entity in NEW TAB
+  - Uses existing entity edit-lock logic
+- Task completion is MANUAL only
+
+--------------------------------
+ASSIGNMENT RULES
+--------------------------------
+
+Manager/Admin can:
+- Assign individual tasks
+- Bulk assign tasks
+- Distribute tasks evenly across project members
+
+Researcher/Annotator:
+- See only tasks assigned to them
+- Cannot reassign
+
+====================================================
+MY WORK VIEW
+====================================================
+
+Provide a "My Work" view:
+- Aggregates all project items
+- assigned_to = current user
+- Pending first, then Completed
+- Clicking opens entity in NEW TAB
+
+====================================================
+CSV TASK UPLOADER (MANAGER / ADMIN ONLY)
+====================================================
+
+Add a "Bulk Add Tasks (CSV)" action inside Project view.
+
+CSV format (STRICT):
+
+Required columns:
+- entity_type
+- entity_id
+- assigned_to
+
+Optional:
+- task_status (default = Pending)
+
+Rules:
+- Each CSV row creates ONE row in entities_project_items
+- Validate:
+  - entity_type is valid
+  - entity_id exists in Supabase
+  - assigned_to is non-empty
+- If ANY row fails → reject entire upload
+- Do NOT partially insert
+- Do NOT create entities
+- Do NOT auto-create shells
+
+After success:
+- Refresh project task list
+
+====================================================
+GLOBAL CONSTRAINTS
+====================================================
+
+- No UI redesign
+- No charts
+- No KPIs
+- No schema changes
+- No prompts back
+- Reuse existing open-in-new-tab behavior
+- Reuse existing edit-lock behavior
+
+Proceed to implement directly.

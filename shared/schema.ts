@@ -766,6 +766,71 @@ export const insertEntityEditLockSchema = createInsertSchema(entityEditLocks).om
 export type InsertEntityEditLock = z.infer<typeof insertEntityEditLockSchema>;
 export type EntityEditLock = typeof entityEditLocks.$inferSelect;
 
+// DataNest Project Tables
+export const dataProjectStatuses = ["active", "paused", "completed", "archived"] as const;
+export type DataProjectStatus = typeof dataProjectStatuses[number];
+
+export const dataProjectTypes = ["research", "data_enrichment", "verification", "outreach", "custom"] as const;
+export type DataProjectType = typeof dataProjectTypes[number];
+
+export const projectTaskStatuses = ["pending", "in_progress", "completed", "blocked"] as const;
+export type ProjectTaskStatus = typeof projectTaskStatuses[number];
+
+export const entitiesProject = pgTable("entities_project", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  projectType: text("project_type").$type<DataProjectType>().default("research"),
+  description: text("description"),
+  status: text("status").$type<DataProjectStatus>().default("active"),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_project_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesProjectItems = pgTable("entities_project_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => entitiesProject.id).notNull(),
+  entityType: text("entity_type").$type<EntityType>().notNull(),
+  entityId: varchar("entity_id").notNull(),
+  entityNameSnapshot: text("entity_name_snapshot"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  taskStatus: text("task_status").$type<ProjectTaskStatus>().default("pending"),
+  notes: text("notes"),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("entities_project_items_project_id_idx").on(table.projectId),
+  index("entities_project_items_assigned_to_idx").on(table.assignedTo),
+  index("entities_project_items_org_id_idx").on(table.orgId),
+]);
+
+export const entitiesProjectMembers = pgTable("entities_project_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => entitiesProject.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: text("role").default("member"),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("entities_project_members_project_id_idx").on(table.projectId),
+  index("entities_project_members_user_id_idx").on(table.userId),
+]);
+
+export const insertEntitiesProjectSchema = createInsertSchema(entitiesProject).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntitiesProjectItemSchema = createInsertSchema(entitiesProjectItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEntitiesProjectMemberSchema = createInsertSchema(entitiesProjectMembers).omit({ id: true, createdAt: true });
+
+export type InsertEntitiesProject = z.infer<typeof insertEntitiesProjectSchema>;
+export type EntitiesProject = typeof entitiesProject.$inferSelect;
+export type InsertEntitiesProjectItem = z.infer<typeof insertEntitiesProjectItemSchema>;
+export type EntitiesProjectItem = typeof entitiesProjectItems.$inferSelect;
+export type InsertEntitiesProjectMember = z.infer<typeof insertEntitiesProjectMemberSchema>;
+export type EntitiesProjectMember = typeof entitiesProjectMembers.$inferSelect;
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),

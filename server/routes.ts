@@ -4268,5 +4268,528 @@ export async function registerRoutes(
     }
   });
 
+  // =====================================================
+  // DataNest Projects API Routes
+  // =====================================================
+
+  // Get all projects (with role-based visibility)
+  app.get("/api/datanest/projects", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProject, entitiesProjectItems, entitiesProjectMembers } = await import("@shared/schema");
+      const { eq, and, inArray, sql } = await import("drizzle-orm");
+      
+      let projects;
+      
+      // Manager/Admin/Super Admin see all projects
+      if (["super_admin", "admin", "manager"].includes(userRole)) {
+        projects = await db.select().from(entitiesProject).where(eq(entitiesProject.orgId, orgId));
+      } else {
+        // Researcher/Annotator see only projects they are members of
+        if (!userId) {
+          return res.json([]);
+        }
+        const memberProjects = await db
+          .select({ projectId: entitiesProjectMembers.projectId })
+          .from(entitiesProjectMembers)
+          .where(and(eq(entitiesProjectMembers.userId, userId), eq(entitiesProjectMembers.orgId, orgId)));
+        
+        if (memberProjects.length === 0) {
+          return res.json([]);
+        }
+        
+        const projectIds = memberProjects.map(m => m.projectId);
+        projects = await db
+          .select()
+          .from(entitiesProject)
+          .where(and(eq(entitiesProject.orgId, orgId), inArray(entitiesProject.id, projectIds)));
+      }
+      
+      // Get task counts for each project
+      const projectIds = projects.map(p => p.id);
+      if (projectIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const items = await db
+        .select()
+        .from(entitiesProjectItems)
+        .where(inArray(entitiesProjectItems.projectId, projectIds));
+      
+      const projectsWithStats = projects.map(project => {
+        const projectItems = items.filter(i => i.projectId === project.id);
+        const totalItems = projectItems.length;
+        const pendingItems = projectItems.filter(i => i.taskStatus === "pending").length;
+        const completedItems = projectItems.filter(i => i.taskStatus === "completed").length;
+        
+        return {
+          ...project,
+          totalItems,
+          pendingItems,
+          completedItems,
+        };
+      });
+      
+      return res.json(projectsWithStats);
+    } catch (error) {
+      console.error("Error fetching DataNest projects:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get single project with items
+  app.get("/api/datanest/projects/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const projectId = req.params.id;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProject, entitiesProjectItems, entitiesProjectMembers, users } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      const project = await db
+        .select()
+        .from(entitiesProject)
+        .where(and(eq(entitiesProject.id, projectId), eq(entitiesProject.orgId, orgId)));
+      
+      if (project.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const items = await db
+        .select()
+        .from(entitiesProjectItems)
+        .where(eq(entitiesProjectItems.projectId, projectId));
+      
+      const members = await db
+        .select({
+          id: entitiesProjectMembers.id,
+          userId: entitiesProjectMembers.userId,
+          role: entitiesProjectMembers.role,
+          userName: users.displayName,
+        })
+        .from(entitiesProjectMembers)
+        .leftJoin(users, eq(entitiesProjectMembers.userId, users.id))
+        .where(eq(entitiesProjectMembers.projectId, projectId));
+      
+      return res.json({
+        ...project[0],
+        items,
+        members,
+      });
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Helper to check if user has manager/admin role
+  async function checkManagerRole(req: Request, res: Response): Promise<boolean> {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return false;
+    }
+    const { db } = await import("./db");
+    const { users } = await import("@shared/schema");
+    const { eq } = await import("drizzle-orm");
+    
+    const user = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (user.length === 0 || !["super_admin", "admin", "manager"].includes(user[0].role)) {
+      res.status(403).json({ message: "Insufficient permissions - manager role required" });
+      return false;
+    }
+    return true;
+  }
+
+  // Create new project (manager/admin only)
+  app.post("/api/datanest/projects", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProject, insertEntitiesProjectSchema } = await import("@shared/schema");
+      
+      const parsed = insertEntitiesProjectSchema.parse({
+        ...req.body,
+        orgId,
+        createdBy: userId,
+      });
+      
+      const result = await db.insert(entitiesProject).values(parsed as any).returning();
+      return res.status(201).json(result[0]);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update project (manager/admin only, whitelisted fields)
+  app.put("/api/datanest/projects/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const projectId = req.params.id;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProject } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      // Whitelist only mutable fields - never allow orgId, id, createdBy, createdAt
+      const allowedFields = ["name", "description", "projectType", "status"];
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      const result = await db
+        .update(entitiesProject)
+        .set(updateData)
+        .where(and(eq(entitiesProject.id, projectId), eq(entitiesProject.orgId, orgId)))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      return res.json(result[0]);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get project items (tasks)
+  app.get("/api/datanest/projects/:id/items", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const userRole = req.query.role as string || "annotator";
+    const projectId = req.params.id;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems, users } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      let query = db
+        .select({
+          id: entitiesProjectItems.id,
+          projectId: entitiesProjectItems.projectId,
+          entityType: entitiesProjectItems.entityType,
+          entityId: entitiesProjectItems.entityId,
+          entityNameSnapshot: entitiesProjectItems.entityNameSnapshot,
+          assignedTo: entitiesProjectItems.assignedTo,
+          taskStatus: entitiesProjectItems.taskStatus,
+          notes: entitiesProjectItems.notes,
+          createdAt: entitiesProjectItems.createdAt,
+          updatedAt: entitiesProjectItems.updatedAt,
+          assignedToName: users.displayName,
+        })
+        .from(entitiesProjectItems)
+        .leftJoin(users, eq(entitiesProjectItems.assignedTo, users.id))
+        .where(eq(entitiesProjectItems.projectId, projectId));
+      
+      const items = await query;
+      
+      // Filter by assigned user for non-admin roles
+      if (!["super_admin", "admin", "manager"].includes(userRole) && userId) {
+        return res.json(items.filter(i => i.assignedTo === userId));
+      }
+      
+      return res.json(items);
+    } catch (error) {
+      console.error("Error fetching project items:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Add project item (manager/admin only)
+  app.post("/api/datanest/projects/:id/items", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const projectId = req.params.id;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems, insertEntitiesProjectItemSchema } = await import("@shared/schema");
+      
+      const parsed = insertEntitiesProjectItemSchema.parse({
+        ...req.body,
+        projectId,
+        orgId,
+      });
+      
+      const result = await db.insert(entitiesProjectItems).values(parsed as any).returning();
+      return res.status(201).json(result[0]);
+    } catch (error) {
+      console.error("Error adding project item:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Bulk add project items (CSV upload) - manager/admin only
+  app.post("/api/datanest/projects/:id/items/bulk", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    const projectId = req.params.id;
+    const items = req.body.items as Array<{
+      entity_type: string;
+      entity_id: string;
+      assigned_to: string;
+      task_status?: string;
+    }>;
+    
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Items array required" });
+    }
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems, entityTypes } = await import("@shared/schema");
+      
+      // Validate all items first
+      const validationErrors: string[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.entity_type || !entityTypes.includes(item.entity_type as any)) {
+          validationErrors.push(`Row ${i + 1}: Invalid entity_type "${item.entity_type}"`);
+        }
+        if (!item.entity_id) {
+          validationErrors.push(`Row ${i + 1}: entity_id is required`);
+        }
+        if (!item.assigned_to) {
+          validationErrors.push(`Row ${i + 1}: assigned_to is required`);
+        }
+      }
+      
+      if (validationErrors.length > 0) {
+        return res.status(400).json({ message: "Validation failed", errors: validationErrors });
+      }
+      
+      // Insert all items
+      const insertData = items.map(item => ({
+        projectId,
+        entityType: item.entity_type as any,
+        entityId: item.entity_id,
+        assignedTo: item.assigned_to,
+        taskStatus: (item.task_status || "pending") as any,
+        orgId,
+      }));
+      
+      const result = await db.insert(entitiesProjectItems).values(insertData).returning();
+      return res.status(201).json({ inserted: result.length, items: result });
+    } catch (error) {
+      console.error("Error bulk adding items:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update project item (manager/admin only, whitelisted fields)
+  app.put("/api/datanest/projects/:projectId/items/:itemId", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const { itemId } = req.params;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      // Whitelist only mutable fields - never allow orgId, id, projectId, createdAt
+      const allowedFields = ["assignedTo", "taskStatus", "notes", "entityNameSnapshot"];
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      const result = await db
+        .update(entitiesProjectItems)
+        .set(updateData)
+        .where(and(eq(entitiesProjectItems.id, itemId), eq(entitiesProjectItems.orgId, orgId)))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      
+      return res.json(result[0]);
+    } catch (error) {
+      console.error("Error updating item:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Bulk assign items (manager/admin only)
+  app.post("/api/datanest/projects/:id/items/assign", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    const { itemIds, assignedTo } = req.body;
+    
+    if (!Array.isArray(itemIds) || itemIds.length === 0 || !assignedTo) {
+      return res.status(400).json({ message: "itemIds array and assignedTo required" });
+    }
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems } = await import("@shared/schema");
+      const { inArray, eq, and } = await import("drizzle-orm");
+      
+      const result = await db
+        .update(entitiesProjectItems)
+        .set({ assignedTo, updatedAt: new Date() })
+        .where(and(inArray(entitiesProjectItems.id, itemIds), eq(entitiesProjectItems.orgId, orgId)))
+        .returning();
+      
+      return res.json({ updated: result.length });
+    } catch (error) {
+      console.error("Error bulk assigning:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Add project member (manager/admin only)
+  app.post("/api/datanest/projects/:id/members", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    const projectId = req.params.id;
+    const { userId, role } = req.body;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectMembers } = await import("@shared/schema");
+      
+      const result = await db.insert(entitiesProjectMembers).values({
+        projectId,
+        userId,
+        role: role || "member",
+        orgId,
+      }).returning();
+      
+      return res.status(201).json(result[0]);
+    } catch (error) {
+      console.error("Error adding member:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get My Work (all tasks assigned to current user)
+  app.get("/api/datanest/my-work", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectItems, entitiesProject } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      const items = await db
+        .select({
+          id: entitiesProjectItems.id,
+          projectId: entitiesProjectItems.projectId,
+          entityType: entitiesProjectItems.entityType,
+          entityId: entitiesProjectItems.entityId,
+          entityNameSnapshot: entitiesProjectItems.entityNameSnapshot,
+          taskStatus: entitiesProjectItems.taskStatus,
+          notes: entitiesProjectItems.notes,
+          updatedAt: entitiesProjectItems.updatedAt,
+          projectName: entitiesProject.name,
+        })
+        .from(entitiesProjectItems)
+        .leftJoin(entitiesProject, eq(entitiesProjectItems.projectId, entitiesProject.id))
+        .where(and(
+          eq(entitiesProjectItems.assignedTo, userId),
+          eq(entitiesProjectItems.orgId, orgId)
+        ));
+      
+      // Sort: pending first, then completed
+      const sorted = items.sort((a, b) => {
+        if (a.taskStatus === "pending" && b.taskStatus !== "pending") return -1;
+        if (a.taskStatus !== "pending" && b.taskStatus === "pending") return 1;
+        return 0;
+      });
+      
+      return res.json(sorted);
+    } catch (error) {
+      console.error("Error fetching my work:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get entity counts for dashboard cards
+  app.get("/api/datanest/entity-counts", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      const result = await db.execute(sql`
+        SELECT 
+          (SELECT COUNT(*) FROM entities_lp WHERE org_id = ${orgId}) as lp_count,
+          (SELECT COUNT(*) FROM entities_gp WHERE org_id = ${orgId}) as gp_count,
+          (SELECT COUNT(*) FROM entities_fund WHERE org_id = ${orgId}) as fund_count,
+          (SELECT COUNT(*) FROM entities_portfolio_company WHERE org_id = ${orgId}) as portfolio_company_count,
+          (SELECT COUNT(*) FROM entities_deal WHERE org_id = ${orgId}) as deal_count,
+          (SELECT COUNT(*) FROM entities_contact WHERE org_id = ${orgId}) as contact_count
+      `);
+      
+      const counts = result.rows[0] || {};
+      return res.json({
+        lp: Number(counts.lp_count) || 0,
+        gp: Number(counts.gp_count) || 0,
+        fund: Number(counts.fund_count) || 0,
+        portfolio_company: Number(counts.portfolio_company_count) || 0,
+        deal: Number(counts.deal_count) || 0,
+        contact: Number(counts.contact_count) || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching entity counts:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }

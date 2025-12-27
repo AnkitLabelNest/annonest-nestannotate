@@ -44,6 +44,8 @@ import NewsIntelligencePage from "@/pages/news-intelligence";
 import NewsItemDetailPage from "@/pages/news-item-detail";
 import ProjectViewPage from "@/pages/project-view";
 import EntityProfilePage from "@/pages/entity-profile";
+import DataNestProjectView from "@/pages/data/project-view";
+import MyWorkPage from "@/pages/data/my-work";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -123,7 +125,9 @@ function AppRoutes() {
         <Route path="/demo/deals" component={DealsPage} />
         <Route path="/extraction" component={ExtractionPage} />
         <Route path="/intelligence" component={IntelligencePage} />
-        <Route path="/data" component={DataNestDashboard} />
+        <Route path="/data" component={DemoDataNestPage} />
+        <Route path="/data/project/:id" component={DataNestProjectView} />
+        <Route path="/data/my-work" component={MyWorkPage} />
         <Route path="/data/gps" component={() => <FirmsPage defaultTab="gp" />} />
         <Route path="/data/lps" component={() => <FirmsPage defaultTab="lp" />} />
         <Route path="/data/funds" component={FundsPage} />
