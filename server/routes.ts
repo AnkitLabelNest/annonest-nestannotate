@@ -178,10 +178,12 @@ export async function registerRoutes(
         trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
       });
     } catch (error) {
+      console.error("[LOGIN ERROR]", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return res.status(500).json({ message: "Internal server error", details: errorMessage });
     }
   });
 

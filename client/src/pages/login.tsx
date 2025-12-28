@@ -36,6 +36,9 @@ interface LoginResponse {
     approvalStatus?: string | null;
     approvedBy?: string | null;
     approvedAt?: string | null;
+    inviteStatus?: string | null;
+    invitedBy?: string | null;
+    invitedAt?: string | null;
   };
   trialStatus?: {
     isTrialExpired: boolean;
@@ -101,7 +104,7 @@ export default function LoginPage() {
             username: expiredUser.username,
             password: data.password,
             email: expiredUser.email || "",
-            role: expiredUser.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
+            role: expiredUser.role as "super_admin" | "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
             displayName: expiredUser.displayName || expiredUser.username,
             avatar: expiredUser.avatar || null,
             qaPercentage: expiredUser.qaPercentage || 20,
@@ -113,6 +116,9 @@ export default function LoginPage() {
             approvalStatus: expiredUser.approvalStatus || "pending",
             approvedBy: expiredUser.approvedBy || null,
             approvedAt: expiredUser.approvedAt ? new Date(expiredUser.approvedAt) : null,
+            inviteStatus: expiredUser.inviteStatus || null,
+            invitedBy: expiredUser.invitedBy || null,
+            invitedAt: expiredUser.invitedAt ? new Date(expiredUser.invitedAt) : null,
           }, expiredTrialStatus ? {
             isTrialExpired: expiredTrialStatus.isTrialExpired,
             isApproved: expiredTrialStatus.isApproved,
@@ -132,7 +138,7 @@ export default function LoginPage() {
         username: user.username,
         password: data.password,
         email: user.email || "",
-        role: user.role as "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
+        role: user.role as "super_admin" | "admin" | "manager" | "researcher" | "annotator" | "qa" | "guest",
         displayName: user.displayName || user.username,
         avatar: user.avatar || null,
         qaPercentage: user.qaPercentage || 20,
@@ -144,6 +150,9 @@ export default function LoginPage() {
         approvalStatus: user.approvalStatus as "pending" | "approved" | "rejected" | null,
         approvedBy: user.approvedBy || null,
         approvedAt: user.approvedAt ? new Date(user.approvedAt) : null,
+        inviteStatus: (user.inviteStatus as "pending" | "sent" | "accepted" | "expired") || null,
+        invitedBy: user.invitedBy || null,
+        invitedAt: user.invitedAt ? new Date(user.invitedAt) : null,
       }, trialStatus ? {
         isTrialExpired: trialStatus.isTrialExpired,
         isApproved: trialStatus.isApproved,
