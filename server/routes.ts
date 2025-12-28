@@ -3607,9 +3607,11 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const { pool } = await import("./db");
+      const { pool, getTableName } = await import("./db");
+      const contactsTable = getTableName("contacts");
+      // Note: Local contacts table uses created_by, production uses created_at
       const result = await pool.query(
-        `SELECT * FROM entities_contact WHERE org_id = $1 ORDER BY created_at DESC`,
+        `SELECT * FROM ${contactsTable} WHERE org_id = $1`,
         [orgId]
       );
       
@@ -4947,9 +4949,10 @@ export async function registerRoutes(
       
       // Manager/Admin/Super Admin see all projects
       // Use raw pg pool.query to avoid Drizzle schema mapping issues
+      // Note: entities_project has NO assigned_to column
       if (["super_admin", "admin", "manager"].includes(userRole)) {
         const result = await pool.query(
-          `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+          `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
            FROM ${projectTable} WHERE org_id = $1`,
           [orgId]
         );
@@ -4960,8 +4963,9 @@ export async function registerRoutes(
           return res.json([]);
         }
         // Get project memberships using raw SQL
+        const { getTableName } = await import("./db");
         const memberResult = await pool.query(
-          `SELECT project_id as "projectId" FROM entities_project_members WHERE user_id = $1 AND org_id = $2`,
+          `SELECT project_id as "projectId" FROM ${getTableName("project_members")} WHERE user_id = $1 AND org_id = $2`,
           [userId, orgId]
         );
         const memberProjects = memberResult.rows as { projectId: string }[];
@@ -4972,7 +4976,7 @@ export async function registerRoutes(
         
         const projectIds = memberProjects.map(m => m.projectId);
         const result = await pool.query(
-          `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+          `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
            FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
           [orgId, projectIds]
         );
@@ -4986,11 +4990,13 @@ export async function registerRoutes(
       }
       
       // Get items using raw SQL since tables were just created
+      const { getTableName } = await import("./db");
+      const itemsTable = getTableName("project_items");
       const itemsResult = await pool.query(
         `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
                 entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
                 task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
-         FROM entities_project_items WHERE project_id = ANY($1)`,
+         FROM ${itemsTable} WHERE project_id = ANY($1)`,
         [projectIds]
       );
       const items = itemsResult.rows as any[];
@@ -5023,12 +5029,14 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { pool, getProjectTableName } = await import("./db");
+      const { pool, getProjectTableName, getTableName } = await import("./db");
       const projectTable = getProjectTableName();
+      const itemsTable = getTableName("project_items");
+      const membersTable = getTableName("project_members");
       
-      // Fetch project using raw SQL
+      // Fetch project using raw SQL (entities_project has NO assigned_to)
       const projectResult = await pool.query(
-        `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
+        `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
          FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
         [projectId, orgId]
       );
@@ -5038,12 +5046,12 @@ export async function registerRoutes(
       }
       const project = projectResult.rows;
       
-      // Fetch items using raw SQL
+      // Fetch items using raw SQL (project_items HAS assigned_to)
       const itemsResult = await pool.query(
         `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
                 entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
                 task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
-         FROM entities_project_items WHERE project_id = $1`,
+         FROM ${itemsTable} WHERE project_id = $1`,
         [projectId]
       );
       const items = itemsResult.rows;
@@ -5051,7 +5059,7 @@ export async function registerRoutes(
       // Fetch members using raw SQL with user names
       const membersResult = await pool.query(
         `SELECT m.id, m.user_id as "userId", m.role, u.display_name as "userName"
-         FROM entities_project_members m LEFT JOIN users u ON m.user_id = u.id
+         FROM ${membersTable} m LEFT JOIN users u ON m.user_id = u.id
          WHERE m.project_id = $1`,
         [projectId]
       );
@@ -5112,11 +5120,12 @@ export async function registerRoutes(
       const parsed = createSchema.parse(req.body);
       
       // Use raw pool.query to insert - let PostgreSQL generate UUID via gen_random_uuid()
+      // Note: entities_project has NO assigned_to column
       const result = await pool.query(
-        `INSERT INTO ${projectTable} (id, name, description, type, status, created_by, org_id, assigned_to)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId", assigned_to as "assignedTo"`,
-        [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId, null]
+        `INSERT INTO ${projectTable} (id, name, description, type, status, created_by, org_id)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+        [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
       );
       
       return res.status(201).json(result.rows[0]);
@@ -5160,7 +5169,7 @@ export async function registerRoutes(
       const result = await pool.query(
         `UPDATE ${projectTable} SET ${updates.join(", ")}
          WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId", assigned_to as "assignedTo"`,
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
         values
       );
       
@@ -5184,7 +5193,8 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getTableName } = await import("./db");
+      const itemsTable = getTableName("project_items");
       
       // Use raw pool.query to get items with user display names
       const result = await pool.query(
@@ -5193,7 +5203,7 @@ export async function registerRoutes(
                 i.assigned_to as "assignedTo", i.task_status as "taskStatus", 
                 i.notes, i.created_at as "createdAt", i.updated_at as "updatedAt",
                 u.display_name as "assignedToName"
-         FROM entities_project_items i LEFT JOIN users u ON i.assigned_to = u.id
+         FROM ${itemsTable} i LEFT JOIN users u ON i.assigned_to = u.id
          WHERE i.project_id = $1`,
         [projectId]
       );
@@ -5221,7 +5231,8 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getTableName } = await import("./db");
+      const itemsTable = getTableName("project_items");
       const { z } = await import("zod");
       
       // Validate input
@@ -5238,7 +5249,7 @@ export async function registerRoutes(
       
       // Use raw pool.query to insert
       const result = await pool.query(
-        `INSERT INTO entities_project_items (project_id, entity_type, entity_id, entity_name_snapshot, assigned_to, task_status, notes, org_id)
+        `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, entity_name_snapshot, assigned_to, task_status, notes, org_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
                    entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo", 
