@@ -236,7 +236,10 @@ export default function ProjectViewPage() {
   const { data: projectMembers = [], isLoading: membersLoading } = useQuery<ProjectMember[]>({
     queryKey: ["project-members", projectId],
     queryFn: async () => {
-      const res = await fetch(`/api/datanest/projects/${projectId}`, { credentials: "include" });
+      const res = await fetch(`/api/datanest/projects/${projectId}`, { 
+        credentials: "include",
+        headers: { "x-user-id": userId || "" }
+      });
       if (!res.ok) return [];
       const data = await res.json();
       return data.members || [];
@@ -248,7 +251,7 @@ export default function ProjectViewPage() {
     mutationFn: async (memberUserId: string) => {
       const res = await fetch(`/api/datanest/projects/${projectId}/members`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-id": userId || "" },
         credentials: "include",
         body: JSON.stringify({ userId: memberUserId, role: "member" }),
       });
@@ -277,6 +280,7 @@ export default function ProjectViewPage() {
       const res = await fetch(`/api/datanest/projects/${projectId}/members/${memberId}`, {
         method: "DELETE",
         credentials: "include",
+        headers: { "x-user-id": userId || "" },
       });
       if (!res.ok) {
         const error = await res.json();
@@ -333,7 +337,7 @@ export default function ProjectViewPage() {
     mutationFn: async (articles: { headline: string; url?: string; source_name?: string; publish_date?: string; raw_text?: string }[]) => {
       const res = await fetch(`/api/nest-annotate/projects/${projectId}/upload-news`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-id": userId || "" },
         credentials: "include",
         body: JSON.stringify({ articles }),
       });
