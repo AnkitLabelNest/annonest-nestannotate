@@ -364,20 +364,13 @@ function GpFirmsTab({ searchQuery }: { searchQuery: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-gp">
-              <Plus className="h-4 w-4 mr-2" />
-              Add GP Firm
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New GP Firm</DialogTitle>
-            </DialogHeader>
-            <GpFirmForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} onCancel={() => setIsAddDialogOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-gp"
+          onClick={() => window.open("/entity/gp/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add GP Firm
+        </Button>
       </div>
 
       <DataTable
@@ -1574,20 +1567,13 @@ function LpFirmsTab({ searchQuery }: { searchQuery: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-lp">
-              <Plus className="h-4 w-4 mr-2" />
-              Add LP
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New Limited Partner</DialogTitle>
-            </DialogHeader>
-            <LpFirmForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} onCancel={() => setIsAddDialogOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-lp"
+          onClick={() => window.open("/entity/lp/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add LP
+        </Button>
       </div>
 
       <DataTable
@@ -2285,20 +2271,13 @@ function ServiceProvidersTab({ searchQuery }: { searchQuery: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-sp">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Service Provider
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New Service Provider</DialogTitle>
-            </DialogHeader>
-            <ServiceProviderForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} onCancel={() => setIsAddDialogOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-sp"
+          onClick={() => window.open("/entity/service_provider/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Service Provider
+        </Button>
       </div>
 
       <DataTable
@@ -2967,20 +2946,13 @@ function PortfolioCompaniesTab({ searchQuery }: { searchQuery: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-pc">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Portfolio Company
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New Portfolio Company</DialogTitle>
-            </DialogHeader>
-            <PortfolioCompanyForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} onCancel={() => setIsAddDialogOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-pc"
+          onClick={() => window.open("/entity/portfolio_company/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Portfolio Company
+        </Button>
       </div>
 
       <DataTable

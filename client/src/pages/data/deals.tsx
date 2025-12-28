@@ -187,24 +187,13 @@ export default function DealsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Deals</h1>
           <p className="text-muted-foreground">Track investment transactions and exits</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-deal">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Deal
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New Deal</DialogTitle>
-            </DialogHeader>
-            <DealForm
-              onSubmit={(data) => createMutation.mutate(data)}
-              isPending={createMutation.isPending}
-              onCancel={() => setIsAddDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-deal"
+          onClick={() => window.open("/entity/deal/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Deal
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

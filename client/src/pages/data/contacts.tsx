@@ -185,24 +185,13 @@ export default function ContactsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Contacts</h1>
           <p className="text-muted-foreground">Manage contact records linked to entities</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-contact">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Contact
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Add New Contact</DialogTitle>
-            </DialogHeader>
-            <ContactForm
-              onSubmit={(data) => createMutation.mutate(data)}
-              isPending={createMutation.isPending}
-              onCancel={() => setIsAddDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          data-testid="button-add-contact"
+          onClick={() => window.open("/entity/contact/new", "_blank")}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Contact
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

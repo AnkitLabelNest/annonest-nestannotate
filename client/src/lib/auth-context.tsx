@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (user: User, trialStatus?: TrialStatus | null) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
   hasModuleAccess: (moduleId: string) => boolean;
   trialStatus: TrialStatus | null;
   isTrialLocked: boolean;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("annonest_user");
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("userId");
       }
     }
+    setIsLoading(false);
   }, []);
 
   const login = (userData: User, trialStatusData?: TrialStatus | null) => {
@@ -86,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
+        isLoading,
         hasModuleAccess,
         trialStatus,
         isTrialLocked,
