@@ -103,6 +103,32 @@ Preferred communication style: Simple, everyday language.
 2. Labels are persisted immediately when added/removed
 3. Task metadata stores confidence and notes (non-label data)
 
+## NestAnnotate News Projects
+
+### News Project Workflow
+1. **Project Creation**: Managers create projects with `project_category: "news"` for bulk article tagging
+2. **News Upload**: CSV/Excel upload with columns (headline, url, source_name, publish_date, raw_text, article_state)
+3. **Auto Task Creation**: Tasks auto-created for articles with article_state="pending", skips completed/not_relevant
+4. **Task Assignment**: Contributors claim pending tasks, managers can assign tasks
+5. **Entity Tagging**: Contributors tag articles with entities (Firm, Person, Location, Topic, Fund, Deal)
+6. **Task Submission**: Contributors submit tasks for review, managers approve/reject
+
+### Shell Profile Queue
+- **Purpose**: Manage new entities created from tagging workflows
+- **Table**: `shell_profiles` with status (pending/approved/rejected)
+- **Workflow**: Contributors create shell profiles when tagging new entities, managers review and approve
+
+### API Endpoints (NestAnnotate)
+- `GET /api/nest-annotate/projects` - List projects for org
+- `POST /api/nest-annotate/projects` - Create project (manager only)
+- `POST /api/nest-annotate/projects/:id/upload-news` - Upload news articles (manager only)
+- `PATCH /api/nest-annotate/tasks/:id/claim` - Claim task
+- `PATCH /api/nest-annotate/tasks/:id/submit` - Submit task for review
+- `PATCH /api/nest-annotate/tasks/:id/complete` - Approve task (manager only)
+- `GET /api/nest-annotate/shell-profiles` - List shell profiles
+- `POST /api/nest-annotate/shell-profiles` - Create shell profile
+- `PATCH /api/nest-annotate/shell-profiles/:id/approve` - Approve (manager only)
+- `PATCH /api/nest-annotate/shell-profiles/:id/reject` - Reject (manager only)
+
 ### Known Architectural Gaps (Future Work)
-- **Task-News Linkage**: annotation_tasks currently lacks a foreign key to news table. Text loading falls back to metadata when news record not found by taskId
-- **Recommended Fix**: Add annotation_tasks.news_id FK column, backfill from existing metadata, update task creation to require newsId for text workflows
+- **Task-News Linkage**: annotation_tasks.metadata.news_id links to news table; future: add FK column for referential integrity

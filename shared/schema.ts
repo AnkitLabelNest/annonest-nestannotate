@@ -637,6 +637,33 @@ export const insertTextAnnotationSchema = createInsertSchema(textAnnotations).om
 export type InsertTextAnnotation = z.infer<typeof insertTextAnnotationSchema>;
 export type TextAnnotation = typeof textAnnotations.$inferSelect;
 
+// Shell Profile Queue for managing new entities created from tagging
+export const shellProfileStatuses = ["pending", "approved", "rejected"] as const;
+export type ShellProfileStatus = typeof shellProfileStatuses[number];
+
+export const shellProfiles = pgTable("shell_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  entityType: text("entity_type").notNull(),
+  entityName: text("entity_name").notNull(),
+  sourceTaskId: varchar("source_task_id"),
+  sourceNewsId: varchar("source_news_id"),
+  textSpan: text("text_span"),
+  status: text("status").$type<ShellProfileStatus>().default("pending"),
+  approvedEntityId: varchar("approved_entity_id"),
+  createdBy: varchar("created_by"),
+  reviewedBy: varchar("reviewed_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+}, (table) => [
+  index("shell_profiles_org_id_idx").on(table.orgId),
+  index("shell_profiles_status_idx").on(table.status),
+]);
+
+export const insertShellProfileSchema = createInsertSchema(shellProfiles).omit({ id: true, createdAt: true, reviewedAt: true });
+export type InsertShellProfile = z.infer<typeof insertShellProfileSchema>;
+export type ShellProfile = typeof shellProfiles.$inferSelect;
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertFirmSchema = createInsertSchema(firms).omit({ id: true });

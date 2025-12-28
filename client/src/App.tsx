@@ -40,6 +40,9 @@ import HealthcarePage from "@/pages/crm/healthcare";
 import PublicMarketPage from "@/pages/crm/public-market";
 import LocationManagementPage from "@/pages/settings/locations";
 import NestAnnotatePage from "@/pages/nest-annotate";
+import NestAnnotateProjectsPage from "@/pages/annotate/projects";
+import NestAnnotateProjectDetailPage from "@/pages/annotate/project-detail";
+import ShellProfilesPage from "@/pages/annotate/shell-profiles";
 import NewsIntelligencePage from "@/pages/news-intelligence";
 import NewsItemDetailPage from "@/pages/news-item-detail";
 import ProjectViewPage from "@/pages/project-view";
@@ -116,6 +119,9 @@ function AppRoutes() {
         <Route path="/annotate/transcription" component={TranscriptionPage} />
         <Route path="/annotate/translation" component={TranslationPage} />
         <Route path="/nest-annotate" component={NestAnnotatePage} />
+        <Route path="/annotate/projects" component={NestAnnotateProjectsPage} />
+        <Route path="/annotate/projects/:id" component={NestAnnotateProjectDetailPage} />
+        <Route path="/annotate/shell-profiles" component={ShellProfilesPage} />
         <Route path="/news-intelligence" component={NewsIntelligencePage} />
         <Route path="/news/:taskId" component={NewsItemDetailPage} />
         <Route path="/projects/:projectId" component={ProjectViewPage} />

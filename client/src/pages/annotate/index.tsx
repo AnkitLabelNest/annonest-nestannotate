@@ -20,7 +20,10 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Task } from "@shared/schema";
 
+import { FolderOpen, Newspaper } from "lucide-react";
+
 const subModules = [
+  { id: "projects", title: "Projects", icon: FolderOpen, count: 0, path: "/annotate/projects", highlight: true },
   { id: "text", title: "Text Label", icon: FileText, count: 24, path: "/annotate/text" },
   { id: "image", title: "Image Label", icon: Image, count: 18, path: "/annotate/image" },
   { id: "video", title: "Video Label", icon: Video, count: 7, path: "/annotate/video" },
@@ -32,6 +35,7 @@ const mockTasks: Task[] = [
   {
     id: "task-1",
     projectId: "proj-1",
+    orgId: "org-1",
     title: "Label Q4 Financial Report - Section 2.1",
     description: "Extract and label key financial metrics from quarterly report",
     status: "in_progress",
@@ -47,6 +51,7 @@ const mockTasks: Task[] = [
   {
     id: "task-2",
     projectId: "proj-1",
+    orgId: "org-1",
     title: "Review Product Images Batch #42",
     description: "Validate bounding boxes for product detection",
     status: "review",
@@ -62,6 +67,7 @@ const mockTasks: Task[] = [
   {
     id: "task-3",
     projectId: "proj-2",
+    orgId: "org-1",
     title: "Transcribe Earnings Call - Q3",
     description: "Full transcription with speaker identification",
     status: "pending",
@@ -77,6 +83,7 @@ const mockTasks: Task[] = [
   {
     id: "task-4",
     projectId: "proj-3",
+    orgId: "org-1",
     title: "Translate Press Release - Spanish",
     description: "Translate company announcement to Spanish",
     status: "completed",
@@ -183,22 +190,27 @@ export default function AnnotatePage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {subModules.map((module) => (
-          <Link key={module.id} href={module.path}>
-            <Card className="cursor-pointer hover:border-primary/30 hover:shadow-md transition-all">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <module.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{module.title}</p>
-                  <p className="text-xs text-muted-foreground">{module.count} tasks</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {subModules.map((module) => {
+          const isHighlight = 'highlight' in module && module.highlight;
+          return (
+            <Link key={module.id} href={module.path}>
+              <Card className={`cursor-pointer hover:border-primary/30 hover:shadow-md transition-all ${isHighlight ? 'border-primary/50 bg-primary/5' : ''}`}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isHighlight ? 'bg-primary text-primary-foreground' : 'bg-primary/10'}`}>
+                    <module.icon className={`h-5 w-5 ${isHighlight ? '' : 'text-primary'}`} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{module.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {module.id === "projects" ? "Manage" : `${module.count} tasks`}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       <Card>

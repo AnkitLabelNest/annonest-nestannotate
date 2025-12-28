@@ -39,12 +39,12 @@ interface TextLabelMetadata {
 }
 
 const entityTypes = [
+  { id: "firm", label: "Firm", color: "bg-purple-500" },
   { id: "person", label: "Person", color: "bg-blue-500" },
-  { id: "organization", label: "Organization", color: "bg-purple-500" },
   { id: "location", label: "Location", color: "bg-emerald-500" },
-  { id: "date", label: "Date", color: "bg-amber-500" },
-  { id: "amount", label: "Amount", color: "bg-red-500" },
-  { id: "product", label: "Product", color: "bg-pink-500" },
+  { id: "topic", label: "Topic", color: "bg-amber-500" },
+  { id: "fund", label: "Fund", color: "bg-indigo-500" },
+  { id: "deal", label: "Deal", color: "bg-pink-500" },
 ];
 
 export default function TextLabelPage() {
@@ -78,40 +78,37 @@ export default function TextLabelPage() {
     enabled: !!taskId && isAuthReady,
   });
 
-  // Try to load text from news table, fall back to metadata
+  // Try to load text from news table using news_id from metadata, fall back to text_content
   useEffect(() => {
     async function loadNewsText() {
-      if (!taskId || !orgId) return;
+      if (!taskId || !orgId || !task) return;
       
       try {
-        // First try to fetch from news table using taskId as newsId
-        const newsRecord = await fetchNewsById(taskId, orgId);
+        const meta = task.metadata as TextLabelMetadata & { news_id?: string };
         
-        if (newsRecord) {
-          // Use cleaned_text ?? raw_text as per spec
-          const text = newsRecord.cleanedText || newsRecord.rawText || "";
-          if (text) {
-            setTextContent(text);
-            setNewsTextLoaded(true);
-            return;
+        // First try to fetch from news table using news_id from metadata
+        const newsId = meta?.news_id;
+        if (newsId) {
+          const newsRecord = await fetchNewsById(newsId, orgId);
+          if (newsRecord) {
+            const text = newsRecord.cleanedText || newsRecord.rawText || "";
+            if (text) {
+              setTextContent(text);
+              setNewsTextLoaded(true);
+              return;
+            }
           }
         }
         
-        // Fall back to metadata if news record not found
-        if (task?.metadata) {
-          const meta = task.metadata as TextLabelMetadata;
-          if (meta.text_content) {
-            setTextContent(meta.text_content);
-            setNewsTextLoaded(true);
-          } else {
-            setTextMissing(true);
-          }
+        // Fall back to text_content in metadata
+        if (meta?.text_content) {
+          setTextContent(meta.text_content);
+          setNewsTextLoaded(true);
         } else {
           setTextMissing(true);
         }
       } catch (error) {
         console.error("Error loading news text:", error);
-        // Fall back to metadata
         if (task?.metadata) {
           const meta = task.metadata as TextLabelMetadata;
           setTextContent(meta.text_content || "");
@@ -309,12 +306,47 @@ export default function TextLabelPage() {
     return elements;
   };
 
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/nest-annotate/tasks/${taskId}/submit`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to submit task");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/annotation-tasks", taskId] });
+      toast({
+        title: "Submitted",
+        description: "Task submitted for review.",
+      });
+      setLocation("/annotate/projects");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSaveDraft = () => {
     saveMutation.mutate(undefined);
   };
 
   const handleSubmitForReview = () => {
-    saveMutation.mutate("in_review");
+    // First save, then submit
+    saveMutation.mutate(undefined, {
+      onSuccess: () => {
+        submitMutation.mutate();
+      },
+    });
   };
 
   if (!user) {

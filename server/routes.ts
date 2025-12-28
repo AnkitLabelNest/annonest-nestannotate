@@ -3985,6 +3985,469 @@ export async function registerRoutes(
   });
 
   // ============================================================
+  // NestAnnotate Project Management
+  // ============================================================
+
+  // Create new NestAnnotate project (manager/admin only)
+  app.post("/api/nest-annotate/projects", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { pool } = await import("./db");
+      const { z } = await import("zod");
+      
+      const createSchema = z.object({
+        name: z.string().min(1),
+        labelType: z.enum(["text", "image", "video", "audio", "transcription", "translation"]),
+        projectCategory: z.enum(["general", "news", "research", "training"]).default("general"),
+        workContext: z.enum(["internal", "external"]).default("internal"),
+      });
+      
+      const parsed = createSchema.parse(req.body);
+      
+      const result = await pool.query(
+        `INSERT INTO label_projects (name, label_type, project_category, org_id, work_context)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, name, label_type as "labelType", project_category as "projectCategory", 
+                   org_id as "orgId", work_context as "workContext", created_at as "createdAt"`,
+        [parsed.name, parsed.labelType, parsed.projectCategory, orgId, parsed.workContext]
+      );
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating NestAnnotate project:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid input", errors: error });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get single NestAnnotate project with tasks
+  app.get("/api/nest-annotate/projects/:id", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const projectId = req.params.id;
+    
+    try {
+      const { db } = await import("./db");
+      const { labelProjects, annotationTasks, users } = await import("@shared/schema");
+      const { eq, and, desc, inArray } = await import("drizzle-orm");
+      
+      const project = await db
+        .select()
+        .from(labelProjects)
+        .where(and(eq(labelProjects.id, projectId), eq(labelProjects.orgId, orgId)));
+      
+      if (project.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const tasks = await db
+        .select()
+        .from(annotationTasks)
+        .where(eq(annotationTasks.projectId, projectId))
+        .orderBy(desc(annotationTasks.createdAt));
+      
+      const assignedUserIds = Array.from(new Set(tasks.map(t => t.assignedTo).filter(Boolean))) as string[];
+      let userNameMap = new Map<string, string>();
+      
+      if (assignedUserIds.length > 0) {
+        const usersData = await db
+          .select({ id: users.id, displayName: users.displayName })
+          .from(users)
+          .where(inArray(users.id, assignedUserIds));
+        userNameMap = new Map(usersData.map(u => [u.id, u.displayName]));
+      }
+      
+      const tasksWithUsers = tasks.map(task => ({
+        ...task,
+        assignedToName: task.assignedTo ? userNameMap.get(task.assignedTo) || null : null,
+      }));
+      
+      return res.json({
+        ...project[0],
+        tasks: tasksWithUsers,
+      });
+    } catch (error) {
+      console.error("Error fetching NestAnnotate project:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Upload news to a project (manager/admin only)
+  app.post("/api/nest-annotate/projects/:id/upload-news", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    const projectId = req.params.id;
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    try {
+      const { pool } = await import("./db");
+      const { z } = await import("zod");
+      
+      // Validate that this is a news project
+      const projectCheck = await pool.query(
+        `SELECT id, project_category FROM label_projects WHERE id = $1 AND org_id = $2`,
+        [projectId, orgId]
+      );
+      
+      if (projectCheck.rows.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      if (projectCheck.rows[0].project_category !== "news") {
+        return res.status(400).json({ message: "This project is not a News project" });
+      }
+      
+      const newsItemSchema = z.object({
+        headline: z.string().min(1),
+        url: z.string().optional(),
+        sourceName: z.string().optional(),
+        publishDate: z.string().optional(),
+        rawText: z.string().min(1),
+        cleanedText: z.string().optional(),
+        language: z.string().optional(),
+        articleState: z.enum(["pending", "completed", "not_relevant"]).optional().default("pending"),
+      });
+      
+      const uploadSchema = z.object({
+        articles: z.array(newsItemSchema),
+      });
+      
+      const parsed = uploadSchema.parse(req.body);
+      const results = { created: 0, skipped: 0, tasks: 0 };
+      
+      for (const article of parsed.articles) {
+        // Insert into news table
+        const newsResult = await pool.query(
+          `INSERT INTO news (headline, url, source_name, publish_date, raw_text, cleaned_text, org_id, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id`,
+          [article.headline, article.url || null, article.sourceName || null, article.publishDate || null, 
+           article.rawText, article.cleanedText || null, orgId, userId]
+        );
+        
+        const newsId = newsResult.rows[0].id;
+        results.created++;
+        
+        // Only create task if articleState is 'pending'
+        if (article.articleState === "pending") {
+          const metadata = {
+            headline: article.headline,
+            source_name: article.sourceName || null,
+            publish_date: article.publishDate || null,
+            news_id: newsId,
+          };
+          
+          await pool.query(
+            `INSERT INTO annotation_tasks (project_id, status, metadata)
+             VALUES ($1, $2, $3)`,
+            [projectId, "pending", JSON.stringify(metadata)]
+          );
+          results.tasks++;
+        } else {
+          results.skipped++;
+        }
+      }
+      
+      return res.status(201).json({
+        message: `Uploaded ${results.created} articles, created ${results.tasks} tasks, skipped ${results.skipped} (completed/not_relevant)`,
+        ...results,
+      });
+    } catch (error) {
+      console.error("Error uploading news:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid input format", errors: error });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Assign task to user (manager/admin only)
+  app.patch("/api/nest-annotate/tasks/:taskId/assign", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    const taskId = req.params.taskId;
+    const { userId: assigneeId } = req.body;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(
+        `UPDATE annotation_tasks SET assigned_to = $1 
+         WHERE id = $2 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $3)
+         RETURNING id`,
+        [assigneeId || null, taskId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      return res.json({ message: "Task assigned successfully" });
+    } catch (error) {
+      console.error("Error assigning task:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Claim task (contributor picks unassigned task)
+  app.patch("/api/nest-annotate/tasks/:taskId/claim", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const taskId = req.params.taskId;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Only claim if unassigned
+      const result = await pool.query(
+        `UPDATE annotation_tasks SET assigned_to = $1, status = 'in_progress'
+         WHERE id = $2 AND assigned_to IS NULL 
+         AND project_id IN (SELECT id FROM label_projects WHERE org_id = $3)
+         RETURNING id`,
+        [userId, taskId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(400).json({ message: "Task not available for claiming" });
+      }
+      
+      return res.json({ message: "Task claimed successfully" });
+    } catch (error) {
+      console.error("Error claiming task:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Submit task (contributor submits after tagging)
+  app.patch("/api/nest-annotate/tasks/:taskId/submit", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const taskId = req.params.taskId;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Only submit if assigned to current user
+      const result = await pool.query(
+        `UPDATE annotation_tasks SET status = 'review'
+         WHERE id = $1 AND assigned_to = $2
+         AND project_id IN (SELECT id FROM label_projects WHERE org_id = $3)
+         RETURNING id`,
+        [taskId, userId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(400).json({ message: "Cannot submit this task" });
+      }
+      
+      return res.json({ message: "Task submitted for review" });
+    } catch (error) {
+      console.error("Error submitting task:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Complete task (manager/admin approves)
+  app.patch("/api/nest-annotate/tasks/:taskId/complete", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    const taskId = req.params.taskId;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(
+        `UPDATE annotation_tasks SET status = 'completed'
+         WHERE id = $1 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $2)
+         RETURNING id`,
+        [taskId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      return res.json({ message: "Task completed" });
+    } catch (error) {
+      console.error("Error completing task:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get available users for assignment (within same org)
+  app.get("/api/nest-annotate/available-users", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    try {
+      const { db } = await import("./db");
+      const { users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const orgUsers = await db
+        .select({ id: users.id, displayName: users.displayName, role: users.role })
+        .from(users)
+        .where(eq(users.orgId, orgId));
+      
+      return res.json(orgUsers);
+    } catch (error) {
+      console.error("Error fetching available users:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============================================================
+  // Shell Profile Queue - Manage new entities from tagging
+  // ============================================================
+
+  // Get shell profiles (pending ones for manager review)
+  app.get("/api/nest-annotate/shell-profiles", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    try {
+      const { pool } = await import("./db");
+      const status = req.query.status || "pending";
+      
+      const result = await pool.query(
+        `SELECT sp.*, u.display_name as created_by_name
+         FROM shell_profiles sp
+         LEFT JOIN users u ON sp.created_by = u.id
+         WHERE sp.org_id = $1 AND sp.status = $2
+         ORDER BY sp.created_at DESC`,
+        [orgId, status]
+      );
+      
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Error fetching shell profiles:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create a shell profile (when tagging a new entity)
+  app.post("/api/nest-annotate/shell-profiles", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    try {
+      const { entityType, entityName, sourceTaskId, sourceNewsId, textSpan } = req.body;
+      
+      if (!entityType || !entityName) {
+        return res.status(400).json({ message: "Entity type and name are required" });
+      }
+      
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(
+        `INSERT INTO shell_profiles (org_id, entity_type, entity_name, source_task_id, source_news_id, text_span, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [orgId, entityType, entityName, sourceTaskId || null, sourceNewsId || null, textSpan || null, userId]
+      );
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating shell profile:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Approve a shell profile (manager action)
+  app.patch("/api/nest-annotate/shell-profiles/:id/approve", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    const profileId = req.params.id;
+    const { approvedEntityId } = req.body;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(
+        `UPDATE shell_profiles 
+         SET status = 'approved', approved_entity_id = $1, reviewed_by = $2, reviewed_at = NOW()
+         WHERE id = $3 AND org_id = $4
+         RETURNING *`,
+        [approvedEntityId || null, userId, profileId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Shell profile not found" });
+      }
+      
+      return res.json({ message: "Shell profile approved", profile: result.rows[0] });
+    } catch (error) {
+      console.error("Error approving shell profile:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Reject a shell profile (manager action)
+  app.patch("/api/nest-annotate/shell-profiles/:id/reject", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    if (!await checkManagerRole(req, res)) return;
+    
+    const profileId = req.params.id;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(
+        `UPDATE shell_profiles 
+         SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW()
+         WHERE id = $2 AND org_id = $3
+         RETURNING *`,
+        [userId, profileId, orgId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Shell profile not found" });
+      }
+      
+      return res.json({ message: "Shell profile rejected", profile: result.rows[0] });
+    } catch (error) {
+      console.error("Error rejecting shell profile:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ============================================================
   // Entity Edit Lock Routes - Prevent concurrent editing
   // ============================================================
   
