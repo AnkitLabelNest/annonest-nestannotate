@@ -4823,37 +4823,37 @@ export async function registerRoutes(
       const entityColumnMap: Record<string, { table: string; columns: string[]; required: string[] }> = {
         gp: { 
           table: "entities_gp", 
-          columns: ["gp_name", "gp_legal_name", "firm_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url"],
+          columns: ["gp_name", "gp_legal_name", "firm_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url", "assigned_to"],
           required: ["gp_name"]
         },
         lp: { 
           table: "entities_lp", 
-          columns: ["lp_name", "lp_legal_name", "lp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url"],
+          columns: ["lp_name", "lp_legal_name", "lp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url", "assigned_to"],
           required: ["lp_name"]
         },
         fund: { 
           table: "entities_fund", 
-          columns: ["fund_name", "gp_id", "fund_type", "vintage_year", "fund_currency", "fund_status", "primary_asset_class", "geographic_focus", "target_fund_size"],
+          columns: ["fund_name", "gp_id", "fund_type", "vintage_year", "fund_currency", "fund_status", "primary_asset_class", "geographic_focus", "target_fund_size", "assigned_to"],
           required: ["fund_name"]
         },
         portfolio_company: { 
           table: "entities_portfolio_company", 
-          columns: ["company_name", "company_type", "headquarters_country", "headquarters_city", "primary_industry", "business_model", "website", "business_description", "founded_year", "employee_count", "status", "revenue_band", "valuation_band"],
+          columns: ["company_name", "company_type", "headquarters_country", "headquarters_city", "primary_industry", "business_model", "website", "business_description", "founded_year", "employee_count", "status", "revenue_band", "valuation_band", "assigned_to"],
           required: ["company_name"]
         },
         service_provider: { 
           table: "entities_service_provider", 
-          columns: ["provider_name", "provider_type", "headquarters_country", "headquarters_city", "website", "services_offered", "sector_expertise", "geographic_coverage", "founded_year", "status", "email", "phone", "linkedin_url"],
+          columns: ["provider_name", "provider_type", "headquarters_country", "headquarters_city", "website", "services_offered", "sector_expertise", "geographic_coverage", "founded_year", "status", "email", "phone", "linkedin_url", "assigned_to"],
           required: ["provider_name"]
         },
         contact: { 
           table: "entities_contact", 
-          columns: ["first_name", "last_name", "work_email", "phone_number", "job_title", "primary_entity_name_snapshot", "primary_entity_type", "primary_entity_id", "linkedin_url", "role_category", "seniority_level"],
+          columns: ["first_name", "last_name", "work_email", "phone_number", "job_title", "primary_entity_name_snapshot", "primary_entity_type", "primary_entity_id", "linkedin_url", "role_category", "seniority_level", "assigned_to"],
           required: ["first_name", "last_name"]
         },
         deal: { 
           table: "entities_deal", 
-          columns: ["deal_name", "deal_type", "deal_status", "deal_amount", "deal_currency", "deal_date", "target_company", "acquirer_company", "investor_ids", "sector", "notes", "deal_round", "asset_class"],
+          columns: ["deal_name", "deal_type", "deal_status", "deal_amount", "deal_currency", "deal_date", "target_company", "acquirer_company", "investor_ids", "sector", "notes", "deal_round", "asset_class", "assigned_to"],
           required: ["deal_name"]
         },
       };
@@ -4940,7 +4940,8 @@ export async function registerRoutes(
     const userRole = req.query.role as string || "annotator";
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getProjectTableName } = await import("./db");
+      const projectTable = getProjectTableName();
       
       let projects;
       
@@ -4949,7 +4950,7 @@ export async function registerRoutes(
       if (["super_admin", "admin", "manager"].includes(userRole)) {
         const result = await pool.query(
           `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
-           FROM projects WHERE org_id = $1`,
+           FROM ${projectTable} WHERE org_id = $1`,
           [orgId]
         );
         projects = result.rows;
@@ -4972,7 +4973,7 @@ export async function registerRoutes(
         const projectIds = memberProjects.map(m => m.projectId);
         const result = await pool.query(
           `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
-           FROM projects WHERE org_id = $1 AND id = ANY($2)`,
+           FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
           [orgId, projectIds]
         );
         projects = result.rows;
@@ -5022,12 +5023,13 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getProjectTableName } = await import("./db");
+      const projectTable = getProjectTableName();
       
       // Fetch project using raw SQL
       const projectResult = await pool.query(
         `SELECT id, name, description, type, status, created_by as "createdBy", assigned_to as "assignedTo", org_id as "orgId"
-         FROM projects WHERE id = $1 AND org_id = $2`,
+         FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
         [projectId, orgId]
       );
       
@@ -5095,7 +5097,8 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getProjectTableName } = await import("./db");
+      const projectTable = getProjectTableName();
       const { z } = await import("zod");
       
       // Validate input
@@ -5110,10 +5113,10 @@ export async function registerRoutes(
       
       // Use raw pool.query to insert - let PostgreSQL generate UUID via gen_random_uuid()
       const result = await pool.query(
-        `INSERT INTO projects (id, name, description, type, status, created_by, org_id)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
-        [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
+        `INSERT INTO ${projectTable} (id, name, description, type, status, created_by, org_id, assigned_to)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId", assigned_to as "assignedTo"`,
+        [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId, null]
       );
       
       return res.status(201).json(result.rows[0]);
@@ -5133,7 +5136,8 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getProjectTableName } = await import("./db");
+      const projectTable = getProjectTableName();
       
       // Whitelist only mutable fields - never allow orgId, id, createdBy
       const { name, description, type, status } = req.body;
@@ -5154,9 +5158,9 @@ export async function registerRoutes(
       values.push(projectId, orgId);
       
       const result = await pool.query(
-        `UPDATE projects SET ${updates.join(", ")}
+        `UPDATE ${projectTable} SET ${updates.join(", ")}
          WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId", assigned_to as "assignedTo"`,
         values
       );
       

@@ -18,6 +18,10 @@ if (!connectionString) {
 const isSupabase = connectionString.includes("supabase");
 console.log(`[db] Connecting to ${isSupabase ? "Supabase" : "local"} PostgreSQL database`);
 
+// Table name mapping for Supabase vs local development
+// Supabase uses entities_project, local development uses projects
+export const getProjectTableName = () => isSupabase ? "entities_project" : "projects";
+
 const pool = new Pool({
   connectionString,
   ssl: isSupabase ? { rejectUnauthorized: false } : undefined,

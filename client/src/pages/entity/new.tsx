@@ -55,6 +55,7 @@ const entityConfigs: Record<string, EntityConfig> = {
       { name: "email", label: "Email", type: "text", placeholder: "contact@company.com" },
       { name: "phone", label: "Phone", type: "text", placeholder: "+1 (555) 123-4567" },
       { name: "linkedinUrl", label: "LinkedIn URL", type: "text", placeholder: "https://linkedin.com/company/..." },
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   lp: {
@@ -86,6 +87,7 @@ const entityConfigs: Record<string, EntityConfig> = {
       { name: "email", label: "Email", type: "text", placeholder: "contact@organization.com" },
       { name: "phone", label: "Phone", type: "text", placeholder: "+1 (555) 123-4567" },
       { name: "linkedinUrl", label: "LinkedIn URL", type: "text", placeholder: "https://linkedin.com/company/..." },
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   fund: {
@@ -120,6 +122,7 @@ const entityConfigs: Record<string, EntityConfig> = {
       ]},
       { name: "primaryAssetClass", label: "Primary Asset Class", type: "text", placeholder: "e.g., Private Equity" },
       { name: "geographicFocus", label: "Geographic Focus", type: "text", placeholder: "e.g., North America" },
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   portfolio_company: {
@@ -146,6 +149,7 @@ const entityConfigs: Record<string, EntityConfig> = {
         { value: "Exited", label: "Exited" },
         { value: "Inactive", label: "Inactive" },
       ]},
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   service_provider: {
@@ -173,6 +177,7 @@ const entityConfigs: Record<string, EntityConfig> = {
       { name: "email", label: "Email", type: "text", placeholder: "contact@provider.com" },
       { name: "phone", label: "Phone", type: "text", placeholder: "+1 (555) 123-4567" },
       { name: "linkedinUrl", label: "LinkedIn URL", type: "text", placeholder: "https://linkedin.com/company/..." },
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   contact: {
@@ -203,6 +208,7 @@ const entityConfigs: Record<string, EntityConfig> = {
         { value: "Senior", label: "Senior" },
         { value: "Junior", label: "Junior" },
       ]},
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
   deal: {
@@ -240,6 +246,7 @@ const entityConfigs: Record<string, EntityConfig> = {
       { name: "sector", label: "Sector", type: "text", placeholder: "e.g., Technology" },
       { name: "dealRound", label: "Deal Round", type: "text", placeholder: "e.g., Series B" },
       { name: "notes", label: "Notes", type: "textarea", placeholder: "Additional details..." },
+      { name: "assignedTo", label: "Assigned To", type: "text", placeholder: "User ID or name" },
     ],
   },
 };

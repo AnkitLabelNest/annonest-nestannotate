@@ -150,6 +150,12 @@ function AppRoutes() {
         <Route path="/data/service-providers" component={() => <FirmsPage defaultTab="service-provider" />} />
         <Route path="/data/contacts" component={ContactsPage} />
         <Route path="/data/deals" component={DealsPage} />
+        <Route path="/gp" component={() => <FirmsPage defaultTab="gp" />} />
+        <Route path="/lp" component={() => <FirmsPage defaultTab="lp" />} />
+        <Route path="/fund" component={FundsPage} />
+        <Route path="/portfolio-company" component={() => <FirmsPage defaultTab="portfolio-company" />} />
+        <Route path="/deal" component={DealsPage} />
+        <Route path="/contacts" component={ContactsPage} />
         <Route path="/data/public-companies" component={PublicCompaniesPage} />
         <Route path="/data/relationships" component={RelationshipsPage} />
         <Route path="/data/agritech" component={AgritechPage} />
