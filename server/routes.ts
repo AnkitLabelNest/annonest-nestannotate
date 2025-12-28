@@ -1279,19 +1279,32 @@ export async function registerRoutes(
     return res.status(204).send();
   });
 
-  // Tasks routes with org scoping
+  // Tasks routes with org scoping (super_admin sees all)
   app.get("/api/tasks", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgId(req);
+    const { orgId, isSuperAdmin } = await getOrgFilter(req);
     const projectId = req.query.projectId as string | undefined;
     const assignedTo = req.query.assignedTo as string | undefined;
     const status = req.query.status as string | undefined;
-    const tasks = await storage.getTasks(orgId, projectId, assignedTo, status);
+    // Super admin sees all tasks
+    if (isSuperAdmin) {
+      const allTasks = await storage.getAllTasks(projectId, assignedTo, status);
+      return res.json(allTasks);
+    }
+    const tasks = await storage.getTasks(orgId!, projectId, assignedTo, status);
     return res.json(tasks);
   });
 
   app.get("/api/tasks/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgId(req);
-    const task = await storage.getTask(req.params.id, orgId);
+    const { orgId, isSuperAdmin } = await getOrgFilter(req);
+    // Super admin can access any task
+    if (isSuperAdmin) {
+      const task = await storage.getTaskById(req.params.id);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      return res.json(task);
+    }
+    const task = await storage.getTask(req.params.id, orgId!);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }

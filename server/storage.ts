@@ -90,7 +90,9 @@ export interface IStorage {
   deleteProject(id: string, orgId: string): Promise<boolean>;
 
   getTasks(orgId: string, projectId?: string, assignedTo?: string, status?: string): Promise<Task[]>;
+  getAllTasks(projectId?: string, assignedTo?: string, status?: string): Promise<Task[]>;
   getTask(id: string, orgId: string): Promise<Task | undefined>;
+  getTaskById(id: string): Promise<Task | undefined>;
   createTask(task: InsertTask & { orgId: string }): Promise<Task>;
   updateTask(id: string, orgId: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string, orgId: string): Promise<boolean>;
@@ -751,10 +753,22 @@ export class MemStorage implements IStorage {
     return tasks;
   }
 
+  async getAllTasks(projectId?: string, assignedTo?: string, status?: string): Promise<Task[]> {
+    let tasks = Array.from(this.tasks.values());
+    if (projectId) tasks = tasks.filter(t => t.projectId === projectId);
+    if (assignedTo) tasks = tasks.filter(t => t.assignedTo === assignedTo);
+    if (status) tasks = tasks.filter(t => t.status === status);
+    return tasks;
+  }
+
   async getTask(id: string, orgId: string): Promise<Task | undefined> {
     const task = this.tasks.get(id);
     if (!task || task.orgId !== orgId) return undefined;
     return task;
+  }
+
+  async getTaskById(id: string): Promise<Task | undefined> {
+    return this.tasks.get(id);
   }
 
   async createTask(insertTask: InsertTask & { orgId: string }): Promise<Task> {
