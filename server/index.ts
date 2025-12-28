@@ -82,14 +82,12 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = Number(process.env.PORT);
-
-  if (!port) {
-    throw new Error("PORT environment variable is not set");
-  }
+  // For Autoscale deployments, PORT will be set to 80
+  // For development, default to 5000 if not specified
+  // This serves both the API and the client.
+  const port = Number(process.env.PORT) || 5000;
+  
+  log(`Starting server in ${process.env.NODE_ENV || 'development'} mode on port ${port}`);
 
   httpServer.listen(
     {
