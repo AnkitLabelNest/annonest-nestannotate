@@ -5283,7 +5283,7 @@ export async function registerRoutes(
     const { orgId, role: userRole, userId, isSuperAdmin } = userInfo;
     
     try {
-      const { pool, getProjectTableName, getProjectColumns } = await import("./db");
+      const { pool, getProjectTableName, getProjectColumns, isSupabase } = await import("./db");
       const projectTable = getProjectTableName();
       const cols = getProjectColumns();
       
@@ -5294,15 +5294,17 @@ export async function registerRoutes(
       // Use raw pg pool.query to avoid Drizzle schema mapping issues
       // Column names differ between local (name, description, type) and Supabase (project_name, notes, project_type)
       const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
+      // Supabase has created_at column, local DB doesn't
+      const orderBy = isSupabase ? " ORDER BY created_at DESC" : "";
       
       if (isSuperAdmin) {
         const result = await pool.query(
-          `SELECT ${selectCols} FROM ${projectTable}`
+          `SELECT ${selectCols} FROM ${projectTable}${orderBy}`
         );
         projects = result.rows;
       } else if (["admin", "manager"].includes(userRole)) {
         const result = await pool.query(
-          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1`,
+          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1${orderBy}`,
           [orgId]
         );
         projects = result.rows;
@@ -5325,7 +5327,7 @@ export async function registerRoutes(
         
         const projectIds = memberProjects.map(m => m.projectId);
         const result = await pool.query(
-          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
+          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)${orderBy}`,
           [orgId, projectIds]
         );
         projects = result.rows;
