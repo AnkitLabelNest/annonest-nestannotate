@@ -122,6 +122,37 @@ export async function registerRoutes(
     }
   }
 
+  // Get user with role info - super_admin gets special access
+  async function getUserWithRole(req: Request): Promise<{ userId: string; orgId: string; role: string; isSuperAdmin: boolean } | null> {
+    const userId = req.headers["x-user-id"] as string;
+    if (!userId) {
+      return null;
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return null;
+    }
+    return {
+      userId: user.id,
+      orgId: user.orgId,
+      role: user.role,
+      isSuperAdmin: user.role === "super_admin"
+    };
+  }
+
+  // Get org filter for queries - super_admin can see all orgs, others see only their org
+  async function getOrgFilter(req: Request): Promise<{ orgId: string | null; isSuperAdmin: boolean }> {
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      throw new Error("UNAUTHORIZED");
+    }
+    // Super admin sees all data (null orgId means no filter)
+    if (userInfo.isSuperAdmin) {
+      return { orgId: null, isSuperAdmin: true };
+    }
+    return { orgId: userInfo.orgId, isSuperAdmin: false };
+  }
+
   function getUserIdFromRequest(req: Request): string | null {
     return (req.headers["x-user-id"] as string) || null;
   }
@@ -1531,10 +1562,13 @@ export async function registerRoutes(
   // GP Routes
   app.get("/api/crm/gps", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_gp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      // Super admin sees all GPs, others see only their org's
+      const result = isSuperAdmin 
+        ? await db.execute(sql`SELECT * FROM entities_gp ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_gp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -1631,10 +1665,12 @@ export async function registerRoutes(
   // LP Routes
   app.get("/api/crm/lps", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_lp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      const result = isSuperAdmin
+        ? await db.execute(sql`SELECT * FROM entities_lp ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_lp WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -1735,10 +1771,12 @@ export async function registerRoutes(
   // Fund Routes
   app.get("/api/crm/funds", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_fund WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      const result = isSuperAdmin
+        ? await db.execute(sql`SELECT * FROM entities_fund ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_fund WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -1841,10 +1879,12 @@ export async function registerRoutes(
   // Portfolio Company Routes
   app.get("/api/crm/portfolio-companies", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_portfolio_company WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      const result = isSuperAdmin
+        ? await db.execute(sql`SELECT * FROM entities_portfolio_company ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_portfolio_company WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -1953,10 +1993,12 @@ export async function registerRoutes(
   // Service Provider Routes
   app.get("/api/crm/service-providers", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_service_provider WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      const result = isSuperAdmin
+        ? await db.execute(sql`SELECT * FROM entities_service_provider ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_service_provider WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -2053,7 +2095,7 @@ export async function registerRoutes(
   // Contact Routes (CRM version)
   app.get("/api/crm/contacts", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       
@@ -2061,22 +2103,37 @@ export async function registerRoutes(
       
       let result;
       if (linked_entity_type && linked_entity_id) {
-        result = await db.execute(sql`
-          SELECT * FROM entities_contacts 
-          WHERE org_id = ${orgId} 
-            AND linked_entity_type = ${linked_entity_type as string} 
-            AND linked_entity_id = ${linked_entity_id as string}
-          ORDER BY created_at DESC
-        `);
+        result = isSuperAdmin
+          ? await db.execute(sql`
+              SELECT * FROM entities_contacts 
+              WHERE linked_entity_type = ${linked_entity_type as string} 
+                AND linked_entity_id = ${linked_entity_id as string}
+              ORDER BY created_at DESC
+            `)
+          : await db.execute(sql`
+              SELECT * FROM entities_contacts 
+              WHERE org_id = ${orgId} 
+                AND linked_entity_type = ${linked_entity_type as string} 
+                AND linked_entity_id = ${linked_entity_id as string}
+              ORDER BY created_at DESC
+            `);
       } else if (unlinked === 'true') {
-        result = await db.execute(sql`
-          SELECT * FROM entities_contacts 
-          WHERE org_id = ${orgId} 
-            AND (linked_entity_id IS NULL OR linked_entity_id = '')
-          ORDER BY created_at DESC
-        `);
+        result = isSuperAdmin
+          ? await db.execute(sql`
+              SELECT * FROM entities_contacts 
+              WHERE (linked_entity_id IS NULL OR linked_entity_id = '')
+              ORDER BY created_at DESC
+            `)
+          : await db.execute(sql`
+              SELECT * FROM entities_contacts 
+              WHERE org_id = ${orgId} 
+                AND (linked_entity_id IS NULL OR linked_entity_id = '')
+              ORDER BY created_at DESC
+            `);
       } else {
-        result = await db.execute(sql`SELECT * FROM entities_contacts WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+        result = isSuperAdmin
+          ? await db.execute(sql`SELECT * FROM entities_contacts ORDER BY created_at DESC`)
+          : await db.execute(sql`SELECT * FROM entities_contacts WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       }
       
       return res.json(result.rows);
@@ -2211,10 +2268,12 @@ export async function registerRoutes(
   // Deal Routes (CRM version)
   app.get("/api/crm/deals", async (req: Request, res: Response) => {
     try {
-      const orgId = await getUserOrgId(req);
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
-      const result = await db.execute(sql`SELECT * FROM entities_deal WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+      const result = isSuperAdmin
+        ? await db.execute(sql`SELECT * FROM entities_deal ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM entities_deal WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       return res.json(result.rows);
     } catch (error: any) {
       if (error?.message === "UNAUTHORIZED") {
@@ -3719,10 +3778,11 @@ export async function registerRoutes(
 
   // NestAnnotate API endpoints
   app.get("/api/nest-annotate/projects", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const userId = getUserIdFromRequest(req);
-    const userRole = req.query.role as string || "annotator";
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, userId, isSuperAdmin, role: userRole } = userInfo;
     
     try {
       const { db } = await import("./db");
@@ -3731,7 +3791,10 @@ export async function registerRoutes(
       
       let projects;
       
-      if (userRole === "annotator" && userId) {
+      // Super admin sees ALL projects across all orgs
+      if (isSuperAdmin) {
+        projects = await db.select().from(labelProjects);
+      } else if (userRole === "annotator") {
         const assignedTasks = await db
           .select({ projectId: annotationTasks.projectId, status: annotationTasks.status })
           .from(annotationTasks)
@@ -3747,6 +3810,7 @@ export async function registerRoutes(
           .from(labelProjects)
           .where(and(eq(labelProjects.orgId, orgId), inArray(labelProjects.id, projectIds)));
       } else {
+        // admin, manager see all projects in their org
         projects = await db.select().from(labelProjects).where(eq(labelProjects.orgId, orgId));
       }
       
@@ -4896,10 +4960,11 @@ export async function registerRoutes(
 
   // Get all projects (with role-based visibility)
   app.get("/api/datanest/projects", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const userId = getUserIdFromRequest(req);
-    const userRole = req.query.role as string || "annotator";
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, role: userRole, userId, isSuperAdmin } = userInfo;
     
     try {
       const { pool, getProjectTableName } = await import("./db");
@@ -4907,10 +4972,17 @@ export async function registerRoutes(
       
       let projects;
       
-      // Manager/Admin/Super Admin see all projects
+      // Super Admin sees ALL projects across all orgs
+      // Manager/Admin see all projects in their org
       // Use raw pg pool.query to avoid Drizzle schema mapping issues
       // Note: entities_project uses project_name, notes, project_type and has NO assigned_to column
-      if (["super_admin", "admin", "manager"].includes(userRole)) {
+      if (isSuperAdmin) {
+        const result = await pool.query(
+          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
+           FROM ${projectTable} ORDER BY created_at DESC`
+        );
+        projects = result.rows;
+      } else if (["admin", "manager"].includes(userRole)) {
         const result = await pool.query(
           `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
            FROM ${projectTable} WHERE org_id = $1`,
