@@ -19,10 +19,10 @@ interface Fund {
   fund_name: string;
   fund_type: string | null;
   vintage_year: number | null;
-  fund_size: number | null;
+  fund_size_final: number | null;
   fund_currency: string | null;
-  geography_focus: string | null;
-  sector_focus: string | null;
+  geographic_focus: string | null;
+  industry_focus: string | null;
   fund_status: string | null;
   data_confidence_score: number | null;
 }
@@ -37,7 +37,7 @@ export default function FundsPage() {
   const filteredFunds = funds?.filter(f => 
     f.fund_name.toLowerCase().includes(search.toLowerCase()) ||
     f.fund_type?.toLowerCase().includes(search.toLowerCase()) ||
-    f.geography_focus?.toLowerCase().includes(search.toLowerCase())
+    f.geographic_focus?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   const formatSize = (size: number | null, currency: string | null) => {
@@ -122,11 +122,11 @@ export default function FundsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        {formatSize(fund.fund_size, fund.fund_currency)}
+                        {formatSize(fund.fund_size_final, fund.fund_currency)}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {fund.geography_focus || "-"}
+                      {fund.geographic_focus || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={fund.fund_status === "Active" ? "default" : "secondary"}>

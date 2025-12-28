@@ -36,16 +36,16 @@ import { Plus, Search, Factory, MapPin, Globe, Users, TrendingUp } from "lucide-
 interface PortfolioCompany {
   id: string;
   company_name: string;
-  company_type: string | null;
+  growth_stage: string | null;
   headquarters_country: string | null;
   headquarters_city: string | null;
   primary_industry: string | null;
   sub_industry: string | null;
-  business_model: string | null;
+  business_model_type: string | null;
   employee_count_band: string | null;
-  revenue_band: string | null;
+  latest_revenue: number | null;
   current_owner_type: string | null;
-  exit_status: string | null;
+  exit_type: string | null;
   website: string | null;
   data_confidence_score: number | null;
 }
@@ -56,11 +56,11 @@ export default function PortfolioCompaniesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCompany, setNewCompany] = useState({
     company_name: "",
-    company_type: "",
+    growth_stage: "",
     headquarters_country: "",
     headquarters_city: "",
     primary_industry: "",
-    business_model: "",
+    business_model_type: "",
     website: "",
     business_description: "",
   });
@@ -79,11 +79,11 @@ export default function PortfolioCompaniesPage() {
       setIsAddDialogOpen(false);
       setNewCompany({
         company_name: "",
-        company_type: "",
+        growth_stage: "",
         headquarters_country: "",
         headquarters_city: "",
         primary_industry: "",
-        business_model: "",
+        business_model_type: "",
         website: "",
         business_description: "",
       });
@@ -132,16 +132,16 @@ export default function PortfolioCompaniesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company_type">Company Type</Label>
-                  <Select value={newCompany.company_type} onValueChange={(v) => setNewCompany({ ...newCompany, company_type: v })}>
-                    <SelectTrigger data-testid="select-company-type">
-                      <SelectValue placeholder="Select type" />
+                  <Label htmlFor="growth_stage">Growth Stage</Label>
+                  <Select value={newCompany.growth_stage} onValueChange={(v) => setNewCompany({ ...newCompany, growth_stage: v })}>
+                    <SelectTrigger data-testid="select-growth-stage">
+                      <SelectValue placeholder="Select stage" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Private">Private</SelectItem>
-                      <SelectItem value="Public">Public</SelectItem>
-                      <SelectItem value="Subsidiary">Subsidiary</SelectItem>
-                      <SelectItem value="JV">Joint Venture</SelectItem>
+                      <SelectItem value="Seed">Seed</SelectItem>
+                      <SelectItem value="Early">Early</SelectItem>
+                      <SelectItem value="Growth">Growth</SelectItem>
+                      <SelectItem value="Mature">Mature</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -158,8 +158,8 @@ export default function PortfolioCompaniesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business_model">Business Model</Label>
-                  <Select value={newCompany.business_model} onValueChange={(v) => setNewCompany({ ...newCompany, business_model: v })}>
+                  <Label htmlFor="business_model_type">Business Model</Label>
+                  <Select value={newCompany.business_model_type} onValueChange={(v) => setNewCompany({ ...newCompany, business_model_type: v })}>
                     <SelectTrigger data-testid="select-business-model">
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
@@ -300,7 +300,7 @@ export default function PortfolioCompaniesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {company.business_model || "-"}
+                      {company.business_model_type || "-"}
                     </TableCell>
                     <TableCell>
                       {company.headquarters_city || company.headquarters_country ? (
@@ -319,9 +319,9 @@ export default function PortfolioCompaniesPage() {
                       ) : "-"}
                     </TableCell>
                     <TableCell>
-                      {company.exit_status ? (
-                        <Badge variant={company.exit_status === "Active" ? "default" : "secondary"}>
-                          {company.exit_status}
+                      {company.exit_type ? (
+                        <Badge variant={company.exit_type === "Active" ? "default" : "secondary"}>
+                          {company.exit_type}
                         </Badge>
                       ) : (
                         <Badge variant="outline">Active</Badge>

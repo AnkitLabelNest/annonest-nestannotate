@@ -16,13 +16,13 @@ import { Search, Handshake, MapPin, Globe } from "lucide-react";
 
 interface ServiceProvider {
   id: string;
-  provider_name: string;
-  provider_type: string | null;
-  provider_subtype: string | null;
+  service_provider_name: string;
+  service_provider_type: string | null;
+  primary_services: string | null;
   headquarters_country: string | null;
   headquarters_city: string | null;
   website: string | null;
-  number_of_gp_clients: number | null;
+  employee_count_band: string | null;
   data_confidence_score: number | null;
 }
 
@@ -34,8 +34,8 @@ export default function ServiceProvidersPage() {
   });
 
   const filteredProviders = providers?.filter(p => 
-    p.provider_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.provider_type?.toLowerCase().includes(search.toLowerCase()) ||
+    p.service_provider_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.service_provider_type?.toLowerCase().includes(search.toLowerCase()) ||
     p.headquarters_country?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
@@ -71,7 +71,7 @@ export default function ServiceProvidersPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Subtype</TableHead>
                 <TableHead>HQ</TableHead>
-                <TableHead>GP Clients</TableHead>
+                <TableHead>Size</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -94,7 +94,7 @@ export default function ServiceProvidersPage() {
                       <div className="flex items-center gap-2">
                         <Handshake className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{provider.provider_name}</p>
+                          <p className="font-medium">{provider.service_provider_name}</p>
                           {provider.website && (
                             <a 
                               href={provider.website} 
@@ -111,10 +111,10 @@ export default function ServiceProvidersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {provider.provider_type && <Badge variant="secondary">{provider.provider_type}</Badge>}
+                      {provider.service_provider_type && <Badge variant="secondary">{provider.service_provider_type}</Badge>}
                     </TableCell>
                     <TableCell>
-                      {provider.provider_subtype || "-"}
+                      {provider.primary_services || "-"}
                     </TableCell>
                     <TableCell>
                       {provider.headquarters_city || provider.headquarters_country ? (
@@ -125,7 +125,7 @@ export default function ServiceProvidersPage() {
                       ) : "-"}
                     </TableCell>
                     <TableCell>
-                      {provider.number_of_gp_clients ?? "-"}
+                      {provider.employee_count_band ?? "-"}
                     </TableCell>
                   </TableRow>
                 ))
