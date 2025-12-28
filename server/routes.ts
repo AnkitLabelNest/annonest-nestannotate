@@ -3607,8 +3607,12 @@ export async function registerRoutes(
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
     try {
-      const contacts = await storage.getEntityContacts(orgId);
-      return res.json(contacts);
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `SELECT * FROM entities_contact WHERE org_id = $1 ORDER BY created_at DESC`,
+        [orgId]
+      );
+      return res.json(result.rows);
     } catch (error) {
       console.error("Error fetching entity contacts:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -4851,8 +4855,8 @@ export async function registerRoutes(
       // Map camelCase to snake_case
       const camelToSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       
-      // Build insert query dynamically
-      const insertColumns = ["org_id"];
+      // Build insert query dynamically - let PostgreSQL generate UUID via gen_random_uuid()
+      const insertColumns = ["id", "org_id"];
       const insertValues: any[] = [orgId];
       let paramIndex = 2;
       
@@ -4892,7 +4896,8 @@ export async function registerRoutes(
         }
       }
       
-      const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(", ");
+      // Use gen_random_uuid() for id, then parameter placeholders for other values
+      const placeholders = ["gen_random_uuid()", ...insertValues.map((_, i) => `$${i + 1}`)].join(", ");
       const query = `INSERT INTO ${config.table} (${insertColumns.join(", ")}) VALUES (${placeholders}) RETURNING *`;
       
       const result = await pool.query(query, insertValues);
@@ -5084,10 +5089,10 @@ export async function registerRoutes(
       
       const parsed = createSchema.parse(req.body);
       
-      // Use raw pool.query to insert
+      // Use raw pool.query to insert - let PostgreSQL generate UUID via gen_random_uuid()
       const result = await pool.query(
-        `INSERT INTO projects (name, description, type, status, created_by, org_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO projects (id, name, description, type, status, created_by, org_id)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
          RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
         [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
       );
