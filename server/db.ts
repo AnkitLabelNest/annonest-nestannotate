@@ -63,6 +63,35 @@ export const getTableName = (entity: string) => {
 // Legacy function for backwards compatibility
 export const getProjectTableName = () => getTableName("project");
 
+// Column name mapping for project table (local uses 'name', Supabase uses 'project_name')
+export const getProjectColumns = () => {
+  if (!isSupabase) {
+    // Local dev database column names
+    return {
+      name: "name",
+      description: "description",
+      type: "type",
+      status: "status",
+      createdBy: "created_by",
+      assignedTo: "assigned_to",
+      orgId: "org_id",
+    };
+  }
+  // Supabase column names (entities_project has NO assigned_to column)
+  return {
+    name: "project_name",
+    description: "notes",
+    type: "project_type",
+    status: "status",
+    createdBy: "created_by",
+    assignedTo: null, // Supabase entities_project has no assigned_to
+    orgId: "org_id",
+  };
+};
+
+// Export isSupabase flag for routes that need conditional logic
+export { isSupabase };
+
 const pool = new Pool({
   connectionString,
   ssl: isSupabase ? { rejectUnauthorized: false } : undefined,

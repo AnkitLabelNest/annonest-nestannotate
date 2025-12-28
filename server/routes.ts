@@ -5104,17 +5104,17 @@ export async function registerRoutes(
     const limit = parseInt(req.query.limit as string) || 50;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getTableName } = await import("./db");
       
-      // Map entity type to table and name column (matching Supabase schema)
+      // Map entity type to table and name column (uses getTableName for proper local/Supabase resolution)
       const entityTableMap: Record<string, { table: string; nameCol: string }> = {
-        gp: { table: "entities_gp", nameCol: "gp_name" },
-        lp: { table: "entities_lp", nameCol: "lp_name" },
-        fund: { table: "entities_fund", nameCol: "fund_name" },
-        portfolio_company: { table: "entities_portfolio_company", nameCol: "company_name" },
-        service_provider: { table: "entities_service_provider", nameCol: "sp_name" },
-        contact: { table: "entities_contacts", nameCol: "full_name" },
-        deal: { table: "entities_deal", nameCol: "deal_name" },
+        gp: { table: getTableName("gp"), nameCol: "gp_name" },
+        lp: { table: getTableName("lp"), nameCol: "lp_name" },
+        fund: { table: getTableName("fund"), nameCol: "fund_name" },
+        portfolio_company: { table: getTableName("portfolio_company"), nameCol: "company_name" },
+        service_provider: { table: getTableName("service_provider"), nameCol: "service_provider_name" },
+        contact: { table: getTableName("contact"), nameCol: "full_name_override" },
+        deal: { table: getTableName("deal"), nameCol: "deal_name" },
       };
       
       const config = entityTableMap[entityType];
@@ -5159,43 +5159,43 @@ export async function registerRoutes(
     const data = req.body;
     
     try {
-      const { pool } = await import("./db");
+      const { pool, getTableName } = await import("./db");
       
-      // Define columns for each entity type (matching Supabase schema exactly)
+      // Define columns for each entity type (uses getTableName for proper local/Supabase resolution)
       const entityColumnMap: Record<string, { table: string; columns: string[]; required: string[] }> = {
         gp: { 
-          table: "entities_gp", 
-          columns: ["gp_name", "gp_legal_name", "gp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "description", "year_established", "assigned_to", "status"],
+          table: getTableName("gp"), 
+          columns: ["gp_name", "gp_legal_name", "firm_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "year_founded", "assigned_to"],
           required: ["gp_name"]
         },
         lp: { 
-          table: "entities_lp", 
-          columns: ["lp_name", "lp_legal_name", "lp_type", "lp_firm_type", "headquarters_country", "headquarters_city", "headquarters_state", "total_aum", "aum_currency", "website", "linkedin_url", "description", "year_established", "assigned_to", "status"],
-          required: ["lp_name", "lp_type", "lp_firm_type"]
+          table: getTableName("lp"), 
+          columns: ["lp_name", "lp_legal_name", "lp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "year_established", "assigned_to"],
+          required: ["lp_name"]
         },
         fund: { 
-          table: "entities_fund", 
-          columns: ["fund_name", "fund_legal_name", "fund_type", "gp_id", "vintage_year", "currency", "fundraising_status", "target_fund_size", "final_fund_size", "description", "assigned_to", "status"],
+          table: getTableName("fund"), 
+          columns: ["fund_name", "fund_legal_name", "fund_type", "gp_id", "vintage_year", "fund_currency", "fund_status", "target_fund_size", "fund_size_final", "assigned_to"],
           required: ["fund_name"]
         },
         portfolio_company: { 
-          table: "entities_portfolio_company", 
-          columns: ["company_name", "legal_name", "company_type", "headquarters_country", "headquarters_city", "industry", "business_model", "website", "description", "year_founded", "assigned_to", "status"],
+          table: getTableName("portfolio_company"), 
+          columns: ["company_name", "company_legal_name", "headquarters_country", "headquarters_city", "primary_industry", "business_model_type", "founded_year", "assigned_to"],
           required: ["company_name"]
         },
         service_provider: { 
-          table: "entities_service_provider", 
-          columns: ["sp_name", "sp_legal_name", "sp_category", "headquarters_country", "headquarters_city", "primary_services", "operating_regions", "year_established", "description", "assigned_to", "status"],
-          required: ["sp_name"]
+          table: getTableName("service_provider"), 
+          columns: ["service_provider_name", "service_provider_legal_name", "service_provider_type", "headquarters_country", "headquarters_city", "primary_services", "operating_regions", "year_founded", "assigned_to"],
+          required: ["service_provider_name"]
         },
         contact: { 
-          table: "entities_contacts", 
-          columns: ["first_name", "last_name", "middle_name", "full_name", "email", "phone_number", "job_title", "functional_role", "linkedin_url", "contact_priority", "verification_status", "notes", "assigned_to", "status"],
+          table: getTableName("contact"), 
+          columns: ["first_name", "last_name", "full_name_override", "work_email", "personal_email", "phone_number", "job_title", "seniority_level", "linkedin_url", "assigned_to"],
           required: ["first_name", "last_name"]
         },
         deal: { 
-          table: "entities_deal", 
-          columns: ["deal_name", "deal_type", "deal_stage", "deal_value", "deal_currency", "announcement_date", "completion_date", "fund_id", "portfolio_company_id", "description", "assigned_to", "status"],
+          table: getTableName("deal"), 
+          columns: ["deal_name", "transaction_type", "deal_status", "deal_size", "deal_currency", "announcement_date", "close_date", "target_company_id", "lead_investor_gp_id", "lead_fund_id", "assigned_to"],
           required: ["deal_name"]
         },
       };
@@ -5283,25 +5283,26 @@ export async function registerRoutes(
     const { orgId, role: userRole, userId, isSuperAdmin } = userInfo;
     
     try {
-      const { pool, getProjectTableName } = await import("./db");
+      const { pool, getProjectTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
+      const cols = getProjectColumns();
       
       let projects;
       
       // Super Admin sees ALL projects across all orgs
       // Manager/Admin see all projects in their org
       // Use raw pg pool.query to avoid Drizzle schema mapping issues
-      // Note: entities_project uses project_name, notes, project_type and has NO assigned_to column
+      // Column names differ between local (name, description, type) and Supabase (project_name, notes, project_type)
+      const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
+      
       if (isSuperAdmin) {
         const result = await pool.query(
-          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
-           FROM ${projectTable} ORDER BY created_at DESC`
+          `SELECT ${selectCols} FROM ${projectTable} ORDER BY created_at DESC`
         );
         projects = result.rows;
       } else if (["admin", "manager"].includes(userRole)) {
         const result = await pool.query(
-          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
-           FROM ${projectTable} WHERE org_id = $1`,
+          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1`,
           [orgId]
         );
         projects = result.rows;
@@ -5324,8 +5325,7 @@ export async function registerRoutes(
         
         const projectIds = memberProjects.map(m => m.projectId);
         const result = await pool.query(
-          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
-           FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
+          `SELECT ${selectCols} FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
           [orgId, projectIds]
         );
         projects = result.rows;
@@ -5377,15 +5377,16 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { pool, getProjectTableName, getTableName } = await import("./db");
+      const { pool, getProjectTableName, getTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
+      const cols = getProjectColumns();
       const itemsTable = getTableName("project_items");
       const membersTable = getTableName("project_members");
       
-      // Fetch project using raw SQL (entities_project uses project_name, notes, project_type and has NO assigned_to)
+      // Fetch project using raw SQL - column names differ between local and Supabase
+      const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
       const projectResult = await pool.query(
-        `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
-         FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
+        `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
         [projectId, orgId]
       );
       
@@ -5453,11 +5454,12 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool, getProjectTableName } = await import("./db");
+      const { pool, getProjectTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
+      const cols = getProjectColumns();
       const { z } = await import("zod");
       
-      // Validate input (frontend sends 'name', we map to project_name for Supabase)
+      // Validate input (frontend sends 'name', we map to correct column name)
       const createSchema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
@@ -5467,12 +5469,14 @@ export async function registerRoutes(
       
       const parsed = createSchema.parse(req.body);
       
-      // Use raw pool.query to insert - let PostgreSQL generate UUID via gen_random_uuid()
-      // Note: entities_project uses project_name (not name) and has NO assigned_to column
+      // Use raw pool.query to insert - column names differ between local and Supabase
+      const insertCols = `id, ${cols.name}, ${cols.description}, ${cols.type}, status, created_by, org_id`;
+      const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
+      
       const result = await pool.query(
-        `INSERT INTO ${projectTable} (id, project_name, notes, project_type, status, created_by, org_id)
+        `INSERT INTO ${projectTable} (${insertCols})
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-         RETURNING id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"`,
+         RETURNING ${selectCols}`,
         [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
       );
       
@@ -5493,19 +5497,20 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool, getProjectTableName } = await import("./db");
+      const { pool, getProjectTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
+      const cols = getProjectColumns();
       
       // Whitelist only mutable fields - never allow orgId, id, createdBy
-      // Map frontend field names to Supabase column names
+      // Map frontend field names to correct database column names
       const { name, description, type, status } = req.body;
       const updates: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
       
-      if (name !== undefined) { updates.push(`project_name = $${paramIndex++}`); values.push(name); }
-      if (description !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(description); }
-      if (type !== undefined) { updates.push(`project_type = $${paramIndex++}`); values.push(type); }
+      if (name !== undefined) { updates.push(`${cols.name} = $${paramIndex++}`); values.push(name); }
+      if (description !== undefined) { updates.push(`${cols.description} = $${paramIndex++}`); values.push(description); }
+      if (type !== undefined) { updates.push(`${cols.type} = $${paramIndex++}`); values.push(type); }
       if (status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(status); }
       
       if (updates.length === 0) {
@@ -5515,10 +5520,11 @@ export async function registerRoutes(
       // Add WHERE clause params
       values.push(projectId, orgId);
       
+      const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
       const result = await pool.query(
         `UPDATE ${projectTable} SET ${updates.join(", ")}, updated_at = NOW()
          WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
-         RETURNING id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"`,
+         RETURNING ${selectCols}`,
         values
       );
       
@@ -5889,18 +5895,25 @@ export async function registerRoutes(
     if (!orgId) return;
     
     try {
-      const { db } = await import("./db");
-      const { sql } = await import("drizzle-orm");
+      const { pool, getTableName } = await import("./db");
       
-      const result = await db.execute(sql`
+      // Use getTableName for proper local/Supabase table resolution
+      const contactTable = getTableName("contact");
+      const lpTable = getTableName("lp");
+      const gpTable = getTableName("gp");
+      const fundTable = getTableName("fund");
+      const pcTable = getTableName("portfolio_company");
+      const dealTable = getTableName("deal");
+      
+      const result = await pool.query(`
         SELECT 
-          (SELECT COUNT(*) FROM entities_lp WHERE org_id = ${orgId}) as lp_count,
-          (SELECT COUNT(*) FROM entities_gp WHERE org_id = ${orgId}) as gp_count,
-          (SELECT COUNT(*) FROM entities_fund WHERE org_id = ${orgId}) as fund_count,
-          (SELECT COUNT(*) FROM entities_portfolio_company WHERE org_id = ${orgId}) as portfolio_company_count,
-          (SELECT COUNT(*) FROM entities_deal WHERE org_id = ${orgId}) as deal_count,
-          (SELECT COUNT(*) FROM entities_contacts WHERE org_id = ${orgId}) as contact_count
-      `);
+          (SELECT COUNT(*) FROM ${lpTable} WHERE org_id = $1) as lp_count,
+          (SELECT COUNT(*) FROM ${gpTable} WHERE org_id = $1) as gp_count,
+          (SELECT COUNT(*) FROM ${fundTable} WHERE org_id = $1) as fund_count,
+          (SELECT COUNT(*) FROM ${pcTable} WHERE org_id = $1) as portfolio_company_count,
+          (SELECT COUNT(*) FROM ${dealTable} WHERE org_id = $1) as deal_count,
+          (SELECT COUNT(*) FROM ${contactTable} WHERE org_id = $1) as contact_count
+      `, [orgId]);
       
       const counts = result.rows[0] || {};
       return res.json({
