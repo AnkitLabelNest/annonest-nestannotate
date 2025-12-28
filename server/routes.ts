@@ -5333,50 +5333,10 @@ export async function registerRoutes(
         projects = result.rows;
       }
       
-      // Get task counts for each project
-      const projectIds = projects.map((p: any) => p.id);
-      if (projectIds.length === 0) {
-        return res.json([]);
-      }
-      
-      // Get items using raw SQL since tables were just created
-      const { getTableName, getProjectItemColumns } = await import("./db");
-      const itemsTable = getTableName("project_items");
-      const itemCols = getProjectItemColumns();
-      // Supabase doesn't have entity_name_snapshot column - conditionally include it
-      const entityNameCol = itemCols.hasEntityNameSnapshot 
-        ? `, ${itemCols.entityNameSnapshot} as "entityNameSnapshot"` 
-        : "";
-      // Build SELECT columns based on what exists in the table
-      const notesCol = itemCols.hasNotes ? ', notes' : '';
-      const orgIdCol = itemCols.hasOrgId ? ', org_id as "orgId"' : '';
-      const itemsResult = await pool.query(
-        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId"${entityNameCol}, assigned_to as "assignedTo",
-                task_status as "taskStatus"${notesCol}${orgIdCol}, ${itemCols.createdAt} as "createdAt"
-         FROM ${itemsTable} WHERE project_id = ANY($1)`,
-        [projectIds]
-      );
-      // Ensure entityNameSnapshot is always present (null for Supabase)
-      const items = (itemsResult.rows as any[]).map(item => ({
-        ...item,
-        entityNameSnapshot: item.entityNameSnapshot ?? null,
-      }));
-      
-      const projectsWithStats = (projects as any[]).map(project => {
-        const projectItems = items.filter(i => i.projectId === project.id);
-        const totalItems = projectItems.length;
-        const pendingItems = projectItems.filter(i => i.taskStatus === "pending").length;
-        const completedItems = projectItems.filter(i => i.taskStatus === "completed").length;
-        
-        return {
-          ...project,
-          totalItems,
-          pendingItems,
-          completedItems,
-        };
-      });
-      
-      return res.json(projectsWithStats);
+      // Return projects from entities_project ONLY
+      // ARCHITECTURAL RULE: Project listing must NEVER query entities_project_items
+      // Stats (totalItems, pendingItems, completedItems) moved to project detail endpoint
+      return res.json(projects);
     } catch (error: any) {
       console.error("Error fetching DataNest projects:", error);
       // Return detailed error in development/for debugging

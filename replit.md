@@ -164,6 +164,15 @@ Preferred communication style: Simple, everyday language.
   - `hasEntityNameSnapshot`: false for Supabase
   - `updatedAt`: "last_updated_on" for Supabase, "updated_at" for local
 
+### CRITICAL ARCHITECTURAL RULE: Project Table Separation
+- **GET /api/datanest/projects** queries ONLY `entities_project` table
+  - MUST NOT reference `entities_project_items` in any way
+  - MUST NOT compute item stats (totalItems, pendingItems, completedItems)
+  - Project listing must NEVER break due to items schema
+- **GET /api/datanest/projects/:id/items** handles all project items logic
+  - Items are loaded ONLY when viewing a specific project detail
+  - Stats are computed on the frontend from items data
+
 ### Entity Table Column Reference
 - **entities_gp**: `gp_name`, `gp_legal_name`, `gp_short_name`, `firm_type`, `year_founded`, `headquarters_country`, `headquarters_city`, `operating_regions`, `total_aum`, `aum_currency`, `primary_asset_classes`, `investment_stages`, `industry_focus`, `geographic_focus`, `number_of_funds`, `active_funds_count`, `esg_policy_available`, `pri_signatory`, `assigned_to`
 - **entities_lp**: `lp_name`, `lp_legal_name`, `lp_short_name`, `lp_type`, `year_established`, `total_aum`, `aum_currency`, `private_markets_allocation_percent`, `target_allocation_percent`, `asset_class_preferences`, `geographic_preferences`, `industry_preferences`, `average_commitment_size`, `esg_policy_available`, `pri_signatory`, `assigned_to`
