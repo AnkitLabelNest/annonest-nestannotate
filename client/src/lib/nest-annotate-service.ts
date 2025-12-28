@@ -1215,7 +1215,6 @@ export async function createEntity(
         org_id: orgId,
         gp_name: entityName,
         firm_type: "PE",
-        created_by: createdBy,
       };
       break;
     case "lp":
@@ -1223,8 +1222,7 @@ export async function createEntity(
       insertData = {
         org_id: orgId,
         lp_name: entityName,
-        firm_type: "Pension Fund",
-        created_by: createdBy,
+        lp_type: "Pension Fund",
       };
       break;
     case "service_provider":
@@ -1233,7 +1231,6 @@ export async function createEntity(
         org_id: orgId,
         provider_name: entityName,
         provider_type: "Advisory",
-        created_by: createdBy,
       };
       break;
     case "fund":
@@ -1242,7 +1239,6 @@ export async function createEntity(
         org_id: orgId,
         fund_name: entityName,
         fund_type: "Buyout",
-        created_by: createdBy,
       };
       break;
     case "contact":
@@ -1254,7 +1250,6 @@ export async function createEntity(
         org_id: orgId,
         first_name: firstName,
         last_name: lastName,
-        created_by: createdBy,
       };
       break;
     case "portfolio_company":
@@ -1264,7 +1259,6 @@ export async function createEntity(
         org_id: orgId,
         company_name: entityName,
         company_type: "Private",
-        created_by: createdBy,
       };
       break;
     default:

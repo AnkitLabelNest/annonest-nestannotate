@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -20,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import {
   Type,
   Image,
@@ -32,7 +42,12 @@ import {
   AlertCircle,
   Newspaper,
   Filter,
+  Plus,
+  Loader2,
+  ClipboardList,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import {
   fetchProjectsWithStats,
   fetchLabelTypeSummary,
@@ -271,12 +286,57 @@ function ProjectsTable({ projects, isLoading }: { projects: LabelProjectWithStat
 
 export default function NestAnnotatePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedLabelType, setSelectedLabelType] = useState<FilterType>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [labelType, setLabelType] = useState("text");
+  const [projectCategory, setProjectCategory] = useState("general");
 
   const orgId = user?.orgId || "";
   const userId = user?.id || "";
   const userRole = (user?.role || "annotator") as UserRole;
+  const isManager = ["super_admin", "admin", "manager"].includes(userRole);
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: { name: string; labelType: string; projectCategory: string }) => {
+      const res = await apiRequest("POST", "/api/nest-annotate/projects", data);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create project");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["nest-annotate-projects", orgId, userId, userRole] });
+      setCreateDialogOpen(false);
+      setProjectName("");
+      setLabelType("text");
+      setProjectCategory("general");
+      toast({ title: "Project created successfully" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create project",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateProject = () => {
+    if (!projectName.trim()) {
+      toast({ title: "Please enter a project name", variant: "destructive" });
+      return;
+    }
+    createProjectMutation.mutate({
+      name: projectName,
+      labelType,
+      projectCategory,
+    });
+  };
 
   const { data: summaries = [], isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ["nest-annotate-summary", orgId, userId, userRole],
@@ -338,14 +398,102 @@ export default function NestAnnotatePage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">NestAnnotate</h1>
-        <p className="text-muted-foreground">
-          {isAnnotator 
-            ? "Your assigned annotation projects" 
-            : "Manage annotation projects across your organization"
-          }
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">NestAnnotate</h1>
+          <p className="text-muted-foreground">
+            {isAnnotator 
+              ? "Your assigned annotation projects" 
+              : "Manage annotation projects across your organization"
+            }
+          </p>
+        </div>
+        {isManager && (
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/annotate/shell-profiles">
+              <Button variant="outline" data-testid="button-shell-profiles">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Shell Profiles
+              </Button>
+            </Link>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-project">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogDescription>
+                    Set up a new annotation project. News projects support bulk article upload and entity tagging.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="project-name">Project Name</Label>
+                    <Input
+                      id="project-name"
+                      placeholder="e.g., Q4 News Analysis"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      data-testid="input-project-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label Type</Label>
+                    <Select value={labelType} onValueChange={setLabelType}>
+                      <SelectTrigger data-testid="select-label-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text Labeling</SelectItem>
+                        <SelectItem value="image">Image Labeling</SelectItem>
+                        <SelectItem value="video">Video Labeling</SelectItem>
+                        <SelectItem value="audio">Audio Labeling</SelectItem>
+                        <SelectItem value="transcription">Transcription</SelectItem>
+                        <SelectItem value="translation">Translation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Project Category</Label>
+                    <Select value={projectCategory} onValueChange={setProjectCategory}>
+                      <SelectTrigger data-testid="select-project-category">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="news">News (Entity Tagging)</SelectItem>
+                        <SelectItem value="research">Research</SelectItem>
+                        <SelectItem value="training">Training</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {projectCategory === "news" && (
+                      <p className="text-xs text-muted-foreground">
+                        News projects allow bulk CSV/Excel upload of articles and entity tagging workflows.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateProject}
+                      disabled={createProjectMutation.isPending}
+                      data-testid="button-submit-create-project"
+                    >
+                      {createProjectMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Create Project
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
       </div>
 
       {(summaryError || projectsError) && (

@@ -119,7 +119,7 @@ function AppRoutes() {
         <Route path="/annotate/transcription" component={TranscriptionPage} />
         <Route path="/annotate/translation" component={TranslationPage} />
         <Route path="/nest-annotate" component={NestAnnotatePage} />
-        <Route path="/annotate/projects" component={NestAnnotateProjectsPage} />
+        <Route path="/annotate/projects" component={() => <Redirect to="/nest-annotate" />} />
         <Route path="/annotate/projects/:id" component={NestAnnotateProjectDetailPage} />
         <Route path="/annotate/shell-profiles" component={ShellProfilesPage} />
         <Route path="/news-intelligence" component={NewsIntelligencePage} />
