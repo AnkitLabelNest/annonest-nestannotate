@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -41,6 +41,8 @@ import {
   Clock,
   Filter,
   Shuffle,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import {
   fetchProjectById,
@@ -76,39 +78,54 @@ function StatusBadge({ status }: { status: AnnotationTaskStatus }) {
   );
 }
 
-function ProjectHeader({ project }: { project: ProjectDetails }) {
+interface ProjectHeaderProps {
+  project: ProjectDetails;
+  canManage: boolean;
+  onUploadClick?: () => void;
+}
+
+function ProjectHeader({ project, canManage, onUploadClick }: ProjectHeaderProps) {
   const [, setLocation] = useLocation();
+  const isNewsProject = project.projectCategory === "news";
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setLocation("/nest-annotate")}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-project-name">
-            {project.name}
-          </h1>
-          <div className="flex items-center gap-3 mt-1 flex-wrap">
-            <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              {project.labelType}
-            </Badge>
-            <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400">
-              {project.projectCategory}
-            </Badge>
-            <Badge className={project.workContext === "internal" 
-              ? "bg-slate-500/10 text-slate-600 dark:text-slate-400"
-              : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-            }>
-              {project.workContext === "internal" ? "Internal" : "Client"}
-            </Badge>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation("/nest-annotate")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="text-project-name">
+              {project.name}
+            </h1>
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
+              <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                {project.labelType}
+              </Badge>
+              <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                {project.projectCategory}
+              </Badge>
+              <Badge className={project.workContext === "internal" 
+                ? "bg-slate-500/10 text-slate-600 dark:text-slate-400"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              }>
+                {project.workContext === "internal" ? "Internal" : "Client"}
+              </Badge>
+            </div>
           </div>
         </div>
+        {canManage && isNewsProject && onUploadClick && (
+          <Button onClick={onUploadClick} data-testid="button-upload-news">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload News
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -169,8 +186,11 @@ export default function ProjectViewPage() {
   
   const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
   const [assignEvenlyDialogOpen, setAssignEvenlyDialogOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedAssignUser, setSelectedAssignUser] = useState<string>("");
   const [selectedEvenlyUsers, setSelectedEvenlyUsers] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthReady = !!user && !!orgId && !!userId;
 
@@ -223,6 +243,113 @@ export default function ProjectViewPage() {
       toast({ title: "Failed to distribute items", variant: "destructive" });
     },
   });
+
+  const uploadNewsMutation = useMutation({
+    mutationFn: async (articles: { headline: string; url?: string; source_name?: string; publish_date?: string; raw_text?: string }[]) => {
+      const res = await fetch(`/api/nest-annotate/projects/${projectId}/upload-news`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ articles }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Upload failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["project-items", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      setUploadDialogOpen(false);
+      toast({ title: "Upload Complete", description: data.message });
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload news",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      if (lines.length < 2) {
+        throw new Error("CSV must have a header row and at least one data row");
+      }
+      
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, "_"));
+      const headlineIdx = headers.findIndex(h => h.includes("headline") || h.includes("title"));
+      const urlIdx = headers.findIndex(h => h.includes("url") || h.includes("link"));
+      const sourceIdx = headers.findIndex(h => h.includes("source"));
+      const dateIdx = headers.findIndex(h => h.includes("date") || h.includes("publish"));
+      const textIdx = headers.findIndex(h => h.includes("raw_text") || h.includes("content") || h.includes("body"));
+      
+      if (headlineIdx === -1) {
+        throw new Error("CSV must have a 'headline' or 'title' column");
+      }
+      
+      const articles = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length < headers.length) continue;
+        
+        const headline = values[headlineIdx]?.trim();
+        if (!headline) continue;
+        
+        articles.push({
+          headline,
+          url: urlIdx !== -1 ? values[urlIdx]?.trim() : undefined,
+          source_name: sourceIdx !== -1 ? values[sourceIdx]?.trim() : undefined,
+          publish_date: dateIdx !== -1 ? values[dateIdx]?.trim() : undefined,
+          raw_text: textIdx !== -1 ? values[textIdx]?.trim() : undefined,
+        });
+      }
+      
+      if (articles.length === 0) {
+        throw new Error("No valid articles found in CSV");
+      }
+      
+      uploadNewsMutation.mutate(articles);
+    } catch (error) {
+      toast({
+        title: "Parse Error",
+        description: error instanceof Error ? error.message : "Failed to parse file",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const uniqueSources = useMemo(() => {
     const sources = new Set<string>();
@@ -364,7 +491,7 @@ export default function ProjectViewPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <ProjectHeader project={project} />
+      <ProjectHeader project={project} canManage={canManage} onUploadClick={() => setUploadDialogOpen(true)} />
 
       <Card>
         <CardHeader className="pb-4">
@@ -609,6 +736,43 @@ export default function ProjectViewPage() {
               data-testid="button-confirm-assign-evenly"
             >
               {assignEvenlyMutation.isPending ? "Distributing..." : `Distribute to ${selectedEvenlyUsers.size} user(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload News Articles</DialogTitle>
+            <DialogDescription>
+              Upload a CSV or Excel file with news articles. Each row will become a task.
+              Required column: headline (or title). Optional: url, source_name, publish_date, raw_text.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              data-testid="input-file-upload"
+            />
+            {(uploading || uploadNewsMutation.isPending) && (
+              <div className="flex items-center gap-2 mt-4 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processing file...</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUploadDialogOpen(false)}
+              disabled={uploading || uploadNewsMutation.isPending}
+            >
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
