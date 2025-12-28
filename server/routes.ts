@@ -5366,9 +5366,14 @@ export async function registerRoutes(
       });
       
       return res.json(projectsWithStats);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching DataNest projects:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      // Return detailed error in development/for debugging
+      return res.status(500).json({ 
+        message: "Internal server error", 
+        detail: error?.message || String(error),
+        hint: error?.hint || null
+      });
     }
   });
 
