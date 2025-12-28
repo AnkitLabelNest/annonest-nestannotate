@@ -137,9 +137,32 @@ Preferred communication style: Simple, everyday language.
 
 ### Critical Schema Rules
 - **All column names are snake_case** (e.g., `gp_name`, `year_founded`, NOT camelCase)
-- **Table name**: `entities_contact` (SINGULAR, not `entities_contacts`)
+- **Table name**: `entities_contact` (not `entities_contacts`) in Supabase
 - **No status column** in most entity tables - removed from all CRM routes
 - Routes use raw SQL queries that must match Supabase exactly
+
+### Project Tables Schema Differences (Local vs Supabase)
+**entities_project (Supabase)**:
+- Columns: `id, org_id, project_name, project_type, status, priority, start_date, due_date, created_by, created_at, updated_at, notes, status_updated_at`
+- NO `assigned_to` column
+
+**entities_project_items (Supabase)**:
+- Columns: `id, project_id, entity_type, entity_id, assigned_to, task_status, last_updated_on, last_updated_by, created_at`
+- NO `org_id` column (org isolation via project's org_id)
+- NO `notes` column
+- NO `entity_name_snapshot` column
+- Uses `last_updated_on` instead of `updated_at`
+
+**Local dev project_items**:
+- Has all columns including `entity_name_snapshot`, `notes`, `org_id`, `updated_at`
+
+### Column Mapping (server/db.ts)
+- `getProjectColumns()` - maps project table column names
+- `getProjectItemColumns()` - maps project_items columns with flags for conditional queries:
+  - `hasOrgId`: false for Supabase
+  - `hasNotes`: false for Supabase
+  - `hasEntityNameSnapshot`: false for Supabase
+  - `updatedAt`: "last_updated_on" for Supabase, "updated_at" for local
 
 ### Entity Table Column Reference
 - **entities_gp**: `gp_name`, `gp_legal_name`, `gp_short_name`, `firm_type`, `year_founded`, `headquarters_country`, `headquarters_city`, `operating_regions`, `total_aum`, `aum_currency`, `primary_asset_classes`, `investment_stages`, `industry_focus`, `geographic_focus`, `number_of_funds`, `active_funds_count`, `esg_policy_available`, `pri_signatory`, `assigned_to`

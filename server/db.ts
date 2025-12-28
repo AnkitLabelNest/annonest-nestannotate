@@ -90,20 +90,31 @@ export const getProjectColumns = () => {
 };
 
 // Column name mapping for project_items table
+// Supabase entities_project_items: id, project_id, entity_type, entity_id, assigned_to, task_status, last_updated_on, last_updated_by, created_at
+// Local dev entities_project_items: id, project_id, entity_type, entity_id, entity_name_snapshot, assigned_to, task_status, notes, org_id, created_at, updated_at
 export const getProjectItemColumns = () => {
   if (!isSupabase) {
     // Local dev database column names
     return {
       entityNameSnapshot: "entity_name_snapshot",
       hasEntityNameSnapshot: true,
+      hasOrgId: true,
+      hasNotes: true,
+      updatedAt: "updated_at",
       createdAt: "created_at",
     };
   }
-  // Supabase entities_project_items does NOT have entity_name or entity_name_snapshot column
-  // The entity name should be derived from the source entity table if needed
+  // Supabase entities_project_items:
+  // - NO entity_name_snapshot column
+  // - NO org_id column (org isolation is via project's org_id)
+  // - NO notes column
+  // - Uses last_updated_on/last_updated_by instead of updated_at
   return {
     entityNameSnapshot: null,
     hasEntityNameSnapshot: false,
+    hasOrgId: false,
+    hasNotes: false,
+    updatedAt: "last_updated_on",
     createdAt: "created_at",
   };
 };
