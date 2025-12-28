@@ -1511,7 +1511,7 @@ export async function registerRoutes(
         UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp
         UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider
         UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal
-        UNION ALL SELECT 'entities_contact', count(*)::int FROM entities_contact
+        UNION ALL SELECT 'entities_contacts', count(*)::int FROM entities_contacts
         UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
         UNION ALL SELECT 'public_company_snapshot', count(*)::int FROM public_company_snapshot
         UNION ALL SELECT 'relationships', count(*)::int FROM relationships
@@ -1553,8 +1553,8 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_gp (org_id, gp_name, gp_legal_name, firm_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, primary_asset_classes)
-        VALUES (${orgId}, ${data.gp_name}, ${data.gp_legal_name || null}, ${data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.primary_asset_classes || null})
+        INSERT INTO entities_gp (org_id, gp_name, gp_legal_name, gp_type, headquarters_country, headquarters_city, total_aum, aum_currency, description, year_established, assigned_to, status)
+        VALUES (${orgId}, ${data.gp_name}, ${data.gp_legal_name || null}, ${data.gp_type || data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.description || null}, ${data.year_established || null}, ${data.assigned_to || null}, ${data.status || 'active'})
         RETURNING *
       `);
       
@@ -1578,49 +1578,37 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_gp SET
-          gp_name = ${data.gp_name},
+          gp_name = ${data.gp_name || null},
           gp_legal_name = ${data.gp_legal_name || null},
-          gp_short_name = ${data.gp_short_name || null},
-          firm_type = ${data.firm_type || null},
-          year_founded = ${data.year_founded || null},
+          former_names = ${data.former_names || null},
+          gp_type = ${data.gp_type || data.firm_type || null},
+          legal_structure = ${data.legal_structure || null},
+          year_established = ${data.year_established || data.year_founded || null},
+          primary_jurisdiction = ${data.primary_jurisdiction || null},
+          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
+          description = ${data.description || null},
           headquarters_country = ${data.headquarters_country || null},
           headquarters_city = ${data.headquarters_city || null},
+          operating_countries = ${data.operating_countries || null},
           operating_regions = ${data.operating_regions || null},
+          number_of_offices = ${data.number_of_offices || null},
           office_locations = ${data.office_locations || null},
-          website = ${data.website || null},
-          regulatory_status = ${data.regulatory_status || null},
-          primary_regulator = ${data.primary_regulator || null},
-          registration_number = ${data.registration_number || null},
-          registration_jurisdiction = ${data.registration_jurisdiction || null},
+          ownership_type = ${data.ownership_type || null},
           total_aum = ${data.total_aum || null},
           aum_currency = ${data.aum_currency || null},
-          primary_asset_classes = ${data.primary_asset_classes || null},
-          investment_stages = ${data.investment_stages || null},
-          industry_focus = ${data.industry_focus || null},
+          aum_as_of_date = ${data.aum_as_of_date || null},
+          asset_classes = ${data.asset_classes || data.primary_asset_classes || null},
+          fund_strategies = ${data.fund_strategies || null},
+          sector_focus = ${data.sector_focus || data.industry_focus || null},
           geographic_focus = ${data.geographic_focus || null},
-          number_of_funds = ${data.number_of_funds || null},
-          active_funds_count = ${data.active_funds_count || null},
-          total_capital_raised = ${data.total_capital_raised || null},
-          first_fund_vintage = ${data.first_fund_vintage || null},
-          latest_fund_vintage = ${data.latest_fund_vintage || null},
-          estimated_deal_count = ${data.estimated_deal_count || null},
-          ownership_type = ${data.ownership_type || null},
-          parent_company = ${data.parent_company || null},
-          advisory_arms = ${data.advisory_arms || null},
-          employee_count_band = ${data.employee_count_band || null},
-          investment_professionals_count = ${data.investment_professionals_count || null},
-          senior_investment_professionals_count = ${data.senior_investment_professionals_count || null},
-          top_quartile_flag = ${data.top_quartile_flag || null},
-          track_record_years = ${data.track_record_years || null},
-          performance_data_available = ${data.performance_data_available ?? null},
-          esg_policy_available = ${data.esg_policy_available ?? null},
-          pri_signatory = ${data.pri_signatory ?? null},
-          dei_policy_available = ${data.dei_policy_available ?? null},
-          sustainability_report_url = ${data.sustainability_report_url || null},
+          total_team_size = ${data.total_team_size || null},
+          investment_team_size = ${data.investment_team_size || null},
+          esg_policy_exists = ${data.esg_policy_exists ?? null},
+          un_pri_signatory = ${data.un_pri_signatory ?? data.pri_signatory ?? null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
           status = ${data.status || 'active'},
-          email = ${data.email || null},
-          phone = ${data.phone || null},
-          linkedin_url = ${data.linkedin_url || null},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1665,8 +1653,8 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_lp (org_id, lp_name, lp_legal_name, firm_type, investor_type, headquarters_country, headquarters_city, total_aum, aum_currency, website, status)
-        VALUES (${orgId}, ${data.lp_name}, ${data.lp_legal_name || null}, ${data.firm_type || null}, ${data.investor_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.status || 'active'})
+        INSERT INTO entities_lp (org_id, lp_name, lp_legal_name, lp_type, lp_firm_type, headquarters_country, headquarters_city, headquarters_state, total_aum, aum_currency, website, linkedin_url, description, year_established, assigned_to, status)
+        VALUES (${orgId}, ${data.lp_name}, ${data.lp_legal_name || null}, ${data.lp_type || data.investor_type || 'Institutional'}, ${data.lp_firm_type || data.firm_type || 'Other'}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.headquarters_state || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.linkedin_url || null}, ${data.description || null}, ${data.year_established || null}, ${data.assigned_to || null}, ${data.status || 'active'})
         RETURNING *
       `);
       
@@ -1690,48 +1678,41 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_lp SET
-          lp_name = ${data.lp_name},
+          lp_name = ${data.lp_name || null},
           lp_legal_name = ${data.lp_legal_name || null},
-          lp_short_name = ${data.lp_short_name || null},
-          firm_type = ${data.firm_type || null},
-          investor_type = ${data.investor_type || null},
-          year_founded = ${data.year_founded || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_regions = ${data.operating_regions || null},
-          office_locations = ${data.office_locations || null},
+          former_names = ${data.former_names || null},
+          lp_type = ${data.lp_type || data.investor_type || null},
+          lp_firm_type = ${data.lp_firm_type || data.firm_type || null},
+          legal_structure = ${data.legal_structure || null},
+          year_established = ${data.year_established || data.year_founded || null},
+          primary_jurisdiction = ${data.primary_jurisdiction || null},
+          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
+          description = ${data.description || null},
           website = ${data.website || null},
-          regulatory_status = ${data.regulatory_status || null},
-          primary_regulator = ${data.primary_regulator || null},
-          registration_number = ${data.registration_number || null},
-          registration_jurisdiction = ${data.registration_jurisdiction || null},
+          linkedin_url = ${data.linkedin_url || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_state = ${data.headquarters_state || null},
+          headquarters_city = ${data.headquarters_city || null},
+          operating_countries = ${data.operating_countries || null},
+          operating_regions = ${data.operating_regions || null},
+          ownership_type = ${data.ownership_type || null},
           total_aum = ${data.total_aum || null},
           aum_currency = ${data.aum_currency || null},
-          pe_allocation_percentage = ${data.pe_allocation_percentage || null},
-          pe_allocation_amount = ${data.pe_allocation_amount || null},
-          primary_asset_classes = ${data.primary_asset_classes || null},
-          investment_stages = ${data.investment_stages || null},
-          industry_focus = ${data.industry_focus || null},
-          geographic_focus = ${data.geographic_focus || null},
-          min_fund_size = ${data.min_fund_size || null},
-          max_fund_size = ${data.max_fund_size || null},
-          min_commitment_size = ${data.min_commitment_size || null},
-          max_commitment_size = ${data.max_commitment_size || null},
-          number_of_gp_relationships = ${data.number_of_gp_relationships || null},
-          active_commitments_count = ${data.active_commitments_count || null},
-          total_commitments = ${data.total_commitments || null},
-          ownership_type = ${data.ownership_type || null},
-          parent_organization = ${data.parent_organization || null},
-          decision_makers_count = ${data.decision_makers_count || null},
-          investment_professionals_count = ${data.investment_professionals_count || null},
-          esg_policy_available = ${data.esg_policy_available ?? null},
-          pri_signatory = ${data.pri_signatory ?? null},
-          dei_policy_available = ${data.dei_policy_available ?? null},
-          sustainability_report_url = ${data.sustainability_report_url || null},
+          aum_as_of_date = ${data.aum_as_of_date || null},
+          private_markets_aum = ${data.private_markets_aum || null},
+          private_markets_allocation_percent = ${data.private_markets_allocation_percent || null},
+          annual_commitment_budget = ${data.annual_commitment_budget || null},
+          preferred_asset_classes = ${data.preferred_asset_classes || data.primary_asset_classes || null},
+          ticket_size_min = ${data.ticket_size_min || data.min_commitment_size || null},
+          ticket_size_max = ${data.ticket_size_max || data.max_commitment_size || null},
+          sector_preferences = ${data.sector_preferences || data.industry_focus || null},
+          primary_regions = ${data.primary_regions || data.geographic_focus || null},
+          esg_policy_exists = ${data.esg_policy_exists ?? null},
+          un_pri_signatory = ${data.un_pri_signatory ?? data.pri_signatory ?? null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
           status = ${data.status || 'active'},
-          email = ${data.email || null},
-          phone = ${data.phone || null},
-          linkedin_url = ${data.linkedin_url || null},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1776,8 +1757,8 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_fund (org_id, fund_name, fund_legal_name, fund_type, gp_id, vintage_year, target_size, target_size_currency, fund_status, status)
-        VALUES (${orgId}, ${data.fund_name}, ${data.fund_legal_name || null}, ${data.fund_type || null}, ${data.gp_id || null}, ${data.vintage_year || null}, ${data.target_size || null}, ${data.target_size_currency || 'USD'}, ${data.fund_status || null}, ${data.status || 'active'})
+        INSERT INTO entities_fund (org_id, fund_name, fund_legal_name, fund_type, gp_id, vintage_year, target_fund_size, currency, fundraising_status, description, assigned_to, status)
+        VALUES (${orgId}, ${data.fund_name}, ${data.fund_legal_name || null}, ${data.fund_type || null}, ${data.gp_id || null}, ${data.vintage_year || null}, ${data.target_fund_size || data.target_size || null}, ${data.currency || data.target_size_currency || 'USD'}, ${data.fundraising_status || data.fund_status || null}, ${data.description || null}, ${data.assigned_to || null}, ${data.status || 'active'})
         RETURNING *
       `);
       
@@ -1803,45 +1784,41 @@ export async function registerRoutes(
         UPDATE entities_fund SET
           fund_name = ${data.fund_name || null},
           fund_legal_name = ${data.fund_legal_name || null},
-          fund_short_name = ${data.fund_short_name || null},
+          former_names = ${data.former_names || null},
           fund_type = ${data.fund_type || null},
-          strategy = ${data.strategy || null},
-          gp_id = ${data.gp_id || null},
           vintage_year = ${data.vintage_year || null},
-          fund_currency = ${data.fund_currency || 'USD'},
-          fund_status = ${data.fund_status || null},
+          description = ${data.description || null},
+          gp_id = ${data.gp_id || null},
+          legal_structure = ${data.legal_structure || null},
+          domicile_country = ${data.domicile_country || null},
+          domicile_jurisdiction = ${data.domicile_jurisdiction || null},
           target_fund_size = ${data.target_fund_size || null},
           hard_cap = ${data.hard_cap || null},
-          fund_size_final = ${data.fund_size_final || null},
-          capital_called = ${data.capital_called || null},
-          capital_distributed = ${data.capital_distributed || null},
-          remaining_value = ${data.remaining_value || null},
+          final_fund_size = ${data.final_fund_size || data.fund_size_final || null},
+          currency = ${data.currency || data.fund_currency || 'USD'},
           first_close_date = ${data.first_close_date || null},
           final_close_date = ${data.final_close_date || null},
-          fundraising_status = ${data.fundraising_status || null},
-          number_of_lps = ${data.number_of_lps || null},
-          cornerstone_investor_flag = ${data.cornerstone_investor_flag ?? null},
-          primary_asset_class = ${data.primary_asset_class || null},
-          investment_stage = ${data.investment_stage || null},
-          industry_focus = ${data.industry_focus || null},
+          fundraising_status = ${data.fundraising_status || data.fund_status || null},
+          investment_strategy = ${data.investment_strategy || data.strategy || null},
+          sector_focus = ${data.sector_focus || data.industry_focus || null},
           geographic_focus = ${data.geographic_focus || null},
+          stage_focus = ${data.stage_focus || data.investment_stage || null},
+          number_of_lps = ${data.number_of_lps || null},
+          anchor_lp_present = ${data.anchor_lp_present ?? data.cornerstone_investor_flag ?? null},
           net_irr = ${data.net_irr || null},
           gross_irr = ${data.gross_irr || null},
           tvpi = ${data.tvpi || null},
           dpi = ${data.dpi || null},
           rvpi = ${data.rvpi || null},
-          performance_data_available = ${data.performance_data_available ?? null},
           performance_as_of_date = ${data.performance_as_of_date || null},
-          deal_count = ${data.deal_count || null},
-          active_portfolio_companies_count = ${data.active_portfolio_companies_count || null},
-          realized_portfolio_companies_count = ${data.realized_portfolio_companies_count || null},
-          esg_integration_flag = ${data.esg_integration_flag ?? null},
+          number_of_portfolio_companies = ${data.number_of_portfolio_companies || data.deal_count || null},
+          number_of_exits = ${data.number_of_exits || data.realized_portfolio_companies_count || null},
+          esg_policy_exists = ${data.esg_policy_exists ?? data.esg_integration_flag ?? null},
           impact_fund_flag = ${data.impact_fund_flag ?? null},
-          sustainability_objective = ${data.sustainability_objective || null},
-          data_confidence_score = ${data.data_confidence_score || null},
-          verification_method = ${data.verification_method || null},
-          last_verified_date = ${data.last_verified_date || null},
-          source_coverage = ${data.source_coverage || null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
+          status = ${data.status || 'active'},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1887,16 +1864,17 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         INSERT INTO entities_portfolio_company (
-          org_id, company_name, company_type, headquarters_country, headquarters_city, 
-          primary_industry, business_model, website, business_description, founded_year, employee_count,
-          revenue_band, valuation_band, current_owner_type, exit_type, exit_year,
-          confidence_score, data_source, status
+          org_id, company_name, company_legal_name, company_type, headquarters_country, headquarters_city, 
+          headquarters_state, primary_industry, secondary_industry, business_model, website, linkedin_url,
+          description, year_founded, ownership_status, assigned_to, status
         )
         VALUES (
-          ${orgId}, ${data.company_name}, ${data.company_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, 
-          ${data.primary_industry || null}, ${data.business_model || null}, ${data.website || null}, ${data.business_description || null}, ${data.founded_year || null}, ${data.employee_count || null},
-          ${data.revenue_band || null}, ${data.valuation_band || null}, ${data.current_owner_type || null}, ${data.exit_type || null}, ${data.exit_year || null},
-          ${data.confidence_score || null}, ${data.data_source || null}, ${data.status || 'active'}
+          ${orgId}, ${data.company_name}, ${data.company_legal_name || null}, ${data.company_type || null}, 
+          ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.headquarters_state || null},
+          ${data.primary_industry || null}, ${data.secondary_industry || null}, ${data.business_model || null}, 
+          ${data.website || null}, ${data.linkedin_url || null}, ${data.description || data.business_description || null}, 
+          ${data.year_founded || data.founded_year || null}, ${data.ownership_status || data.current_owner_type || null}, 
+          ${data.assigned_to || null}, ${data.status || 'active'}
         )
         RETURNING *
       `);
@@ -1922,48 +1900,37 @@ export async function registerRoutes(
       const result = await db.execute(sql`
         UPDATE entities_portfolio_company SET
           company_name = ${data.company_name || null},
-          legal_name = ${data.legal_name || data.company_legal_name || null},
-          short_name = ${data.short_name || data.company_short_name || null},
+          company_legal_name = ${data.company_legal_name || data.legal_name || null},
+          former_names = ${data.former_names || null},
           company_type = ${data.company_type || null},
           year_founded = ${data.year_founded || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_regions = ${data.operating_regions || null},
+          description = ${data.description || data.business_description || null},
           website = ${data.website || null},
+          linkedin_url = ${data.linkedin_url || null},
+          headquarters_country = ${data.headquarters_country || null},
+          headquarters_state = ${data.headquarters_state || null},
+          headquarters_city = ${data.headquarters_city || null},
+          operating_countries = ${data.operating_countries || null},
           primary_industry = ${data.primary_industry || null},
-          sub_industry = ${data.sub_industry || data.secondary_industry || null},
-          business_description = ${data.business_description || null},
+          secondary_industry = ${data.secondary_industry || data.sub_industry || null},
           business_model = ${data.business_model || null},
-          revenue_model = ${data.revenue_model || null},
-          employee_count_band = ${data.employee_count_band || null},
-          revenue_band = ${data.revenue_band || null},
+          employee_count_range = ${data.employee_count_range || data.employee_count_band || null},
           latest_revenue = ${data.latest_revenue || data.revenue || null},
           revenue_currency = ${data.revenue_currency || 'USD'},
-          revenue_year = ${data.revenue_year || null},
-          profitability_status = ${data.profitability_status || null},
-          ebitda_margin = ${data.ebitda_margin || null},
-          current_owner_type = ${data.current_owner_type || null},
-          controlling_gp_id = ${data.controlling_gp_id || null},
-          controlling_fund_id = ${data.controlling_fund_id || null},
-          first_investment_year = ${data.first_investment_year || null},
+          latest_revenue_year = ${data.latest_revenue_year || data.revenue_year || null},
+          ownership_status = ${data.ownership_status || data.current_owner_type || null},
+          lead_investor_gp_id = ${data.lead_investor_gp_id || data.controlling_gp_id || null},
+          lead_fund_id = ${data.lead_fund_id || data.controlling_fund_id || null},
+          initial_investment_year = ${data.initial_investment_year || data.first_investment_year || null},
           total_funding_raised = ${data.total_funding_raised || null},
           funding_currency = ${data.funding_currency || 'USD'},
-          primary_markets = ${data.primary_markets || null},
-          manufacturing_presence_flag = ${data.manufacturing_presence_flag ?? null},
-          r_and_d_presence_flag = ${data.r_and_d_presence_flag ?? null},
-          esg_policy_available = ${data.esg_policy_available ?? null},
-          environmental_focus = ${data.environmental_focus || null},
-          social_focus = ${data.social_focus || null},
-          governance_focus = ${data.governance_focus || null},
-          compliance_certifications = ${data.compliance_certifications || null},
-          sustainability_report_url = ${data.sustainability_report_url || null},
           exit_status = ${data.exit_status || null},
           exit_type = ${data.exit_type || null},
           exit_year = ${data.exit_year || null},
-          data_confidence_score = ${data.data_confidence_score || null},
-          verification_method = ${data.verification_method || null},
-          last_verified_date = ${data.last_verified_date || null},
-          source_coverage = ${data.source_coverage || null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
+          status = ${data.status || 'active'},
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -2008,8 +1975,8 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_service_provider (org_id, provider_name, provider_type, headquarters_country, headquarters_city, website, services_offered, sector_expertise, geographic_coverage, founded_year, status)
-        VALUES (${orgId}, ${data.provider_name}, ${data.provider_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.website || null}, ${data.services_offered || null}, ${data.sector_expertise || null}, ${data.geographic_coverage || null}, ${data.founded_year || null}, ${data.status || 'active'})
+        INSERT INTO entities_service_provider (org_id, sp_name, sp_legal_name, sp_category, headquarters_country, headquarters_city, primary_services, operating_regions, year_established, status)
+        VALUES (${orgId}, ${data.sp_name || data.provider_name}, ${data.sp_legal_name || null}, ${data.sp_category || data.provider_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_services || data.services_offered || null}, ${data.operating_regions || data.geographic_coverage || null}, ${data.year_established || data.founded_year || null}, ${data.status || 'active'})
         RETURNING *
       `);
       
@@ -2033,41 +2000,37 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_service_provider SET
-          service_provider_name = ${data.service_provider_name || data.provider_name || null},
-          service_provider_legal_name = ${data.service_provider_legal_name || data.provider_legal_name || null},
-          service_provider_short_name = ${data.service_provider_short_name || data.provider_short_name || null},
-          service_provider_type = ${data.service_provider_type || data.provider_type || null},
-          specialization = ${data.specialization || null},
-          year_founded = ${data.year_founded || null},
+          sp_name = ${data.sp_name || data.service_provider_name || data.provider_name || null},
+          sp_legal_name = ${data.sp_legal_name || data.service_provider_legal_name || null},
+          sp_category = ${data.sp_category || data.service_provider_type || data.provider_type || null},
+          former_names = ${data.former_names || null},
+          legal_structure = ${data.legal_structure || null},
+          year_established = ${data.year_established || data.year_founded || null},
+          primary_jurisdiction = ${data.primary_jurisdiction || null},
+          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
+          description = ${data.description || null},
           headquarters_country = ${data.headquarters_country || null},
           headquarters_city = ${data.headquarters_city || null},
+          operating_countries = ${data.operating_countries || null},
           operating_regions = ${data.operating_regions || null},
-          website = ${data.website || null},
+          number_of_offices = ${data.number_of_offices || null},
+          office_locations = ${data.office_locations || null},
           primary_services = ${data.primary_services || data.services_offered || null},
           secondary_services = ${data.secondary_services || null},
-          asset_class_coverage = ${data.asset_class_coverage || null},
+          asset_class_expertise = ${data.asset_class_expertise || null},
           fund_stage_coverage = ${data.fund_stage_coverage || null},
-          typical_client_type = ${data.typical_client_type || data.client_types || null},
-          client_size_focus = ${data.client_size_focus || null},
-          geographic_client_focus = ${data.geographic_client_focus || data.geographic_coverage || null},
-          ownership_type = ${data.ownership_type || null},
-          employee_count_band = ${data.employee_count_band || null},
-          office_locations = ${data.office_locations || null},
-          regulated_flag = ${data.regulated_flag ?? null},
-          primary_regulator = ${data.primary_regulator || null},
-          marquee_clients = ${data.marquee_clients || data.notable_clients || null},
-          years_active_in_private_markets = ${data.years_active_in_private_markets || data.years_in_business || null},
-          cross_border_capability_flag = ${data.cross_border_capability_flag ?? null},
-          esg_policy_available = ${data.esg_policy_available ?? null},
-          data_privacy_compliance = ${data.data_privacy_compliance || null},
-          sustainability_report_url = ${data.sustainability_report_url || null},
-          data_confidence_score = ${data.data_confidence_score || null},
-          verification_method = ${data.verification_method || null},
-          last_verified_date = ${data.last_verified_date || null},
-          source_coverage = ${data.source_coverage || null},
-          email = ${data.email || null},
-          phone = ${data.phone || null},
-          linkedin_url = ${data.linkedin_url || null},
+          client_type_focus = ${data.client_type_focus || null},
+          total_employees = ${data.total_employees || null},
+          relevant_team_size = ${data.relevant_team_size || null},
+          years_in_private_markets = ${data.years_in_private_markets || null},
+          number_of_funds_served = ${data.number_of_funds_served || null},
+          number_of_gps_served = ${data.number_of_gps_served || null},
+          cross_border_support = ${data.cross_border_support ?? null},
+          esg_policy_exists = ${data.esg_policy_exists ?? null},
+          data_privacy_policy = ${data.data_privacy_policy ?? null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -2099,7 +2062,7 @@ export async function registerRoutes(
       let result;
       if (linked_entity_type && linked_entity_id) {
         result = await db.execute(sql`
-          SELECT * FROM entities_contact 
+          SELECT * FROM entities_contacts 
           WHERE org_id = ${orgId} 
             AND linked_entity_type = ${linked_entity_type as string} 
             AND linked_entity_id = ${linked_entity_id as string}
@@ -2107,13 +2070,13 @@ export async function registerRoutes(
         `);
       } else if (unlinked === 'true') {
         result = await db.execute(sql`
-          SELECT * FROM entities_contact 
+          SELECT * FROM entities_contacts 
           WHERE org_id = ${orgId} 
             AND (linked_entity_id IS NULL OR linked_entity_id = '')
           ORDER BY created_at DESC
         `);
       } else {
-        result = await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+        result = await db.execute(sql`SELECT * FROM entities_contacts WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       }
       
       return res.json(result.rows);
@@ -2135,7 +2098,7 @@ export async function registerRoutes(
       const { linked_entity_type, linked_entity_id, relationship_type } = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contact 
+        UPDATE entities_contacts 
         SET linked_entity_type = ${linked_entity_type}, 
             linked_entity_id = ${linked_entity_id},
             relationship_type = ${relationship_type || null}
@@ -2165,23 +2128,20 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_contact (
-          org_id, first_name, last_name, email, phone, title, company_name,
-          entity_type, entity_id, linkedin_url, notes, status,
-          role_category, seniority_level, asset_class_focus, sector_focus, geography_focus,
-          verification_status, verification_source, associated_fund_ids, board_roles,
-          confidence_score, importance_score
+        INSERT INTO entities_contacts (
+          org_id, first_name, last_name, middle_name, full_name, salutation, gender,
+          email, phone_number, phone_extension, job_title, functional_role,
+          linkedin_url, primary_profile_url, profile_urls, contact_priority,
+          verification_status, notes, status, assigned_to
         )
         VALUES (
-          ${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.email || null}, ${data.phone || null}, 
-          ${data.title || null}, ${data.company_name || null},
-          ${data.entity_type || data.linked_entity_type || null}, ${data.entity_id || data.linked_entity_id || null}, 
-          ${data.linkedin_url || null}, ${data.notes || null}, ${data.status || 'active'},
-          ${data.role_category || null}, ${data.seniority_level || null}, ${data.asset_class_focus || null}, 
-          ${data.sector_focus || null}, ${data.geography_focus || null},
-          ${data.verification_status || null}, ${data.verification_source || null}, 
-          ${data.associated_fund_ids || null}, ${data.board_roles || null},
-          ${data.confidence_score || null}, ${data.importance_score || null}
+          ${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.middle_name || null},
+          ${data.full_name || null}, ${data.salutation || null}, ${data.gender || null},
+          ${data.email || null}, ${data.phone_number || data.phone || null}, ${data.phone_extension || null},
+          ${data.job_title || data.title || null}, ${data.functional_role || null},
+          ${data.linkedin_url || null}, ${data.primary_profile_url || null}, ${data.profile_urls || null},
+          ${data.contact_priority || null}, ${data.verification_status || null},
+          ${data.notes || null}, ${data.status || 'active'}, ${data.assigned_to || null}
         )
         RETURNING *
       `);
@@ -2205,30 +2165,30 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contact SET
+        UPDATE entities_contacts SET
           first_name = ${data.first_name || null},
           last_name = ${data.last_name || null},
+          middle_name = ${data.middle_name || null},
+          full_name = ${data.full_name || null},
+          salutation = ${data.salutation || null},
+          gender = ${data.gender || null},
           email = ${data.email || null},
-          phone = ${data.phone || null},
-          title = ${data.title || null},
-          company_name = ${data.company_name || null},
-          entity_type = ${data.entity_type || null},
-          entity_id = ${data.entity_id || null},
+          phone_number = ${data.phone_number || data.phone || null},
+          phone_extension = ${data.phone_extension || null},
+          job_title = ${data.job_title || data.title || null},
+          functional_role = ${data.functional_role || null},
           linkedin_url = ${data.linkedin_url || null},
+          primary_profile_url = ${data.primary_profile_url || null},
+          profile_urls = ${data.profile_urls || null},
+          contact_priority = ${data.contact_priority || null},
+          verification_status = ${data.verification_status || null},
+          last_verified_on = ${data.last_verified_on || null},
+          last_verified_by = ${data.last_verified_by || null},
           notes = ${data.notes || null},
           status = ${data.status || 'active'},
-          role_category = ${data.role_category || null},
-          seniority_level = ${data.seniority_level || null},
-          asset_class_focus = ${data.asset_class_focus || null},
-          sector_focus = ${data.sector_focus || null},
-          geography_focus = ${data.geography_focus || null},
-          verification_status = ${data.verification_status || null},
-          verification_source = ${data.verification_source || null},
-          last_verified_at = ${data.last_verified_at || null},
-          associated_fund_ids = ${data.associated_fund_ids || null},
-          board_roles = ${data.board_roles || null},
-          confidence_score = ${data.confidence_score || null},
-          importance_score = ${data.importance_score || null},
+          assigned_to = ${data.assigned_to || null},
+          last_updated_by = ${data.last_updated_by || null},
+          last_updated_on = NOW(),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -4766,14 +4726,14 @@ export async function registerRoutes(
     try {
       const { pool } = await import("./db");
       
-      // Map entity type to table and name column
+      // Map entity type to table and name column (matching Supabase schema)
       const entityTableMap: Record<string, { table: string; nameCol: string }> = {
         gp: { table: "entities_gp", nameCol: "gp_name" },
         lp: { table: "entities_lp", nameCol: "lp_name" },
         fund: { table: "entities_fund", nameCol: "fund_name" },
         portfolio_company: { table: "entities_portfolio_company", nameCol: "company_name" },
-        service_provider: { table: "entities_service_provider", nameCol: "provider_name" },
-        contact: { table: "entities_contact", nameCol: "full_name" },
+        service_provider: { table: "entities_service_provider", nameCol: "sp_name" },
+        contact: { table: "entities_contacts", nameCol: "full_name" },
         deal: { table: "entities_deal", nameCol: "deal_name" },
       };
       
@@ -4821,41 +4781,41 @@ export async function registerRoutes(
     try {
       const { pool } = await import("./db");
       
-      // Define columns for each entity type (must match actual database schema)
+      // Define columns for each entity type (matching Supabase schema exactly)
       const entityColumnMap: Record<string, { table: string; columns: string[]; required: string[] }> = {
         gp: { 
           table: "entities_gp", 
-          columns: ["gp_name", "gp_legal_name", "firm_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url", "assigned_to"],
+          columns: ["gp_name", "gp_legal_name", "gp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "description", "year_established", "assigned_to", "status"],
           required: ["gp_name"]
         },
         lp: { 
           table: "entities_lp", 
-          columns: ["lp_name", "lp_legal_name", "lp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url", "assigned_to"],
-          required: ["lp_name"]
+          columns: ["lp_name", "lp_legal_name", "lp_type", "lp_firm_type", "headquarters_country", "headquarters_city", "headquarters_state", "total_aum", "aum_currency", "website", "linkedin_url", "description", "year_established", "assigned_to", "status"],
+          required: ["lp_name", "lp_type", "lp_firm_type"]
         },
         fund: { 
           table: "entities_fund", 
-          columns: ["fund_name", "gp_id", "fund_type", "vintage_year", "fund_currency", "fund_status", "primary_asset_class", "geographic_focus", "target_fund_size", "assigned_to"],
+          columns: ["fund_name", "fund_legal_name", "fund_type", "gp_id", "vintage_year", "currency", "fundraising_status", "target_fund_size", "final_fund_size", "description", "assigned_to", "status"],
           required: ["fund_name"]
         },
         portfolio_company: { 
           table: "entities_portfolio_company", 
-          columns: ["company_name", "company_type", "headquarters_country", "headquarters_city", "primary_industry", "business_model", "website", "business_description", "founded_year", "employee_count", "status", "revenue_band", "valuation_band", "assigned_to"],
+          columns: ["company_name", "legal_name", "company_type", "headquarters_country", "headquarters_city", "industry", "business_model", "website", "description", "year_founded", "assigned_to", "status"],
           required: ["company_name"]
         },
         service_provider: { 
           table: "entities_service_provider", 
-          columns: ["provider_name", "provider_type", "headquarters_country", "headquarters_city", "website", "services_offered", "sector_expertise", "geographic_coverage", "founded_year", "status", "email", "phone", "linkedin_url", "assigned_to"],
-          required: ["provider_name"]
+          columns: ["sp_name", "sp_legal_name", "sp_category", "headquarters_country", "headquarters_city", "primary_services", "operating_regions", "year_established", "description", "assigned_to", "status"],
+          required: ["sp_name"]
         },
         contact: { 
-          table: "entities_contact", 
-          columns: ["first_name", "last_name", "work_email", "phone_number", "job_title", "primary_entity_name_snapshot", "primary_entity_type", "primary_entity_id", "linkedin_url", "role_category", "seniority_level", "assigned_to"],
+          table: "entities_contacts", 
+          columns: ["first_name", "last_name", "middle_name", "full_name", "email", "phone_number", "job_title", "functional_role", "linkedin_url", "contact_priority", "verification_status", "notes", "assigned_to", "status"],
           required: ["first_name", "last_name"]
         },
         deal: { 
           table: "entities_deal", 
-          columns: ["deal_name", "deal_type", "deal_status", "deal_amount", "deal_currency", "deal_date", "target_company", "acquirer_company", "investor_ids", "sector", "notes", "deal_round", "asset_class", "assigned_to"],
+          columns: ["deal_name", "deal_type", "deal_stage", "deal_value", "deal_currency", "announcement_date", "completion_date", "fund_id", "portfolio_company_id", "description", "assigned_to", "status"],
           required: ["deal_name"]
         },
       };
@@ -4949,10 +4909,10 @@ export async function registerRoutes(
       
       // Manager/Admin/Super Admin see all projects
       // Use raw pg pool.query to avoid Drizzle schema mapping issues
-      // Note: entities_project has NO assigned_to column
+      // Note: entities_project uses project_name, notes, project_type and has NO assigned_to column
       if (["super_admin", "admin", "manager"].includes(userRole)) {
         const result = await pool.query(
-          `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
+          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
            FROM ${projectTable} WHERE org_id = $1`,
           [orgId]
         );
@@ -4976,7 +4936,7 @@ export async function registerRoutes(
         
         const projectIds = memberProjects.map(m => m.projectId);
         const result = await pool.query(
-          `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
+          `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
            FROM ${projectTable} WHERE org_id = $1 AND id = ANY($2)`,
           [orgId, projectIds]
         );
@@ -5034,9 +4994,9 @@ export async function registerRoutes(
       const itemsTable = getTableName("project_items");
       const membersTable = getTableName("project_members");
       
-      // Fetch project using raw SQL (entities_project has NO assigned_to)
+      // Fetch project using raw SQL (entities_project uses project_name, notes, project_type and has NO assigned_to)
       const projectResult = await pool.query(
-        `SELECT id, name, description, type, status, created_by as "createdBy", org_id as "orgId"
+        `SELECT id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"
          FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
         [projectId, orgId]
       );
@@ -5109,7 +5069,7 @@ export async function registerRoutes(
       const projectTable = getProjectTableName();
       const { z } = await import("zod");
       
-      // Validate input
+      // Validate input (frontend sends 'name', we map to project_name for Supabase)
       const createSchema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
@@ -5120,11 +5080,11 @@ export async function registerRoutes(
       const parsed = createSchema.parse(req.body);
       
       // Use raw pool.query to insert - let PostgreSQL generate UUID via gen_random_uuid()
-      // Note: entities_project has NO assigned_to column
+      // Note: entities_project uses project_name (not name) and has NO assigned_to column
       const result = await pool.query(
-        `INSERT INTO ${projectTable} (id, name, description, type, status, created_by, org_id)
+        `INSERT INTO ${projectTable} (id, project_name, notes, project_type, status, created_by, org_id)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+         RETURNING id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"`,
         [parsed.name, parsed.description || null, parsed.type, parsed.status, userId, orgId]
       );
       
@@ -5149,14 +5109,15 @@ export async function registerRoutes(
       const projectTable = getProjectTableName();
       
       // Whitelist only mutable fields - never allow orgId, id, createdBy
+      // Map frontend field names to Supabase column names
       const { name, description, type, status } = req.body;
       const updates: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
       
-      if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
-      if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
-      if (type !== undefined) { updates.push(`type = $${paramIndex++}`); values.push(type); }
+      if (name !== undefined) { updates.push(`project_name = $${paramIndex++}`); values.push(name); }
+      if (description !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(description); }
+      if (type !== undefined) { updates.push(`project_type = $${paramIndex++}`); values.push(type); }
       if (status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(status); }
       
       if (updates.length === 0) {
@@ -5167,9 +5128,9 @@ export async function registerRoutes(
       values.push(projectId, orgId);
       
       const result = await pool.query(
-        `UPDATE ${projectTable} SET ${updates.join(", ")}
+        `UPDATE ${projectTable} SET ${updates.join(", ")}, updated_at = NOW()
          WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
-         RETURNING id, name, description, type, status, created_by as "createdBy", org_id as "orgId"`,
+         RETURNING id, project_name as name, notes as description, project_type as type, status, created_by as "createdBy", org_id as "orgId"`,
         values
       );
       
@@ -5491,7 +5452,7 @@ export async function registerRoutes(
           (SELECT COUNT(*) FROM entities_fund WHERE org_id = ${orgId}) as fund_count,
           (SELECT COUNT(*) FROM entities_portfolio_company WHERE org_id = ${orgId}) as portfolio_company_count,
           (SELECT COUNT(*) FROM entities_deal WHERE org_id = ${orgId}) as deal_count,
-          (SELECT COUNT(*) FROM entities_contact WHERE org_id = ${orgId}) as contact_count
+          (SELECT COUNT(*) FROM entities_contacts WHERE org_id = ${orgId}) as contact_count
       `);
       
       const counts = result.rows[0] || {};
