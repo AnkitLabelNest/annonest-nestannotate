@@ -5543,9 +5543,34 @@ export async function registerRoutes(
     const projectId = req.params.id;
     const { userId, role } = req.body;
     
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+    
     try {
       const { db } = await import("./db");
-      const { entitiesProjectMembers } = await import("@shared/schema");
+      const { entitiesProjectMembers, users } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      // Verify the target user belongs to the same org (security check)
+      const targetUser = await db.select({ id: users.id, orgId: users.orgId })
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (targetUser.length === 0 || targetUser[0].orgId !== orgId) {
+        return res.status(400).json({ message: "Invalid user or user not in your organization" });
+      }
+      
+      // Check if member already exists
+      const existing = await db.select().from(entitiesProjectMembers)
+        .where(and(
+          eq(entitiesProjectMembers.projectId, projectId),
+          eq(entitiesProjectMembers.userId, userId)
+        ));
+      
+      if (existing.length > 0) {
+        return res.status(409).json({ message: "User is already a member of this project" });
+      }
       
       const result = await db.insert(entitiesProjectMembers).values({
         projectId,
@@ -5557,6 +5582,40 @@ export async function registerRoutes(
       return res.status(201).json(result[0]);
     } catch (error) {
       console.error("Error adding member:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Remove project member (manager/admin only)
+  app.delete("/api/datanest/projects/:id/members/:memberId", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    
+    // Server-side RBAC check
+    if (!await checkManagerRole(req, res)) return;
+    
+    const { id: projectId, memberId } = req.params;
+    
+    try {
+      const { db } = await import("./db");
+      const { entitiesProjectMembers } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+      
+      const result = await db.delete(entitiesProjectMembers)
+        .where(and(
+          eq(entitiesProjectMembers.id, memberId),
+          eq(entitiesProjectMembers.projectId, projectId),
+          eq(entitiesProjectMembers.orgId, orgId)
+        ))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      return res.json({ message: "Member removed successfully" });
+    } catch (error) {
+      console.error("Error removing member:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -43,6 +43,8 @@ import {
   Shuffle,
   Upload,
   Loader2,
+  UserPlus,
+  X,
 } from "lucide-react";
 import {
   fetchProjectById,
@@ -82,9 +84,11 @@ interface ProjectHeaderProps {
   project: ProjectDetails;
   canManage: boolean;
   onUploadClick?: () => void;
+  onManageTeamClick?: () => void;
+  memberCount?: number;
 }
 
-function ProjectHeader({ project, canManage, onUploadClick }: ProjectHeaderProps) {
+function ProjectHeader({ project, canManage, onUploadClick, onManageTeamClick, memberCount = 0 }: ProjectHeaderProps) {
   const [, setLocation] = useLocation();
   const isNewsProject = project.projectCategory === "news";
 
@@ -120,12 +124,20 @@ function ProjectHeader({ project, canManage, onUploadClick }: ProjectHeaderProps
             </div>
           </div>
         </div>
-        {canManage && isNewsProject && onUploadClick && (
-          <Button onClick={onUploadClick} data-testid="button-upload-news">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload News
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canManage && onManageTeamClick && (
+            <Button variant="outline" onClick={onManageTeamClick} data-testid="button-manage-team">
+              <Users className="h-4 w-4 mr-2" />
+              Team ({memberCount})
+            </Button>
+          )}
+          {canManage && isNewsProject && onUploadClick && (
+            <Button onClick={onUploadClick} data-testid="button-upload-news">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload News
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -187,8 +199,10 @@ export default function ProjectViewPage() {
   const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
   const [assignEvenlyDialogOpen, setAssignEvenlyDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [selectedAssignUser, setSelectedAssignUser] = useState<string>("");
   const [selectedEvenlyUsers, setSelectedEvenlyUsers] = useState<Set<string>>(new Set());
+  const [selectedNewMember, setSelectedNewMember] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -210,6 +224,77 @@ export default function ProjectViewPage() {
     queryKey: ["org-users", orgId],
     queryFn: () => fetchOrgUsers(orgId),
     enabled: isAuthReady && canManage,
+  });
+
+  interface ProjectMember {
+    id: string;
+    userId: string;
+    role: string;
+    userName?: string;
+  }
+
+  const { data: projectMembers = [], isLoading: membersLoading } = useQuery<ProjectMember[]>({
+    queryKey: ["project-members", projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/datanest/projects/${projectId}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.members || [];
+    },
+    enabled: !!projectId && isAuthReady && canManage,
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async (memberUserId: string) => {
+      const res = await fetch(`/api/datanest/projects/${projectId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: memberUserId, role: "member" }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to add member");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
+      setSelectedNewMember("");
+      toast({ title: "Team member added" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to add member",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const res = await fetch(`/api/datanest/projects/${projectId}/members/${memberId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to remove member");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
+      toast({ title: "Team member removed" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to remove member",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
   });
 
   const bulkAssignMutation = useMutation({
@@ -491,7 +576,13 @@ export default function ProjectViewPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <ProjectHeader project={project} canManage={canManage} onUploadClick={() => setUploadDialogOpen(true)} />
+      <ProjectHeader
+          project={project}
+          canManage={canManage}
+          onUploadClick={() => setUploadDialogOpen(true)}
+          onManageTeamClick={() => setManageTeamDialogOpen(true)}
+          memberCount={projectMembers.length}
+        />
 
       <Card>
         <CardHeader className="pb-4">
@@ -746,14 +837,14 @@ export default function ProjectViewPage() {
           <DialogHeader>
             <DialogTitle>Upload News Articles</DialogTitle>
             <DialogDescription>
-              Upload a CSV or Excel file with news articles. Each row will become a task.
+              Upload a CSV file with news articles. Each row will become a task.
               Required column: headline (or title). Optional: url, source_name, publish_date, raw_text.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <input
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".csv"
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
@@ -773,6 +864,89 @@ export default function ProjectViewPage() {
               disabled={uploading || uploadNewsMutation.isPending}
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={manageTeamDialogOpen} onOpenChange={setManageTeamDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Team</DialogTitle>
+            <DialogDescription>
+              Add or remove team members who can work on this project. Only assigned members will see this project in their work queue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <Select value={selectedNewMember} onValueChange={setSelectedNewMember}>
+                <SelectTrigger className="flex-1" data-testid="select-new-member">
+                  <SelectValue placeholder="Select a user to add..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgUsers
+                    .filter(u => !projectMembers.some(m => m.userId === u.id))
+                    .map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.displayName || u.email}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="icon"
+                onClick={() => {
+                  if (selectedNewMember) {
+                    addMemberMutation.mutate(selectedNewMember);
+                  }
+                }}
+                disabled={!selectedNewMember || addMemberMutation.isPending}
+                data-testid="button-add-member"
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {membersLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : projectMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No team members assigned yet. Add users above.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-auto">
+                {projectMembers.map((member) => {
+                  const memberUser = orgUsers.find(u => u.id === member.userId);
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50"
+                      data-testid={`member-${member.id}`}
+                    >
+                      <span className="text-sm">
+                        {member.userName || memberUser?.displayName || memberUser?.email || member.userId}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeMemberMutation.mutate(member.id)}
+                        disabled={removeMemberMutation.isPending}
+                        data-testid={`button-remove-member-${member.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setManageTeamDialogOpen(false)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
