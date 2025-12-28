@@ -98,7 +98,11 @@ export default function DataNestPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/datanest/projects"] });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === "/api/datanest/projects"
+      });
       setCreateProjectOpen(false);
       setNewProjectName("");
       toast({ title: "Project created successfully" });

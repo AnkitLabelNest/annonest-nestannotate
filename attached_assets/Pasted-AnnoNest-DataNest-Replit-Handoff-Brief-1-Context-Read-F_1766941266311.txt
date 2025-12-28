@@ -1,0 +1,244 @@
+AnnoNest – DataNest Replit Handoff Brief
+1. Context (Read First)
+
+DataNest is a structured data module inside AnnoNest for managing:
+
+LPs, GPs, Funds, Portfolio Companies, Deals, Contacts
+
+Backed by Supabase
+
+UI built via Replit (React / Next-style routing)
+
+At present:
+
+Dashboard and entity counts work
+
+Most entity list → detail → edit flows are broken
+
+Forms and routes are out of sync with current schema
+
+Your job is to stabilize DataNest, not redesign it.
+
+2. What Is Working (Do NOT Touch Unless Needed)
+✅ Dashboard
+
+DataNest dashboard loads correctly
+
+Entity counts are accurate (LP, GP, Fund, Deal, Contact, Portfolio Co.)
+
+This confirms Supabase tables exist and have data
+
+✅ Add Buttons (Navigation)
+
+Clicking “Add” opens a new window correctly for all entities
+
+3. Core Problems to Fix (Priority Order)
+🔴 Issue 1: Projects Are Created but Not Visible
+
+Observed
+
+Project creation succeeds
+
+Newly created project does NOT appear in Projects list
+
+Expected
+
+Projects list should immediately reflect newly created project
+
+Likely Causes
+
+Missing project fetch after insert
+
+Incorrect org_id / user_id filter
+
+UI querying a different table than insert target
+
+Action Required
+
+Verify:
+
+Project insert table
+
+Project list query
+
+Filters (org_id, created_by)
+
+Ensure list refresh or refetch after create
+
+🔴 Issue 2: Entity Card Clicks Break Routing
+
+Observed
+
+Clicking entity cards:
+
+LP / GP / Portfolio Company → 404 Page Not Found
+
+Error: route not registered
+
+Expected
+
+Card click should navigate to entity list page
+
+Likely Causes
+
+Missing routes in router
+
+Incorrect path names
+
+UI path ≠ actual file/page name
+
+Action Required
+
+Ensure routes exist for:
+
+/entity/lp
+
+/entity/gp
+
+/entity/portfolio-company
+
+Align card links with router paths
+
+🔴 Issue 3: Deal List Fails to Load
+
+Observed
+
+Deal count shows correctly on dashboard
+
+Deals page loads summary cards
+
+“All Deals” section shows:
+
+Failed to load deals
+
+Expected
+
+Deal table should load rows from Supabase
+
+Likely Causes
+
+Supabase query error
+
+Missing column in select
+
+Wrong table name or filter
+
+Action Required
+
+Check deal fetch API / query
+
+Log Supabase error response
+
+Fix query until list renders
+
+🔴 Issue 4: Entity Forms Are Using Old Schema
+
+Observed
+
+Add Entity forms still show outdated fields
+
+Schema was already updated in Supabase
+
+Expected
+
+Forms must match current Supabase schema exactly
+
+Impact
+
+Data inconsistency
+
+Broken edits later
+
+Action Required
+
+Update forms for:
+
+LP
+
+GP
+
+Fund
+
+Portfolio Company
+
+Deal
+
+Contact
+
+Use only existing Supabase columns
+
+No new fields to be invented
+
+🔴 Issue 5: Entity Detail / Edit Pages Fail to Load
+
+Observed
+
+Clicking View/Edit opens new window
+
+Page shows:
+
+Error Loading Profile
+
+Entities affected:
+
+Fund
+
+Contact
+
+(Likely LP, GP, Portfolio too)
+
+Expected
+
+Entity profile loads by ID
+
+Edit mode works
+
+Likely Causes
+
+Fetch by ID failing
+
+Route param mismatch (id vs entity_id)
+
+Missing org_id condition
+
+Supabase .single() error
+
+Action Required
+
+Verify:
+
+Route param name
+
+Supabase fetch query
+
+ID type (UUID)
+
+Log and fix fetch error
+
+4. Non-Negotiable Rules
+
+❌ Do NOT change Supabase schema unless explicitly asked
+
+❌ Do NOT rename tables or columns
+
+❌ Do NOT redesign UI
+
+✅ Fix routing, queries, and form bindings only
+
+✅ Use current Supabase tables ONLY
+
+5. Definition of “Done”
+
+DataNest is considered fixed when:
+
+Projects appear immediately after creation
+
+Clicking entity cards opens correct list pages
+
+All entity lists load without errors
+
+Add forms match Supabase schema
+
+View/Edit pages load entity data correctly
+
+No 404 or “Error loading profile” screens remain
