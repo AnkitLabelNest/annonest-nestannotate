@@ -95,12 +95,15 @@ export const getProjectItemColumns = () => {
     // Local dev database column names
     return {
       entityNameSnapshot: "entity_name_snapshot",
+      hasEntityNameSnapshot: true,
       createdAt: "created_at",
     };
   }
-  // Supabase column names - entity_name instead of entity_name_snapshot
+  // Supabase entities_project_items does NOT have entity_name or entity_name_snapshot column
+  // The entity name should be derived from the source entity table if needed
   return {
-    entityNameSnapshot: "entity_name",
+    entityNameSnapshot: null,
+    hasEntityNameSnapshot: false,
     createdAt: "created_at",
   };
 };

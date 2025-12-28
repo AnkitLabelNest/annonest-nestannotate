@@ -5343,14 +5343,21 @@ export async function registerRoutes(
       const { getTableName, getProjectItemColumns } = await import("./db");
       const itemsTable = getTableName("project_items");
       const itemCols = getProjectItemColumns();
+      // Supabase doesn't have entity_name_snapshot column - conditionally include it
+      const entityNameCol = itemCols.hasEntityNameSnapshot 
+        ? `, ${itemCols.entityNameSnapshot} as "entityNameSnapshot"` 
+        : "";
       const itemsResult = await pool.query(
-        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo",
+        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId"${entityNameCol}, assigned_to as "assignedTo",
                 task_status as "taskStatus", notes, org_id as "orgId", ${itemCols.createdAt} as "createdAt"
          FROM ${itemsTable} WHERE project_id = ANY($1)`,
         [projectIds]
       );
-      const items = itemsResult.rows as any[];
+      // Ensure entityNameSnapshot is always present (null for Supabase)
+      const items = (itemsResult.rows as any[]).map(item => ({
+        ...item,
+        entityNameSnapshot: item.entityNameSnapshot ?? null,
+      }));
       
       const projectsWithStats = (projects as any[]).map(project => {
         const projectItems = items.filter(i => i.projectId === project.id);
@@ -5406,14 +5413,21 @@ export async function registerRoutes(
       // Fetch items using raw SQL (project_items HAS assigned_to)
       const { getProjectItemColumns } = await import("./db");
       const itemCols = getProjectItemColumns();
+      // Supabase doesn't have entity_name_snapshot column - conditionally include it
+      const entityNameCol = itemCols.hasEntityNameSnapshot 
+        ? `, ${itemCols.entityNameSnapshot} as "entityNameSnapshot"` 
+        : "";
       const itemsResult = await pool.query(
-        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo",
+        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId"${entityNameCol}, assigned_to as "assignedTo",
                 task_status as "taskStatus", notes, org_id as "orgId", ${itemCols.createdAt} as "createdAt"
          FROM ${itemsTable} WHERE project_id = $1`,
         [projectId]
       );
-      const items = itemsResult.rows;
+      // Ensure entityNameSnapshot is always present (null for Supabase)
+      const items = (itemsResult.rows as any[]).map(item => ({
+        ...item,
+        entityNameSnapshot: item.entityNameSnapshot ?? null,
+      }));
       
       // Fetch members using raw SQL with user names
       const membersResult = await pool.query(
@@ -5561,11 +5575,15 @@ export async function registerRoutes(
       const { pool, getTableName, getProjectItemColumns } = await import("./db");
       const itemsTable = getTableName("project_items");
       const itemCols = getProjectItemColumns();
+      // Supabase doesn't have entity_name_snapshot column - conditionally include it
+      const entityNameCol = itemCols.hasEntityNameSnapshot 
+        ? `, i.${itemCols.entityNameSnapshot} as "entityNameSnapshot"` 
+        : "";
       
       // Use raw pool.query to get items with user display names
       const result = await pool.query(
         `SELECT i.id, i.project_id as "projectId", i.entity_type as "entityType", 
-                i.entity_id as "entityId", i.${itemCols.entityNameSnapshot} as "entityNameSnapshot",
+                i.entity_id as "entityId"${entityNameCol},
                 i.assigned_to as "assignedTo", i.task_status as "taskStatus", 
                 i.notes, i.created_at as "createdAt", i.updated_at as "updatedAt",
                 u.display_name as "assignedToName"
@@ -5573,7 +5591,11 @@ export async function registerRoutes(
          WHERE i.project_id = $1`,
         [projectId]
       );
-      const items = result.rows as any[];
+      // Ensure entityNameSnapshot is always present (null for Supabase)
+      const items = (result.rows as any[]).map(item => ({
+        ...item,
+        entityNameSnapshot: item.entityNameSnapshot ?? null,
+      }));
       
       // Filter by assigned user for non-admin roles
       if (!["super_admin", "admin", "manager"].includes(userRole) && userId) {
@@ -5614,18 +5636,33 @@ export async function registerRoutes(
       
       const parsed = itemSchema.parse(req.body);
       
-      // Use raw pool.query to insert - column name differs between local and Supabase
-      const result = await pool.query(
-        `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, ${itemCols.entityNameSnapshot}, assigned_to, task_status, notes, org_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                   ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo", 
-                   task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"`,
-        [projectId, parsed.entityType, parsed.entityId, parsed.entityNameSnapshot || null, 
-         parsed.assignedTo || null, parsed.taskStatus, parsed.notes || null, orgId]
-      );
+      // Use raw pool.query to insert - Supabase doesn't have entity_name_snapshot column
+      let result;
+      if (itemCols.hasEntityNameSnapshot) {
+        result = await pool.query(
+          `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, ${itemCols.entityNameSnapshot}, assigned_to, task_status, notes, org_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                     ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo", 
+                     task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"`,
+          [projectId, parsed.entityType, parsed.entityId, parsed.entityNameSnapshot || null, 
+           parsed.assignedTo || null, parsed.taskStatus, parsed.notes || null, orgId]
+        );
+      } else {
+        // Supabase - no entity_name_snapshot column
+        result = await pool.query(
+          `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, assigned_to, task_status, notes, org_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                     assigned_to as "assignedTo", task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"`,
+          [projectId, parsed.entityType, parsed.entityId, 
+           parsed.assignedTo || null, parsed.taskStatus, parsed.notes || null, orgId]
+        );
+      }
       
-      return res.status(201).json(result.rows[0]);
+      // Ensure entityNameSnapshot is always present (null for Supabase)
+      const item = { ...result.rows[0], entityNameSnapshot: result.rows[0].entityNameSnapshot ?? null };
+      return res.status(201).json(item);
     } catch (error) {
       console.error("Error adding project item:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -5677,18 +5714,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Validation failed", errors: validationErrors });
       }
       
-      // Insert all items
-      const insertData = items.map(item => ({
-        projectId,
-        entityType: item.entity_type as any,
-        entityId: item.entity_id,
-        assignedTo: item.assigned_to,
-        taskStatus: (item.task_status || "pending") as any,
-        orgId,
-      }));
-      
-      const result = await db.insert(entitiesProjectItems).values(insertData).returning();
-      return res.status(201).json({ inserted: result.length, items: result });
+      // Insert all items using raw SQL to avoid Drizzle schema column name issues
+      const insertedItems = [];
+      for (const item of items) {
+        const insertResult = await pool.query(
+          `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, assigned_to, task_status, org_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                     assigned_to as "assignedTo", task_status as "taskStatus", org_id as "orgId", created_at as "createdAt"`,
+          [projectId, item.entity_type, item.entity_id, item.assigned_to, item.task_status || "pending", orgId]
+        );
+        // Ensure entityNameSnapshot is always present (null for Supabase)
+        insertedItems.push({ ...insertResult.rows[0], entityNameSnapshot: insertResult.rows[0].entityNameSnapshot ?? null });
+      }
+      return res.status(201).json({ inserted: insertedItems.length, items: insertedItems });
     } catch (error) {
       console.error("Error bulk adding items:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -5705,30 +5744,51 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProjectItems } = await import("@shared/schema");
-      const { eq, and } = await import("drizzle-orm");
+      const { pool, getTableName, getProjectItemColumns, isSupabase } = await import("./db");
+      const itemsTable = getTableName("project_items");
+      const itemCols = getProjectItemColumns();
       
       // Whitelist only mutable fields - never allow orgId, id, projectId, createdAt
-      const allowedFields = ["assignedTo", "taskStatus", "notes", "entityNameSnapshot"];
-      const updateData: Record<string, any> = { updatedAt: new Date() };
-      for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-          updateData[field] = req.body[field];
+      // Map JS field names to SQL column names
+      const fieldMapping: Record<string, string> = {
+        assignedTo: "assigned_to",
+        taskStatus: "task_status",
+        notes: "notes",
+      };
+      // Only include entityNameSnapshot if the column exists in this database
+      if (itemCols.hasEntityNameSnapshot && itemCols.entityNameSnapshot) {
+        fieldMapping.entityNameSnapshot = itemCols.entityNameSnapshot;
+      }
+      
+      const updates: string[] = ["updated_at = NOW()"];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      for (const [jsField, sqlCol] of Object.entries(fieldMapping)) {
+        if (req.body[jsField] !== undefined) {
+          updates.push(`${sqlCol} = $${paramIndex++}`);
+          values.push(req.body[jsField]);
         }
       }
       
-      const result = await db
-        .update(entitiesProjectItems)
-        .set(updateData)
-        .where(and(eq(entitiesProjectItems.id, itemId), eq(entitiesProjectItems.orgId, orgId)))
-        .returning();
+      values.push(itemId, orgId);
       
-      if (result.length === 0) {
+      const result = await pool.query(
+        `UPDATE ${itemsTable} SET ${updates.join(", ")}
+         WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
+         RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
+                   assigned_to as "assignedTo", task_status as "taskStatus", notes, org_id as "orgId", 
+                   created_at as "createdAt", updated_at as "updatedAt"`,
+        values
+      );
+      
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: "Item not found" });
       }
       
-      return res.json(result[0]);
+      // Ensure entityNameSnapshot is always present (null for Supabase)
+      const item = { ...result.rows[0], entityNameSnapshot: result.rows[0].entityNameSnapshot ?? null };
+      return res.json(item);
     } catch (error) {
       console.error("Error updating item:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -5750,17 +5810,18 @@ export async function registerRoutes(
     }
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProjectItems } = await import("@shared/schema");
-      const { inArray, eq, and } = await import("drizzle-orm");
+      const { pool, getTableName } = await import("./db");
+      const itemsTable = getTableName("project_items");
       
-      const result = await db
-        .update(entitiesProjectItems)
-        .set({ assignedTo, updatedAt: new Date() })
-        .where(and(inArray(entitiesProjectItems.id, itemIds), eq(entitiesProjectItems.orgId, orgId)))
-        .returning();
+      // Use raw SQL to avoid Drizzle schema column name issues
+      const result = await pool.query(
+        `UPDATE ${itemsTable} SET assigned_to = $1, updated_at = NOW()
+         WHERE id = ANY($2) AND org_id = $3
+         RETURNING id`,
+        [assignedTo, itemIds, orgId]
+      );
       
-      return res.json({ updated: result.length });
+      return res.json({ updated: result.rows.length });
     } catch (error) {
       console.error("Error bulk assigning:", error);
       return res.status(500).json({ message: "Internal server error" });
