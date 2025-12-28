@@ -3612,7 +3612,18 @@ export async function registerRoutes(
         `SELECT * FROM entities_contact WHERE org_id = $1 ORDER BY created_at DESC`,
         [orgId]
       );
-      return res.json(result.rows);
+      
+      // Convert snake_case keys to camelCase for frontend compatibility
+      const snakeToCamel = (str: string) => str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      const camelCaseRows = result.rows.map(row => {
+        const camelCaseRow: Record<string, any> = {};
+        for (const key of Object.keys(row)) {
+          camelCaseRow[snakeToCamel(key)] = row[key];
+        }
+        return camelCaseRow;
+      });
+      
+      return res.json(camelCaseRows);
     } catch (error) {
       console.error("Error fetching entity contacts:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -4902,7 +4913,15 @@ export async function registerRoutes(
       
       const result = await pool.query(query, insertValues);
       
-      return res.status(201).json(result.rows[0]);
+      // Convert snake_case keys to camelCase for frontend compatibility
+      const snakeToCamel = (str: string) => str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      const row = result.rows[0];
+      const camelCaseRow: Record<string, any> = {};
+      for (const key of Object.keys(row)) {
+        camelCaseRow[snakeToCamel(key)] = row[key];
+      }
+      
+      return res.status(201).json(camelCaseRow);
     } catch (error) {
       console.error("Error creating entity:", error);
       return res.status(500).json({ message: "Internal server error" });
