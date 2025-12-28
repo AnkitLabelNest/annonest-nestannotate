@@ -1,0 +1,43 @@
+| column_name                  | data_type                   | is_nullable |
+| ---------------------------- | --------------------------- | ----------- |
+| id                           | uuid                        | NO          |
+| org_id                       | uuid                        | NO          |
+| status                       | text                        | YES         |
+| created_at                   | timestamp without time zone | YES         |
+| updated_at                   | timestamp without time zone | YES         |
+| deal_name                    | text                        | NO          |
+| deal_type                    | text                        | YES         |
+| deal_stage                   | text                        | YES         |
+| announcement_date            | date                        | YES         |
+| completion_date              | date                        | YES         |
+| description                  | text                        | YES         |
+| fund_id                      | uuid                        | YES         |
+| portfolio_company_id         | uuid                        | YES         |
+| co_investment_flag           | boolean                     | YES         |
+| number_of_investors          | integer                     | YES         |
+| deal_value                   | numeric                     | YES         |
+| deal_currency                | text                        | YES         |
+| ownership_acquired_percent   | numeric                     | YES         |
+| post_money_valuation         | numeric                     | YES         |
+| instrument_type              | text                        | YES         |
+| board_seat_obtained          | boolean                     | YES         |
+| board_seat_count             | integer                     | YES         |
+| control_rights               | text                        | YES         |
+| veto_rights_present          | boolean                     | YES         |
+| exit_flag                    | boolean                     | YES         |
+| exit_date                    | date                        | YES         |
+| exit_type                    | text                        | YES         |
+| exit_multiple                | numeric                     | YES         |
+| realised_irr                 | numeric                     | YES         |
+| esg_consideration_flag       | boolean                     | YES         |
+| regulatory_approval_required | boolean                     | YES         |
+| risk_rating                  | text                        | YES         |
+| follow_on_round_flag         | boolean                     | YES         |
+| write_down_flag              | boolean                     | YES         |
+| restructuring_flag           | boolean                     | YES         |
+| litigation_event_flag        | boolean                     | YES         |
+| last_updated_on              | timestamp without time zone | YES         |
+| last_updated_by              | text                        | YES         |
+| last_update_notes            | text                        | YES         |
+| update_trigger               | text                        | YES         |
+| assigned_to                  | text                        | YES         |

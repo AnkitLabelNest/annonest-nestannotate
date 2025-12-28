@@ -1,0 +1,32 @@
+| column_name              | data_type                   | is_nullable |
+| ------------------------ | --------------------------- | ----------- |
+| id                       | uuid                        | NO          |
+| org_id                   | uuid                        | NO          |
+| status                   | text                        | YES         |
+| created_at               | timestamp without time zone | YES         |
+| updated_at               | timestamp without time zone | YES         |
+| salutation               | text                        | YES         |
+| first_name               | text                        | NO          |
+| middle_name              | text                        | YES         |
+| last_name                | text                        | NO          |
+| full_name                | text                        | YES         |
+| gender                   | text                        | YES         |
+| job_title                | text                        | YES         |
+| functional_role          | ARRAY                       | YES         |
+| email                    | text                        | YES         |
+| phone_number             | text                        | YES         |
+| phone_extension          | text                        | YES         |
+| linkedin_url             | text                        | YES         |
+| primary_profile_url      | text                        | YES         |
+| profile_urls             | jsonb                       | YES         |
+| contact_priority         | text                        | YES         |
+| discovered_via_url_id    | uuid                        | YES         |
+| discovery_method         | text                        | YES         |
+| verification_status      | text                        | YES         |
+| last_verified_on         | date                        | YES         |
+| last_verified_by         | text                        | YES         |
+| days_since_last_verified | integer                     | YES         |
+| notes                    | text                        | YES         |
+| last_updated_on          | timestamp without time zone | YES         |
+| last_updated_by          | text                        | YES         |
+| assigned_to              | text                        | YES         |
