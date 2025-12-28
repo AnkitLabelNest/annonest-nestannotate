@@ -5297,7 +5297,7 @@ export async function registerRoutes(
       
       if (isSuperAdmin) {
         const result = await pool.query(
-          `SELECT ${selectCols} FROM ${projectTable} ORDER BY created_at DESC`
+          `SELECT ${selectCols} FROM ${projectTable}`
         );
         projects = result.rows;
       } else if (["admin", "manager"].includes(userRole)) {
