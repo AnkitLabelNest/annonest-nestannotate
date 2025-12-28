@@ -1218,16 +1218,29 @@ export async function registerRoutes(
     return res.status(204).send();
   });
 
-  // Projects routes with org scoping
+  // Projects routes with org scoping (super_admin sees all)
   app.get("/api/projects", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgId(req);
-    const projects = await storage.getProjects(orgId);
+    const { orgId, isSuperAdmin } = await getOrgFilter(req);
+    // Super admin sees all projects
+    if (isSuperAdmin) {
+      const allProjects = await storage.getAllProjects();
+      return res.json(allProjects);
+    }
+    const projects = await storage.getProjects(orgId!);
     return res.json(projects);
   });
 
   app.get("/api/projects/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgId(req);
-    const project = await storage.getProject(req.params.id, orgId);
+    const { orgId, isSuperAdmin } = await getOrgFilter(req);
+    // Super admin can access any project
+    if (isSuperAdmin) {
+      const project = await storage.getProjectById(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      return res.json(project);
+    }
+    const project = await storage.getProject(req.params.id, orgId!);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
@@ -4072,8 +4085,11 @@ export async function registerRoutes(
 
   // Get single NestAnnotate project with tasks
   app.get("/api/nest-annotate/projects/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin } = userInfo;
     const projectId = req.params.id;
     
     try {
@@ -4081,10 +4097,10 @@ export async function registerRoutes(
       const { labelProjects, annotationTasks, users } = await import("@shared/schema");
       const { eq, and, desc, inArray } = await import("drizzle-orm");
       
-      const project = await db
-        .select()
-        .from(labelProjects)
-        .where(and(eq(labelProjects.id, projectId), eq(labelProjects.orgId, orgId)));
+      // Super admin can access any project; others only their org's projects
+      const project = isSuperAdmin
+        ? await db.select().from(labelProjects).where(eq(labelProjects.id, projectId))
+        : await db.select().from(labelProjects).where(and(eq(labelProjects.id, projectId), eq(labelProjects.orgId, orgId)));
       
       if (project.length === 0) {
         return res.status(404).json({ message: "Project not found" });
@@ -4124,22 +4140,26 @@ export async function registerRoutes(
 
   // Upload news to a project (manager/admin only)
   app.post("/api/nest-annotate/projects/:id/upload-news", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const userId = getUserIdFromRequest(req);
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, userId, role } = userInfo;
     const projectId = req.params.id;
     
-    if (!await checkManagerRole(req, res)) return;
+    // Super admin or manager/admin can upload
+    if (!isSuperAdmin && role !== "admin" && role !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can upload news" });
+    }
     
     try {
       const { pool } = await import("./db");
       const { z } = await import("zod");
       
-      // Validate that this is a news project
-      const projectCheck = await pool.query(
-        `SELECT id, project_category FROM label_projects WHERE id = $1 AND org_id = $2`,
-        [projectId, orgId]
-      );
+      // Validate that this is a news project (super admin bypasses org check)
+      const projectCheck = isSuperAdmin
+        ? await pool.query(`SELECT id, project_category FROM label_projects WHERE id = $1`, [projectId])
+        : await pool.query(`SELECT id, project_category FROM label_projects WHERE id = $1 AND org_id = $2`, [projectId, orgId]);
       
       if (projectCheck.rows.length === 0) {
         return res.status(404).json({ message: "Project not found" });
@@ -4215,10 +4235,16 @@ export async function registerRoutes(
 
   // Assign task to user (manager/admin only)
   app.patch("/api/nest-annotate/tasks/:taskId/assign", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role } = userInfo;
     
-    if (!await checkManagerRole(req, res)) return;
+    // Super admin or manager/admin can assign
+    if (!isSuperAdmin && role !== "admin" && role !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can assign tasks" });
+    }
     
     const taskId = req.params.taskId;
     const { userId: assigneeId } = req.body;
@@ -4226,12 +4252,18 @@ export async function registerRoutes(
     try {
       const { pool } = await import("./db");
       
-      const result = await pool.query(
-        `UPDATE annotation_tasks SET assigned_to = $1 
-         WHERE id = $2 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $3)
-         RETURNING id`,
-        [assigneeId || null, taskId, orgId]
-      );
+      // Super admin can assign tasks across all orgs
+      const result = isSuperAdmin
+        ? await pool.query(
+            `UPDATE annotation_tasks SET assigned_to = $1 WHERE id = $2 RETURNING id`,
+            [assigneeId || null, taskId]
+          )
+        : await pool.query(
+            `UPDATE annotation_tasks SET assigned_to = $1 
+             WHERE id = $2 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $3)
+             RETURNING id`,
+            [assigneeId || null, taskId, orgId]
+          );
       
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Task not found" });
@@ -4314,22 +4346,34 @@ export async function registerRoutes(
 
   // Complete task (manager/admin approves)
   app.patch("/api/nest-annotate/tasks/:taskId/complete", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role } = userInfo;
     
-    if (!await checkManagerRole(req, res)) return;
+    // Super admin or manager/admin can complete tasks
+    if (!isSuperAdmin && role !== "admin" && role !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can complete tasks" });
+    }
     
     const taskId = req.params.taskId;
     
     try {
       const { pool } = await import("./db");
       
-      const result = await pool.query(
-        `UPDATE annotation_tasks SET status = 'completed'
-         WHERE id = $1 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $2)
-         RETURNING id`,
-        [taskId, orgId]
-      );
+      // Super admin can complete tasks across all orgs
+      const result = isSuperAdmin
+        ? await pool.query(
+            `UPDATE annotation_tasks SET status = 'completed' WHERE id = $1 RETURNING id`,
+            [taskId]
+          )
+        : await pool.query(
+            `UPDATE annotation_tasks SET status = 'completed'
+             WHERE id = $1 AND project_id IN (SELECT id FROM label_projects WHERE org_id = $2)
+             RETURNING id`,
+            [taskId, orgId]
+          );
       
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Task not found" });
@@ -4342,20 +4386,23 @@ export async function registerRoutes(
     }
   });
 
-  // Get available users for assignment (within same org)
+  // Get available users for assignment (within same org, or all for super admin)
   app.get("/api/nest-annotate/available-users", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin } = userInfo;
     
     try {
       const { db } = await import("./db");
       const { users } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      const orgUsers = await db
-        .select({ id: users.id, displayName: users.displayName, role: users.role })
-        .from(users)
-        .where(eq(users.orgId, orgId));
+      // Super admin sees all users across all orgs
+      const orgUsers = isSuperAdmin
+        ? await db.select({ id: users.id, displayName: users.displayName, role: users.role }).from(users)
+        : await db.select({ id: users.id, displayName: users.displayName, role: users.role }).from(users).where(eq(users.orgId, orgId));
       
       return res.json(orgUsers);
     } catch (error) {
@@ -4370,21 +4417,34 @@ export async function registerRoutes(
 
   // Get shell profiles (pending ones for manager review)
   app.get("/api/nest-annotate/shell-profiles", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin } = userInfo;
     
     try {
       const { pool } = await import("./db");
       const status = req.query.status || "pending";
       
-      const result = await pool.query(
-        `SELECT sp.*, u.display_name as created_by_name
-         FROM shell_profiles sp
-         LEFT JOIN users u ON sp.created_by = u.id
-         WHERE sp.org_id = $1 AND sp.status = $2
-         ORDER BY sp.created_at DESC`,
-        [orgId, status]
-      );
+      // Super admin sees all shell profiles across all orgs
+      const result = isSuperAdmin
+        ? await pool.query(
+            `SELECT sp.*, u.display_name as created_by_name
+             FROM shell_profiles sp
+             LEFT JOIN users u ON sp.created_by = u.id
+             WHERE sp.status = $1
+             ORDER BY sp.created_at DESC`,
+            [status]
+          )
+        : await pool.query(
+            `SELECT sp.*, u.display_name as created_by_name
+             FROM shell_profiles sp
+             LEFT JOIN users u ON sp.created_by = u.id
+             WHERE sp.org_id = $1 AND sp.status = $2
+             ORDER BY sp.created_at DESC`,
+            [orgId, status]
+          );
       
       return res.json(result.rows);
     } catch (error) {
@@ -4427,11 +4487,16 @@ export async function registerRoutes(
 
   // Approve a shell profile (manager action)
   app.patch("/api/nest-annotate/shell-profiles/:id/approve", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const userId = getUserIdFromRequest(req);
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role, userId } = userInfo;
     
-    if (!await checkManagerRole(req, res)) return;
+    // Super admin or manager/admin can approve
+    if (!isSuperAdmin && role !== "admin" && role !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can approve shell profiles" });
+    }
     
     const profileId = req.params.id;
     const { approvedEntityId } = req.body;
@@ -4439,13 +4504,22 @@ export async function registerRoutes(
     try {
       const { pool } = await import("./db");
       
-      const result = await pool.query(
-        `UPDATE shell_profiles 
-         SET status = 'approved', approved_entity_id = $1, reviewed_by = $2, reviewed_at = NOW()
-         WHERE id = $3 AND org_id = $4
-         RETURNING *`,
-        [approvedEntityId || null, userId, profileId, orgId]
-      );
+      // Super admin can approve across all orgs
+      const result = isSuperAdmin
+        ? await pool.query(
+            `UPDATE shell_profiles 
+             SET status = 'approved', approved_entity_id = $1, reviewed_by = $2, reviewed_at = NOW()
+             WHERE id = $3
+             RETURNING *`,
+            [approvedEntityId || null, userId, profileId]
+          )
+        : await pool.query(
+            `UPDATE shell_profiles 
+             SET status = 'approved', approved_entity_id = $1, reviewed_by = $2, reviewed_at = NOW()
+             WHERE id = $3 AND org_id = $4
+             RETURNING *`,
+            [approvedEntityId || null, userId, profileId, orgId]
+          );
       
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Shell profile not found" });
@@ -4460,24 +4534,38 @@ export async function registerRoutes(
 
   // Reject a shell profile (manager action)
   app.patch("/api/nest-annotate/shell-profiles/:id/reject", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const userId = getUserIdFromRequest(req);
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role, userId } = userInfo;
     
-    if (!await checkManagerRole(req, res)) return;
+    // Super admin or manager/admin can reject
+    if (!isSuperAdmin && role !== "admin" && role !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can reject shell profiles" });
+    }
     
     const profileId = req.params.id;
     
     try {
       const { pool } = await import("./db");
       
-      const result = await pool.query(
-        `UPDATE shell_profiles 
-         SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW()
-         WHERE id = $2 AND org_id = $3
-         RETURNING *`,
-        [userId, profileId, orgId]
-      );
+      // Super admin can reject across all orgs
+      const result = isSuperAdmin
+        ? await pool.query(
+            `UPDATE shell_profiles 
+             SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW()
+             WHERE id = $2
+             RETURNING *`,
+            [userId, profileId]
+          )
+        : await pool.query(
+            `UPDATE shell_profiles 
+             SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW()
+             WHERE id = $2 AND org_id = $3
+             RETURNING *`,
+            [userId, profileId, orgId]
+          );
       
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Shell profile not found" });

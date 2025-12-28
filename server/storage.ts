@@ -82,7 +82,9 @@ export interface IStorage {
   deleteDeal(id: string, orgId: string): Promise<boolean>;
 
   getProjects(orgId: string): Promise<Project[]>;
+  getAllProjects(): Promise<Project[]>;
   getProject(id: string, orgId: string): Promise<Project | undefined>;
+  getProjectById(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject & { orgId: string }): Promise<Project>;
   updateProject(id: string, orgId: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string, orgId: string): Promise<boolean>;
@@ -699,10 +701,18 @@ export class MemStorage implements IStorage {
     return Array.from(this.projects.values()).filter(p => p.orgId === orgId);
   }
 
+  async getAllProjects(): Promise<Project[]> {
+    return Array.from(this.projects.values());
+  }
+
   async getProject(id: string, orgId: string): Promise<Project | undefined> {
     const project = this.projects.get(id);
     if (!project || project.orgId !== orgId) return undefined;
     return project;
+  }
+
+  async getProjectById(id: string): Promise<Project | undefined> {
+    return this.projects.get(id);
   }
 
   async createProject(insertProject: InsertProject & { orgId: string }): Promise<Project> {
