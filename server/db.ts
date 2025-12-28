@@ -15,12 +15,16 @@ if (!connectionString) {
   throw new Error("SUPABASE_DATABASE_URL or DATABASE_URL environment variable is required");
 }
 
-const isSupabase = connectionString.includes("supabase");
-console.log(`[db] Connecting to ${isSupabase ? "Supabase" : "local"} PostgreSQL database`);
+// Use NODE_ENV to determine which database schema we're using
+// Production uses Supabase with "entities_project" table
+// Development uses local DB with "projects" table
+const isProduction = process.env.NODE_ENV === "production";
+const isSupabase = isProduction || connectionString.includes("supabase");
+console.log(`[db] Connecting to ${isProduction ? "production (Supabase)" : "development (local)"} PostgreSQL database`);
 
-// Table name mapping for Supabase vs local development
-// Supabase uses entities_project, local development uses projects
-export const getProjectTableName = () => isSupabase ? "entities_project" : "projects";
+// Table name mapping for production vs development
+// Production (Supabase) uses entities_project, development uses projects
+export const getProjectTableName = () => isProduction ? "entities_project" : "projects";
 
 const pool = new Pool({
   connectionString,
