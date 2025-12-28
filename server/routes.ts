@@ -5558,13 +5558,14 @@ export async function registerRoutes(
     const projectId = req.params.id;
     
     try {
-      const { pool, getTableName } = await import("./db");
+      const { pool, getTableName, getProjectItemColumns } = await import("./db");
       const itemsTable = getTableName("project_items");
+      const itemCols = getProjectItemColumns();
       
       // Use raw pool.query to get items with user display names
       const result = await pool.query(
         `SELECT i.id, i.project_id as "projectId", i.entity_type as "entityType", 
-                i.entity_id as "entityId", i.entity_name_snapshot as "entityNameSnapshot",
+                i.entity_id as "entityId", i.${itemCols.entityNameSnapshot} as "entityNameSnapshot",
                 i.assigned_to as "assignedTo", i.task_status as "taskStatus", 
                 i.notes, i.created_at as "createdAt", i.updated_at as "updatedAt",
                 u.display_name as "assignedToName"
@@ -5596,8 +5597,9 @@ export async function registerRoutes(
     if (!await checkManagerRole(req, res)) return;
     
     try {
-      const { pool, getTableName } = await import("./db");
+      const { pool, getTableName, getProjectItemColumns } = await import("./db");
       const itemsTable = getTableName("project_items");
+      const itemCols = getProjectItemColumns();
       const { z } = await import("zod");
       
       // Validate input
@@ -5612,12 +5614,12 @@ export async function registerRoutes(
       
       const parsed = itemSchema.parse(req.body);
       
-      // Use raw pool.query to insert
+      // Use raw pool.query to insert - column name differs between local and Supabase
       const result = await pool.query(
-        `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, entity_name_snapshot, assigned_to, task_status, notes, org_id)
+        `INSERT INTO ${itemsTable} (project_id, entity_type, entity_id, ${itemCols.entityNameSnapshot}, assigned_to, task_status, notes, org_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                   entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo", 
+                   ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo", 
                    task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"`,
         [projectId, parsed.entityType, parsed.entityId, parsed.entityNameSnapshot || null, 
          parsed.assignedTo || null, parsed.taskStatus, parsed.notes || null, orgId]
@@ -5651,8 +5653,10 @@ export async function registerRoutes(
     }
     
     try {
-      const { db } = await import("./db");
-      const { entitiesProjectItems, entityTypes } = await import("@shared/schema");
+      const { pool, getTableName, getProjectItemColumns } = await import("./db");
+      const itemsTable = getTableName("project_items");
+      const itemCols = getProjectItemColumns();
+      const { entityTypes } = await import("@shared/schema");
       
       // Validate all items first
       const validationErrors: string[] = [];
