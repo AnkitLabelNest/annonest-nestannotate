@@ -89,6 +89,22 @@ export const getProjectColumns = () => {
   };
 };
 
+// Column name mapping for project_items table
+export const getProjectItemColumns = () => {
+  if (!isSupabase) {
+    // Local dev database column names
+    return {
+      entityNameSnapshot: "entity_name_snapshot",
+      createdAt: "created_at",
+    };
+  }
+  // Supabase column names - entity_name instead of entity_name_snapshot
+  return {
+    entityNameSnapshot: "entity_name",
+    createdAt: "created_at",
+  };
+};
+
 // Export isSupabase flag for routes that need conditional logic
 export { isSupabase };
 

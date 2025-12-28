@@ -5340,12 +5340,13 @@ export async function registerRoutes(
       }
       
       // Get items using raw SQL since tables were just created
-      const { getTableName } = await import("./db");
+      const { getTableName, getProjectItemColumns } = await import("./db");
       const itemsTable = getTableName("project_items");
+      const itemCols = getProjectItemColumns();
       const itemsResult = await pool.query(
         `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
-                task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
+                ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo",
+                task_status as "taskStatus", notes, org_id as "orgId", ${itemCols.createdAt} as "createdAt"
          FROM ${itemsTable} WHERE project_id = ANY($1)`,
         [projectIds]
       );
@@ -5403,10 +5404,12 @@ export async function registerRoutes(
       const project = projectResult.rows;
       
       // Fetch items using raw SQL (project_items HAS assigned_to)
+      const { getProjectItemColumns } = await import("./db");
+      const itemCols = getProjectItemColumns();
       const itemsResult = await pool.query(
         `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId",
-                entity_name_snapshot as "entityNameSnapshot", assigned_to as "assignedTo",
-                task_status as "taskStatus", notes, org_id as "orgId", created_at as "createdAt"
+                ${itemCols.entityNameSnapshot} as "entityNameSnapshot", assigned_to as "assignedTo",
+                task_status as "taskStatus", notes, org_id as "orgId", ${itemCols.createdAt} as "createdAt"
          FROM ${itemsTable} WHERE project_id = $1`,
         [projectId]
       );
