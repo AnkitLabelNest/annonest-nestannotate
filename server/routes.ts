@@ -4327,6 +4327,118 @@ export async function registerRoutes(
     }
   });
 
+  // Create a new entity
+  app.post("/api/datanest/entities/:entityType", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+    const userId = getUserIdFromRequest(req);
+    
+    const { entityType } = req.params;
+    const data = req.body;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Define columns for each entity type (must match actual database schema)
+      const entityColumnMap: Record<string, { table: string; columns: string[]; required: string[] }> = {
+        gp: { 
+          table: "entities_gp", 
+          columns: ["gp_name", "gp_legal_name", "firm_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url"],
+          required: ["gp_name"]
+        },
+        lp: { 
+          table: "entities_lp", 
+          columns: ["lp_name", "lp_legal_name", "lp_type", "headquarters_country", "headquarters_city", "total_aum", "aum_currency", "website", "email", "phone", "linkedin_url"],
+          required: ["lp_name"]
+        },
+        fund: { 
+          table: "entities_fund", 
+          columns: ["fund_name", "gp_id", "fund_type", "vintage_year", "fund_currency", "fund_status", "primary_asset_class", "geographic_focus", "target_fund_size"],
+          required: ["fund_name"]
+        },
+        portfolio_company: { 
+          table: "entities_portfolio_company", 
+          columns: ["company_name", "company_type", "headquarters_country", "headquarters_city", "primary_industry", "business_model", "website", "business_description", "founded_year", "employee_count", "status", "revenue_band", "valuation_band"],
+          required: ["company_name"]
+        },
+        service_provider: { 
+          table: "entities_service_provider", 
+          columns: ["provider_name", "provider_type", "headquarters_country", "headquarters_city", "website", "services_offered", "sector_expertise", "geographic_coverage", "founded_year", "status", "email", "phone", "linkedin_url"],
+          required: ["provider_name"]
+        },
+        contact: { 
+          table: "entities_contact", 
+          columns: ["first_name", "last_name", "work_email", "phone_number", "job_title", "primary_entity_name_snapshot", "primary_entity_type", "primary_entity_id", "linkedin_url", "role_category", "seniority_level"],
+          required: ["first_name", "last_name"]
+        },
+        deal: { 
+          table: "entities_deal", 
+          columns: ["deal_name", "deal_type", "deal_status", "deal_amount", "deal_currency", "deal_date", "target_company", "acquirer_company", "investor_ids", "sector", "notes", "deal_round", "asset_class"],
+          required: ["deal_name"]
+        },
+      };
+      
+      const config = entityColumnMap[entityType];
+      if (!config) {
+        return res.status(400).json({ message: `Invalid entity type: ${entityType}` });
+      }
+      
+      // Map camelCase to snake_case
+      const camelToSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      
+      // Build insert query dynamically
+      const insertColumns = ["org_id"];
+      const insertValues: any[] = [orgId];
+      let paramIndex = 2;
+      
+      for (const col of config.columns) {
+        // Convert snake_case column to camelCase for lookup in data
+        const camelCol = col.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        if (data[camelCol] !== undefined && data[camelCol] !== "") {
+          insertColumns.push(col);
+          insertValues.push(data[camelCol]);
+          paramIndex++;
+        }
+      }
+      
+      // Check required fields with robust validation
+      for (const reqCol of config.required) {
+        const camelCol = reqCol.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        const value = data[camelCol];
+        // Allow 0 and false but reject null, undefined, empty strings
+        if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+          return res.status(400).json({ message: `Missing required field: ${camelCol}` });
+        }
+      }
+      
+      // Validate types and sanitize inputs
+      const numericColumns = ['vintage_year', 'founded_year', 'employee_count'];
+      for (const col of insertColumns) {
+        if (numericColumns.includes(col)) {
+          const camelCol = col.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+          const idx = insertColumns.indexOf(col);
+          if (insertValues[idx] !== undefined && insertValues[idx] !== null) {
+            const num = parseInt(insertValues[idx], 10);
+            if (isNaN(num)) {
+              return res.status(400).json({ message: `Invalid numeric value for field: ${camelCol}` });
+            }
+            insertValues[idx] = num;
+          }
+        }
+      }
+      
+      const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(", ");
+      const query = `INSERT INTO ${config.table} (${insertColumns.join(", ")}) VALUES (${placeholders}) RETURNING *`;
+      
+      const result = await pool.query(query, insertValues);
+      
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Error creating entity:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // =====================================================
   // DataNest Projects API Routes
   // =====================================================

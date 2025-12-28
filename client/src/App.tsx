@@ -46,6 +46,7 @@ import ProjectViewPage from "@/pages/project-view";
 import EntityProfilePage from "@/pages/entity-profile";
 import DataNestProjectView from "@/pages/data/project-view";
 import MyWorkPage from "@/pages/data/my-work";
+import NewEntityPage from "@/pages/entity/new";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -145,6 +146,7 @@ function AppRoutes() {
         <Route path="/admin/organizations" component={AdminOrganizationsPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/settings/locations" component={LocationManagementPage} />
+        <Route path="/entity/:entityType/new" component={NewEntityPage} />
         <Route path="/entity/:entityType/:entityId" component={EntityProfilePage} />
         <Route component={NotFound} />
       </Switch>
