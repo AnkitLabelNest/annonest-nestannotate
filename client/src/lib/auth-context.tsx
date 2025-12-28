@@ -74,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasModuleAccess = (moduleId: string): boolean => {
     if (!user) return false;
+    // Super admin has unrestricted access to ALL modules
+    if (user.role === "super_admin") return true;
     const allowedModules = moduleAccessByRole[user.role as UserRole] || [];
     return allowedModules.includes(moduleId);
   };
