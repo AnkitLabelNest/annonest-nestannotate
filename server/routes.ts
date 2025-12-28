@@ -1568,10 +1568,10 @@ export async function registerRoutes(
         UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp
         UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider
         UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal
-        UNION ALL SELECT 'entities_contacts', count(*)::int FROM entities_contacts
+        UNION ALL SELECT 'entities_contact', count(*)::int FROM entities_contact
         UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
-        UNION ALL SELECT 'public_company_snapshot', count(*)::int FROM public_company_snapshot
-        UNION ALL SELECT 'relationships', count(*)::int FROM relationships
+        UNION ALL SELECT 'public_company_snapshot', CASE WHEN to_regclass('public_company_snapshot') IS NOT NULL THEN (SELECT count(*)::int FROM public_company_snapshot) ELSE 0 END
+        UNION ALL SELECT 'relationships', CASE WHEN to_regclass('relationships') IS NOT NULL THEN (SELECT count(*)::int FROM relationships) ELSE 0 END
         UNION ALL SELECT 'ext_agritech', CASE WHEN to_regclass('ext_agritech_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_agritech_portfolio_company) ELSE 0 END
         UNION ALL SELECT 'ext_blockchain', CASE WHEN to_regclass('ext_blockchain_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_blockchain_portfolio_company) ELSE 0 END
         UNION ALL SELECT 'ext_healthcare', CASE WHEN to_regclass('ext_healthcare_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_healthcare_portfolio_company) ELSE 0 END
@@ -1613,8 +1613,44 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_gp (org_id, gp_name, gp_legal_name, gp_type, headquarters_country, headquarters_city, total_aum, aum_currency, description, year_established, assigned_to, status)
-        VALUES (${orgId}, ${data.gp_name}, ${data.gp_legal_name || null}, ${data.gp_type || data.firm_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.description || null}, ${data.year_established || null}, ${data.assigned_to || null}, ${data.status || 'active'})
+        INSERT INTO entities_gp (
+          org_id, gp_name, gp_legal_name, gp_short_name, firm_type, year_founded,
+          headquarters_country, headquarters_city, operating_regions, website,
+          regulatory_status, primary_regulator, registration_number, registration_jurisdiction,
+          total_aum, aum_currency, primary_asset_classes, investment_stages,
+          industry_focus, geographic_focus, number_of_funds, active_funds_count,
+          total_capital_raised, first_fund_vintage, latest_fund_vintage, estimated_deal_count,
+          ownership_type, parent_company, advisory_arms, office_locations,
+          employee_count_band, investment_professionals_count, senior_investment_professionals_count,
+          top_quartile_flag, track_record_years, performance_data_available,
+          esg_policy_available, pri_signatory, dei_policy_available, sustainability_report_url,
+          data_confidence_score, verification_method, last_verified_date, source_coverage,
+          email, phone, linkedin_url, assigned_to
+        ) VALUES (
+          ${orgId}, ${data.gp_name}, ${data.gp_legal_name || null}, ${data.gp_short_name || null},
+          ${data.firm_type || null}, ${data.year_founded || null},
+          ${data.headquarters_country || null}, ${data.headquarters_city || null},
+          ${data.operating_regions || null}, ${data.website || null},
+          ${data.regulatory_status || null}, ${data.primary_regulator || null},
+          ${data.registration_number || null}, ${data.registration_jurisdiction || null},
+          ${data.total_aum || null}, ${data.aum_currency || null},
+          ${data.primary_asset_classes || null}, ${data.investment_stages || null},
+          ${data.industry_focus || null}, ${data.geographic_focus || null},
+          ${data.number_of_funds || null}, ${data.active_funds_count || null},
+          ${data.total_capital_raised || null}, ${data.first_fund_vintage || null},
+          ${data.latest_fund_vintage || null}, ${data.estimated_deal_count || null},
+          ${data.ownership_type || null}, ${data.parent_company || null},
+          ${data.advisory_arms || null}, ${data.office_locations || null},
+          ${data.employee_count_band || null}, ${data.investment_professionals_count || null},
+          ${data.senior_investment_professionals_count || null}, ${data.top_quartile_flag || null},
+          ${data.track_record_years || null}, ${data.performance_data_available || null},
+          ${data.esg_policy_available || null}, ${data.pri_signatory || null},
+          ${data.dei_policy_available || null}, ${data.sustainability_report_url || null},
+          ${data.data_confidence_score || null}, ${data.verification_method || null},
+          ${data.last_verified_date || null}, ${data.source_coverage || null},
+          ${data.email || null}, ${data.phone || null}, ${data.linkedin_url || null},
+          ${data.assigned_to || null}
+        )
         RETURNING *
       `);
       
@@ -1638,37 +1674,53 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_gp SET
-          gp_name = ${data.gp_name || null},
-          gp_legal_name = ${data.gp_legal_name || null},
-          former_names = ${data.former_names || null},
-          gp_type = ${data.gp_type || data.firm_type || null},
-          legal_structure = ${data.legal_structure || null},
-          year_established = ${data.year_established || data.year_founded || null},
-          primary_jurisdiction = ${data.primary_jurisdiction || null},
-          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
-          description = ${data.description || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_countries = ${data.operating_countries || null},
-          operating_regions = ${data.operating_regions || null},
-          number_of_offices = ${data.number_of_offices || null},
-          office_locations = ${data.office_locations || null},
-          ownership_type = ${data.ownership_type || null},
-          total_aum = ${data.total_aum || null},
-          aum_currency = ${data.aum_currency || null},
-          aum_as_of_date = ${data.aum_as_of_date || null},
-          asset_classes = ${data.asset_classes || data.primary_asset_classes || null},
-          fund_strategies = ${data.fund_strategies || null},
-          sector_focus = ${data.sector_focus || data.industry_focus || null},
-          geographic_focus = ${data.geographic_focus || null},
-          total_team_size = ${data.total_team_size || null},
-          investment_team_size = ${data.investment_team_size || null},
-          esg_policy_exists = ${data.esg_policy_exists ?? null},
-          un_pri_signatory = ${data.un_pri_signatory ?? data.pri_signatory ?? null},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
-          status = ${data.status || 'active'},
+          gp_name = COALESCE(${data.gp_name}, gp_name),
+          gp_legal_name = COALESCE(${data.gp_legal_name}, gp_legal_name),
+          gp_short_name = COALESCE(${data.gp_short_name}, gp_short_name),
+          firm_type = COALESCE(${data.firm_type}, firm_type),
+          year_founded = COALESCE(${data.year_founded}, year_founded),
+          headquarters_country = COALESCE(${data.headquarters_country}, headquarters_country),
+          headquarters_city = COALESCE(${data.headquarters_city}, headquarters_city),
+          operating_regions = COALESCE(${data.operating_regions}, operating_regions),
+          website = COALESCE(${data.website}, website),
+          regulatory_status = COALESCE(${data.regulatory_status}, regulatory_status),
+          primary_regulator = COALESCE(${data.primary_regulator}, primary_regulator),
+          registration_number = COALESCE(${data.registration_number}, registration_number),
+          registration_jurisdiction = COALESCE(${data.registration_jurisdiction}, registration_jurisdiction),
+          total_aum = COALESCE(${data.total_aum}, total_aum),
+          aum_currency = COALESCE(${data.aum_currency}, aum_currency),
+          primary_asset_classes = COALESCE(${data.primary_asset_classes}, primary_asset_classes),
+          investment_stages = COALESCE(${data.investment_stages}, investment_stages),
+          industry_focus = COALESCE(${data.industry_focus}, industry_focus),
+          geographic_focus = COALESCE(${data.geographic_focus}, geographic_focus),
+          number_of_funds = COALESCE(${data.number_of_funds}, number_of_funds),
+          active_funds_count = COALESCE(${data.active_funds_count}, active_funds_count),
+          total_capital_raised = COALESCE(${data.total_capital_raised}, total_capital_raised),
+          first_fund_vintage = COALESCE(${data.first_fund_vintage}, first_fund_vintage),
+          latest_fund_vintage = COALESCE(${data.latest_fund_vintage}, latest_fund_vintage),
+          estimated_deal_count = COALESCE(${data.estimated_deal_count}, estimated_deal_count),
+          ownership_type = COALESCE(${data.ownership_type}, ownership_type),
+          parent_company = COALESCE(${data.parent_company}, parent_company),
+          advisory_arms = COALESCE(${data.advisory_arms}, advisory_arms),
+          office_locations = COALESCE(${data.office_locations}, office_locations),
+          employee_count_band = COALESCE(${data.employee_count_band}, employee_count_band),
+          investment_professionals_count = COALESCE(${data.investment_professionals_count}, investment_professionals_count),
+          senior_investment_professionals_count = COALESCE(${data.senior_investment_professionals_count}, senior_investment_professionals_count),
+          top_quartile_flag = COALESCE(${data.top_quartile_flag}, top_quartile_flag),
+          track_record_years = COALESCE(${data.track_record_years}, track_record_years),
+          performance_data_available = COALESCE(${data.performance_data_available}, performance_data_available),
+          esg_policy_available = COALESCE(${data.esg_policy_available}, esg_policy_available),
+          pri_signatory = COALESCE(${data.pri_signatory}, pri_signatory),
+          dei_policy_available = COALESCE(${data.dei_policy_available}, dei_policy_available),
+          sustainability_report_url = COALESCE(${data.sustainability_report_url}, sustainability_report_url),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          email = COALESCE(${data.email}, email),
+          phone = COALESCE(${data.phone}, phone),
+          linkedin_url = COALESCE(${data.linkedin_url}, linkedin_url),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1715,8 +1767,42 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_lp (org_id, lp_name, lp_legal_name, lp_type, lp_firm_type, headquarters_country, headquarters_city, headquarters_state, total_aum, aum_currency, website, linkedin_url, description, year_established, assigned_to, status)
-        VALUES (${orgId}, ${data.lp_name}, ${data.lp_legal_name || null}, ${data.lp_type || data.investor_type || 'Institutional'}, ${data.lp_firm_type || data.firm_type || 'Other'}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.headquarters_state || null}, ${data.total_aum || null}, ${data.aum_currency || null}, ${data.website || null}, ${data.linkedin_url || null}, ${data.description || null}, ${data.year_established || null}, ${data.assigned_to || null}, ${data.status || 'active'})
+        INSERT INTO entities_lp (
+          org_id, lp_name, lp_legal_name, lp_short_name, lp_type, year_established,
+          headquarters_country, headquarters_city, operating_regions, website,
+          total_aum, aum_currency, private_markets_allocation_percent, target_allocation_percent,
+          asset_class_preferences, geographic_preferences, industry_preferences,
+          active_fund_commitments_count, total_fund_commitments_lifetime,
+          direct_investment_flag, co_investment_flag, average_commitment_size, commitment_size_currency,
+          ownership_type, employee_count_band, investment_team_size,
+          internal_management_flag, outsourcing_flag, fund_stage_preference, fund_size_preference,
+          ticket_size_band, esg_policy_available, pri_signatory, impact_investing_flag,
+          exclusions_policy, sustainability_report_url, data_confidence_score,
+          verification_method, last_verified_date, source_coverage,
+          email, phone, linkedin_url, assigned_to
+        ) VALUES (
+          ${orgId}, ${data.lp_name}, ${data.lp_legal_name || null}, ${data.lp_short_name || null},
+          ${data.lp_type || data.investor_type || null}, ${data.year_established || null},
+          ${data.headquarters_country || null}, ${data.headquarters_city || null},
+          ${data.operating_regions || null}, ${data.website || null},
+          ${data.total_aum || null}, ${data.aum_currency || null},
+          ${data.private_markets_allocation_percent || null}, ${data.target_allocation_percent || null},
+          ${data.asset_class_preferences || null}, ${data.geographic_preferences || null},
+          ${data.industry_preferences || null}, ${data.active_fund_commitments_count || null},
+          ${data.total_fund_commitments_lifetime || null}, ${data.direct_investment_flag || null},
+          ${data.co_investment_flag || null}, ${data.average_commitment_size || null},
+          ${data.commitment_size_currency || null}, ${data.ownership_type || null},
+          ${data.employee_count_band || null}, ${data.investment_team_size || null},
+          ${data.internal_management_flag || null}, ${data.outsourcing_flag || null},
+          ${data.fund_stage_preference || null}, ${data.fund_size_preference || null},
+          ${data.ticket_size_band || null}, ${data.esg_policy_available || null},
+          ${data.pri_signatory || null}, ${data.impact_investing_flag || null},
+          ${data.exclusions_policy || null}, ${data.sustainability_report_url || null},
+          ${data.data_confidence_score || null}, ${data.verification_method || null},
+          ${data.last_verified_date || null}, ${data.source_coverage || null},
+          ${data.email || null}, ${data.phone || null}, ${data.linkedin_url || null},
+          ${data.assigned_to || null}
+        )
         RETURNING *
       `);
       
@@ -1740,41 +1826,49 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_lp SET
-          lp_name = ${data.lp_name || null},
-          lp_legal_name = ${data.lp_legal_name || null},
-          former_names = ${data.former_names || null},
-          lp_type = ${data.lp_type || data.investor_type || null},
-          lp_firm_type = ${data.lp_firm_type || data.firm_type || null},
-          legal_structure = ${data.legal_structure || null},
-          year_established = ${data.year_established || data.year_founded || null},
-          primary_jurisdiction = ${data.primary_jurisdiction || null},
-          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
-          description = ${data.description || null},
-          website = ${data.website || null},
-          linkedin_url = ${data.linkedin_url || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_state = ${data.headquarters_state || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_countries = ${data.operating_countries || null},
-          operating_regions = ${data.operating_regions || null},
-          ownership_type = ${data.ownership_type || null},
-          total_aum = ${data.total_aum || null},
-          aum_currency = ${data.aum_currency || null},
-          aum_as_of_date = ${data.aum_as_of_date || null},
-          private_markets_aum = ${data.private_markets_aum || null},
-          private_markets_allocation_percent = ${data.private_markets_allocation_percent || null},
-          annual_commitment_budget = ${data.annual_commitment_budget || null},
-          preferred_asset_classes = ${data.preferred_asset_classes || data.primary_asset_classes || null},
-          ticket_size_min = ${data.ticket_size_min || data.min_commitment_size || null},
-          ticket_size_max = ${data.ticket_size_max || data.max_commitment_size || null},
-          sector_preferences = ${data.sector_preferences || data.industry_focus || null},
-          primary_regions = ${data.primary_regions || data.geographic_focus || null},
-          esg_policy_exists = ${data.esg_policy_exists ?? null},
-          un_pri_signatory = ${data.un_pri_signatory ?? data.pri_signatory ?? null},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
-          status = ${data.status || 'active'},
+          lp_name = COALESCE(${data.lp_name}, lp_name),
+          lp_legal_name = COALESCE(${data.lp_legal_name}, lp_legal_name),
+          lp_short_name = COALESCE(${data.lp_short_name}, lp_short_name),
+          lp_type = COALESCE(${data.lp_type}, lp_type),
+          year_established = COALESCE(${data.year_established}, year_established),
+          headquarters_country = COALESCE(${data.headquarters_country}, headquarters_country),
+          headquarters_city = COALESCE(${data.headquarters_city}, headquarters_city),
+          operating_regions = COALESCE(${data.operating_regions}, operating_regions),
+          website = COALESCE(${data.website}, website),
+          total_aum = COALESCE(${data.total_aum}, total_aum),
+          aum_currency = COALESCE(${data.aum_currency}, aum_currency),
+          private_markets_allocation_percent = COALESCE(${data.private_markets_allocation_percent}, private_markets_allocation_percent),
+          target_allocation_percent = COALESCE(${data.target_allocation_percent}, target_allocation_percent),
+          asset_class_preferences = COALESCE(${data.asset_class_preferences}, asset_class_preferences),
+          geographic_preferences = COALESCE(${data.geographic_preferences}, geographic_preferences),
+          industry_preferences = COALESCE(${data.industry_preferences}, industry_preferences),
+          active_fund_commitments_count = COALESCE(${data.active_fund_commitments_count}, active_fund_commitments_count),
+          total_fund_commitments_lifetime = COALESCE(${data.total_fund_commitments_lifetime}, total_fund_commitments_lifetime),
+          direct_investment_flag = COALESCE(${data.direct_investment_flag}, direct_investment_flag),
+          co_investment_flag = COALESCE(${data.co_investment_flag}, co_investment_flag),
+          average_commitment_size = COALESCE(${data.average_commitment_size}, average_commitment_size),
+          commitment_size_currency = COALESCE(${data.commitment_size_currency}, commitment_size_currency),
+          ownership_type = COALESCE(${data.ownership_type}, ownership_type),
+          employee_count_band = COALESCE(${data.employee_count_band}, employee_count_band),
+          investment_team_size = COALESCE(${data.investment_team_size}, investment_team_size),
+          internal_management_flag = COALESCE(${data.internal_management_flag}, internal_management_flag),
+          outsourcing_flag = COALESCE(${data.outsourcing_flag}, outsourcing_flag),
+          fund_stage_preference = COALESCE(${data.fund_stage_preference}, fund_stage_preference),
+          fund_size_preference = COALESCE(${data.fund_size_preference}, fund_size_preference),
+          ticket_size_band = COALESCE(${data.ticket_size_band}, ticket_size_band),
+          esg_policy_available = COALESCE(${data.esg_policy_available}, esg_policy_available),
+          pri_signatory = COALESCE(${data.pri_signatory}, pri_signatory),
+          impact_investing_flag = COALESCE(${data.impact_investing_flag}, impact_investing_flag),
+          exclusions_policy = COALESCE(${data.exclusions_policy}, exclusions_policy),
+          sustainability_report_url = COALESCE(${data.sustainability_report_url}, sustainability_report_url),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          email = COALESCE(${data.email}, email),
+          phone = COALESCE(${data.phone}, phone),
+          linkedin_url = COALESCE(${data.linkedin_url}, linkedin_url),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1821,8 +1915,36 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_fund (org_id, fund_name, fund_legal_name, fund_type, gp_id, vintage_year, target_fund_size, currency, fundraising_status, description, assigned_to, status)
-        VALUES (${orgId}, ${data.fund_name}, ${data.fund_legal_name || null}, ${data.fund_type || null}, ${data.gp_id || null}, ${data.vintage_year || null}, ${data.target_fund_size || data.target_size || null}, ${data.currency || data.target_size_currency || 'USD'}, ${data.fundraising_status || data.fund_status || null}, ${data.description || null}, ${data.assigned_to || null}, ${data.status || 'active'})
+        INSERT INTO entities_fund (
+          org_id, fund_name, fund_legal_name, fund_short_name, fund_type, strategy, vintage_year,
+          fund_currency, fund_status, gp_id, gp_name_snapshot, target_fund_size, hard_cap,
+          fund_size_final, capital_called, capital_distributed, remaining_value,
+          first_close_date, final_close_date, fundraising_status, number_of_lps,
+          cornerstone_investor_flag, primary_asset_class, investment_stage, industry_focus,
+          geographic_focus, net_irr, gross_irr, tvpi, dpi, rvpi,
+          performance_data_available, performance_as_of_date, deal_count,
+          active_portfolio_companies_count, realized_portfolio_companies_count,
+          esg_integration_flag, impact_fund_flag, sustainability_objective,
+          data_confidence_score, verification_method, last_verified_date, source_coverage, assigned_to
+        ) VALUES (
+          ${orgId}, ${data.fund_name}, ${data.fund_legal_name || null}, ${data.fund_short_name || null},
+          ${data.fund_type || null}, ${data.strategy || null}, ${data.vintage_year || null},
+          ${data.fund_currency || null}, ${data.fund_status || null}, ${data.gp_id || null},
+          ${data.gp_name_snapshot || null}, ${data.target_fund_size || null}, ${data.hard_cap || null},
+          ${data.fund_size_final || null}, ${data.capital_called || null}, ${data.capital_distributed || null},
+          ${data.remaining_value || null}, ${data.first_close_date || null}, ${data.final_close_date || null},
+          ${data.fundraising_status || null}, ${data.number_of_lps || null},
+          ${data.cornerstone_investor_flag || null}, ${data.primary_asset_class || null},
+          ${data.investment_stage || null}, ${data.industry_focus || null}, ${data.geographic_focus || null},
+          ${data.net_irr || null}, ${data.gross_irr || null}, ${data.tvpi || null},
+          ${data.dpi || null}, ${data.rvpi || null}, ${data.performance_data_available || null},
+          ${data.performance_as_of_date || null}, ${data.deal_count || null},
+          ${data.active_portfolio_companies_count || null}, ${data.realized_portfolio_companies_count || null},
+          ${data.esg_integration_flag || null}, ${data.impact_fund_flag || null},
+          ${data.sustainability_objective || null}, ${data.data_confidence_score || null},
+          ${data.verification_method || null}, ${data.last_verified_date || null},
+          ${data.source_coverage || null}, ${data.assigned_to || null}
+        )
         RETURNING *
       `);
       
@@ -1846,43 +1968,49 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_fund SET
-          fund_name = ${data.fund_name || null},
-          fund_legal_name = ${data.fund_legal_name || null},
-          former_names = ${data.former_names || null},
-          fund_type = ${data.fund_type || null},
-          vintage_year = ${data.vintage_year || null},
-          description = ${data.description || null},
-          gp_id = ${data.gp_id || null},
-          legal_structure = ${data.legal_structure || null},
-          domicile_country = ${data.domicile_country || null},
-          domicile_jurisdiction = ${data.domicile_jurisdiction || null},
-          target_fund_size = ${data.target_fund_size || null},
-          hard_cap = ${data.hard_cap || null},
-          final_fund_size = ${data.final_fund_size || data.fund_size_final || null},
-          currency = ${data.currency || data.fund_currency || 'USD'},
-          first_close_date = ${data.first_close_date || null},
-          final_close_date = ${data.final_close_date || null},
-          fundraising_status = ${data.fundraising_status || data.fund_status || null},
-          investment_strategy = ${data.investment_strategy || data.strategy || null},
-          sector_focus = ${data.sector_focus || data.industry_focus || null},
-          geographic_focus = ${data.geographic_focus || null},
-          stage_focus = ${data.stage_focus || data.investment_stage || null},
-          number_of_lps = ${data.number_of_lps || null},
-          anchor_lp_present = ${data.anchor_lp_present ?? data.cornerstone_investor_flag ?? null},
-          net_irr = ${data.net_irr || null},
-          gross_irr = ${data.gross_irr || null},
-          tvpi = ${data.tvpi || null},
-          dpi = ${data.dpi || null},
-          rvpi = ${data.rvpi || null},
-          performance_as_of_date = ${data.performance_as_of_date || null},
-          number_of_portfolio_companies = ${data.number_of_portfolio_companies || data.deal_count || null},
-          number_of_exits = ${data.number_of_exits || data.realized_portfolio_companies_count || null},
-          esg_policy_exists = ${data.esg_policy_exists ?? data.esg_integration_flag ?? null},
-          impact_fund_flag = ${data.impact_fund_flag ?? null},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
-          status = ${data.status || 'active'},
+          fund_name = COALESCE(${data.fund_name}, fund_name),
+          fund_legal_name = COALESCE(${data.fund_legal_name}, fund_legal_name),
+          fund_short_name = COALESCE(${data.fund_short_name}, fund_short_name),
+          fund_type = COALESCE(${data.fund_type}, fund_type),
+          strategy = COALESCE(${data.strategy}, strategy),
+          vintage_year = COALESCE(${data.vintage_year}, vintage_year),
+          fund_currency = COALESCE(${data.fund_currency}, fund_currency),
+          fund_status = COALESCE(${data.fund_status}, fund_status),
+          gp_id = COALESCE(${data.gp_id}, gp_id),
+          gp_name_snapshot = COALESCE(${data.gp_name_snapshot}, gp_name_snapshot),
+          target_fund_size = COALESCE(${data.target_fund_size}, target_fund_size),
+          hard_cap = COALESCE(${data.hard_cap}, hard_cap),
+          fund_size_final = COALESCE(${data.fund_size_final}, fund_size_final),
+          capital_called = COALESCE(${data.capital_called}, capital_called),
+          capital_distributed = COALESCE(${data.capital_distributed}, capital_distributed),
+          remaining_value = COALESCE(${data.remaining_value}, remaining_value),
+          first_close_date = COALESCE(${data.first_close_date}, first_close_date),
+          final_close_date = COALESCE(${data.final_close_date}, final_close_date),
+          fundraising_status = COALESCE(${data.fundraising_status}, fundraising_status),
+          number_of_lps = COALESCE(${data.number_of_lps}, number_of_lps),
+          cornerstone_investor_flag = COALESCE(${data.cornerstone_investor_flag}, cornerstone_investor_flag),
+          primary_asset_class = COALESCE(${data.primary_asset_class}, primary_asset_class),
+          investment_stage = COALESCE(${data.investment_stage}, investment_stage),
+          industry_focus = COALESCE(${data.industry_focus}, industry_focus),
+          geographic_focus = COALESCE(${data.geographic_focus}, geographic_focus),
+          net_irr = COALESCE(${data.net_irr}, net_irr),
+          gross_irr = COALESCE(${data.gross_irr}, gross_irr),
+          tvpi = COALESCE(${data.tvpi}, tvpi),
+          dpi = COALESCE(${data.dpi}, dpi),
+          rvpi = COALESCE(${data.rvpi}, rvpi),
+          performance_data_available = COALESCE(${data.performance_data_available}, performance_data_available),
+          performance_as_of_date = COALESCE(${data.performance_as_of_date}, performance_as_of_date),
+          deal_count = COALESCE(${data.deal_count}, deal_count),
+          active_portfolio_companies_count = COALESCE(${data.active_portfolio_companies_count}, active_portfolio_companies_count),
+          realized_portfolio_companies_count = COALESCE(${data.realized_portfolio_companies_count}, realized_portfolio_companies_count),
+          esg_integration_flag = COALESCE(${data.esg_integration_flag}, esg_integration_flag),
+          impact_fund_flag = COALESCE(${data.impact_fund_flag}, impact_fund_flag),
+          sustainability_objective = COALESCE(${data.sustainability_objective}, sustainability_objective),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -1930,17 +2058,33 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         INSERT INTO entities_portfolio_company (
-          org_id, company_name, company_legal_name, company_type, headquarters_country, headquarters_city, 
-          headquarters_state, primary_industry, secondary_industry, business_model, website, linkedin_url,
-          description, year_founded, ownership_status, assigned_to, status
+          org_id, company_name, company_legal_name, company_short_name, founded_year,
+          headquarters_country, headquarters_city, operating_regions, website, linkedin_url,
+          primary_industry, sub_industry, business_description, business_model_type,
+          revenue_model, employee_count_band, latest_revenue, revenue_currency, revenue_year,
+          growth_stage, current_owner_type, controlling_gp_id, controlling_fund_id,
+          first_investment_year, investment_status, total_capital_invested, investment_currency,
+          entry_valuation, current_valuation, ownership_percentage,
+          revenue_growth_percent, ebitda, ebitda_margin_percent, net_debt,
+          exit_type, exit_date, exit_valuation, moic_realized,
+          data_confidence_score, verification_method, last_verified_date, source_coverage, assigned_to
         )
         VALUES (
-          ${orgId}, ${data.company_name}, ${data.company_legal_name || null}, ${data.company_type || null}, 
-          ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.headquarters_state || null},
-          ${data.primary_industry || null}, ${data.secondary_industry || null}, ${data.business_model || null}, 
-          ${data.website || null}, ${data.linkedin_url || null}, ${data.description || data.business_description || null}, 
-          ${data.year_founded || data.founded_year || null}, ${data.ownership_status || data.current_owner_type || null}, 
-          ${data.assigned_to || null}, ${data.status || 'active'}
+          ${orgId}, ${data.company_name}, ${data.company_legal_name || null}, ${data.company_short_name || null},
+          ${data.founded_year || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null},
+          ${data.operating_regions || null}, ${data.website || null}, ${data.linkedin_url || null},
+          ${data.primary_industry || null}, ${data.sub_industry || null}, ${data.business_description || null},
+          ${data.business_model_type || null}, ${data.revenue_model || null}, ${data.employee_count_band || null},
+          ${data.latest_revenue || null}, ${data.revenue_currency || null}, ${data.revenue_year || null},
+          ${data.growth_stage || null}, ${data.current_owner_type || null}, ${data.controlling_gp_id || null},
+          ${data.controlling_fund_id || null}, ${data.first_investment_year || null}, ${data.investment_status || null},
+          ${data.total_capital_invested || null}, ${data.investment_currency || null},
+          ${data.entry_valuation || null}, ${data.current_valuation || null}, ${data.ownership_percentage || null},
+          ${data.revenue_growth_percent || null}, ${data.ebitda || null}, ${data.ebitda_margin_percent || null},
+          ${data.net_debt || null}, ${data.exit_type || null}, ${data.exit_date || null},
+          ${data.exit_valuation || null}, ${data.moic_realized || null}, ${data.data_confidence_score || null},
+          ${data.verification_method || null}, ${data.last_verified_date || null},
+          ${data.source_coverage || null}, ${data.assigned_to || null}
         )
         RETURNING *
       `);
@@ -1965,38 +2109,48 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_portfolio_company SET
-          company_name = ${data.company_name || null},
-          company_legal_name = ${data.company_legal_name || data.legal_name || null},
-          former_names = ${data.former_names || null},
-          company_type = ${data.company_type || null},
-          year_founded = ${data.year_founded || null},
-          description = ${data.description || data.business_description || null},
-          website = ${data.website || null},
-          linkedin_url = ${data.linkedin_url || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_state = ${data.headquarters_state || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_countries = ${data.operating_countries || null},
-          primary_industry = ${data.primary_industry || null},
-          secondary_industry = ${data.secondary_industry || data.sub_industry || null},
-          business_model = ${data.business_model || null},
-          employee_count_range = ${data.employee_count_range || data.employee_count_band || null},
-          latest_revenue = ${data.latest_revenue || data.revenue || null},
-          revenue_currency = ${data.revenue_currency || 'USD'},
-          latest_revenue_year = ${data.latest_revenue_year || data.revenue_year || null},
-          ownership_status = ${data.ownership_status || data.current_owner_type || null},
-          lead_investor_gp_id = ${data.lead_investor_gp_id || data.controlling_gp_id || null},
-          lead_fund_id = ${data.lead_fund_id || data.controlling_fund_id || null},
-          initial_investment_year = ${data.initial_investment_year || data.first_investment_year || null},
-          total_funding_raised = ${data.total_funding_raised || null},
-          funding_currency = ${data.funding_currency || 'USD'},
-          exit_status = ${data.exit_status || null},
-          exit_type = ${data.exit_type || null},
-          exit_year = ${data.exit_year || null},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
-          status = ${data.status || 'active'},
+          company_name = COALESCE(${data.company_name}, company_name),
+          company_legal_name = COALESCE(${data.company_legal_name}, company_legal_name),
+          company_short_name = COALESCE(${data.company_short_name}, company_short_name),
+          founded_year = COALESCE(${data.founded_year}, founded_year),
+          headquarters_country = COALESCE(${data.headquarters_country}, headquarters_country),
+          headquarters_city = COALESCE(${data.headquarters_city}, headquarters_city),
+          operating_regions = COALESCE(${data.operating_regions}, operating_regions),
+          website = COALESCE(${data.website}, website),
+          linkedin_url = COALESCE(${data.linkedin_url}, linkedin_url),
+          primary_industry = COALESCE(${data.primary_industry}, primary_industry),
+          sub_industry = COALESCE(${data.sub_industry}, sub_industry),
+          business_description = COALESCE(${data.business_description}, business_description),
+          business_model_type = COALESCE(${data.business_model_type}, business_model_type),
+          revenue_model = COALESCE(${data.revenue_model}, revenue_model),
+          employee_count_band = COALESCE(${data.employee_count_band}, employee_count_band),
+          latest_revenue = COALESCE(${data.latest_revenue}, latest_revenue),
+          revenue_currency = COALESCE(${data.revenue_currency}, revenue_currency),
+          revenue_year = COALESCE(${data.revenue_year}, revenue_year),
+          growth_stage = COALESCE(${data.growth_stage}, growth_stage),
+          current_owner_type = COALESCE(${data.current_owner_type}, current_owner_type),
+          controlling_gp_id = COALESCE(${data.controlling_gp_id}, controlling_gp_id),
+          controlling_fund_id = COALESCE(${data.controlling_fund_id}, controlling_fund_id),
+          first_investment_year = COALESCE(${data.first_investment_year}, first_investment_year),
+          investment_status = COALESCE(${data.investment_status}, investment_status),
+          total_capital_invested = COALESCE(${data.total_capital_invested}, total_capital_invested),
+          investment_currency = COALESCE(${data.investment_currency}, investment_currency),
+          entry_valuation = COALESCE(${data.entry_valuation}, entry_valuation),
+          current_valuation = COALESCE(${data.current_valuation}, current_valuation),
+          ownership_percentage = COALESCE(${data.ownership_percentage}, ownership_percentage),
+          revenue_growth_percent = COALESCE(${data.revenue_growth_percent}, revenue_growth_percent),
+          ebitda = COALESCE(${data.ebitda}, ebitda),
+          ebitda_margin_percent = COALESCE(${data.ebitda_margin_percent}, ebitda_margin_percent),
+          net_debt = COALESCE(${data.net_debt}, net_debt),
+          exit_type = COALESCE(${data.exit_type}, exit_type),
+          exit_date = COALESCE(${data.exit_date}, exit_date),
+          exit_valuation = COALESCE(${data.exit_valuation}, exit_valuation),
+          moic_realized = COALESCE(${data.moic_realized}, moic_realized),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -2043,8 +2197,29 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_service_provider (org_id, sp_name, sp_legal_name, sp_category, headquarters_country, headquarters_city, primary_services, operating_regions, year_established, status)
-        VALUES (${orgId}, ${data.sp_name || data.provider_name}, ${data.sp_legal_name || null}, ${data.sp_category || data.provider_type || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null}, ${data.primary_services || data.services_offered || null}, ${data.operating_regions || data.geographic_coverage || null}, ${data.year_established || data.founded_year || null}, ${data.status || 'active'})
+        INSERT INTO entities_service_provider (
+          org_id, service_provider_name, service_provider_legal_name, service_provider_short_name,
+          service_provider_type, year_founded, headquarters_country, headquarters_city,
+          operating_regions, website, primary_services, secondary_services,
+          asset_class_focus, fund_stage_focus, gp_type_focus, geographic_focus,
+          employee_count_band, relevant_professionals_count, years_in_market,
+          notable_clients_count, regulatory_status, primary_regulator,
+          data_confidence_score, verification_method, last_verified_date, source_coverage,
+          email, phone, linkedin_url, assigned_to
+        ) VALUES (
+          ${orgId}, ${data.service_provider_name || data.sp_name}, ${data.service_provider_legal_name || null},
+          ${data.service_provider_short_name || null}, ${data.service_provider_type || data.sp_category || null},
+          ${data.year_founded || null}, ${data.headquarters_country || null}, ${data.headquarters_city || null},
+          ${data.operating_regions || null}, ${data.website || null}, ${data.primary_services || null},
+          ${data.secondary_services || null}, ${data.asset_class_focus || null}, ${data.fund_stage_focus || null},
+          ${data.gp_type_focus || null}, ${data.geographic_focus || null}, ${data.employee_count_band || null},
+          ${data.relevant_professionals_count || null}, ${data.years_in_market || null},
+          ${data.notable_clients_count || null}, ${data.regulatory_status || null},
+          ${data.primary_regulator || null}, ${data.data_confidence_score || null},
+          ${data.verification_method || null}, ${data.last_verified_date || null},
+          ${data.source_coverage || null}, ${data.email || null}, ${data.phone || null},
+          ${data.linkedin_url || null}, ${data.assigned_to || null}
+        )
         RETURNING *
       `);
       
@@ -2068,37 +2243,35 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_service_provider SET
-          sp_name = ${data.sp_name || data.service_provider_name || data.provider_name || null},
-          sp_legal_name = ${data.sp_legal_name || data.service_provider_legal_name || null},
-          sp_category = ${data.sp_category || data.service_provider_type || data.provider_type || null},
-          former_names = ${data.former_names || null},
-          legal_structure = ${data.legal_structure || null},
-          year_established = ${data.year_established || data.year_founded || null},
-          primary_jurisdiction = ${data.primary_jurisdiction || null},
-          secondary_jurisdictions = ${data.secondary_jurisdictions || null},
-          description = ${data.description || null},
-          headquarters_country = ${data.headquarters_country || null},
-          headquarters_city = ${data.headquarters_city || null},
-          operating_countries = ${data.operating_countries || null},
-          operating_regions = ${data.operating_regions || null},
-          number_of_offices = ${data.number_of_offices || null},
-          office_locations = ${data.office_locations || null},
-          primary_services = ${data.primary_services || data.services_offered || null},
-          secondary_services = ${data.secondary_services || null},
-          asset_class_expertise = ${data.asset_class_expertise || null},
-          fund_stage_coverage = ${data.fund_stage_coverage || null},
-          client_type_focus = ${data.client_type_focus || null},
-          total_employees = ${data.total_employees || null},
-          relevant_team_size = ${data.relevant_team_size || null},
-          years_in_private_markets = ${data.years_in_private_markets || null},
-          number_of_funds_served = ${data.number_of_funds_served || null},
-          number_of_gps_served = ${data.number_of_gps_served || null},
-          cross_border_support = ${data.cross_border_support ?? null},
-          esg_policy_exists = ${data.esg_policy_exists ?? null},
-          data_privacy_policy = ${data.data_privacy_policy ?? null},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
+          service_provider_name = COALESCE(${data.service_provider_name || data.sp_name}, service_provider_name),
+          service_provider_legal_name = COALESCE(${data.service_provider_legal_name}, service_provider_legal_name),
+          service_provider_short_name = COALESCE(${data.service_provider_short_name}, service_provider_short_name),
+          service_provider_type = COALESCE(${data.service_provider_type}, service_provider_type),
+          year_founded = COALESCE(${data.year_founded}, year_founded),
+          headquarters_country = COALESCE(${data.headquarters_country}, headquarters_country),
+          headquarters_city = COALESCE(${data.headquarters_city}, headquarters_city),
+          operating_regions = COALESCE(${data.operating_regions}, operating_regions),
+          website = COALESCE(${data.website}, website),
+          primary_services = COALESCE(${data.primary_services}, primary_services),
+          secondary_services = COALESCE(${data.secondary_services}, secondary_services),
+          asset_class_focus = COALESCE(${data.asset_class_focus}, asset_class_focus),
+          fund_stage_focus = COALESCE(${data.fund_stage_focus}, fund_stage_focus),
+          gp_type_focus = COALESCE(${data.gp_type_focus}, gp_type_focus),
+          geographic_focus = COALESCE(${data.geographic_focus}, geographic_focus),
+          employee_count_band = COALESCE(${data.employee_count_band}, employee_count_band),
+          relevant_professionals_count = COALESCE(${data.relevant_professionals_count}, relevant_professionals_count),
+          years_in_market = COALESCE(${data.years_in_market}, years_in_market),
+          notable_clients_count = COALESCE(${data.notable_clients_count}, notable_clients_count),
+          regulatory_status = COALESCE(${data.regulatory_status}, regulatory_status),
+          primary_regulator = COALESCE(${data.primary_regulator}, primary_regulator),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          email = COALESCE(${data.email}, email),
+          phone = COALESCE(${data.phone}, phone),
+          linkedin_url = COALESCE(${data.linkedin_url}, linkedin_url),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -2131,35 +2304,35 @@ export async function registerRoutes(
       if (linked_entity_type && linked_entity_id) {
         result = isSuperAdmin
           ? await db.execute(sql`
-              SELECT * FROM entities_contacts 
-              WHERE linked_entity_type = ${linked_entity_type as string} 
-                AND linked_entity_id = ${linked_entity_id as string}
+              SELECT * FROM entities_contact 
+              WHERE primary_affiliation_type = ${linked_entity_type as string} 
+                AND primary_affiliation_id = ${linked_entity_id as string}
               ORDER BY created_at DESC
             `)
           : await db.execute(sql`
-              SELECT * FROM entities_contacts 
+              SELECT * FROM entities_contact 
               WHERE org_id = ${orgId} 
-                AND linked_entity_type = ${linked_entity_type as string} 
-                AND linked_entity_id = ${linked_entity_id as string}
+                AND primary_affiliation_type = ${linked_entity_type as string} 
+                AND primary_affiliation_id = ${linked_entity_id as string}
               ORDER BY created_at DESC
             `);
       } else if (unlinked === 'true') {
         result = isSuperAdmin
           ? await db.execute(sql`
-              SELECT * FROM entities_contacts 
-              WHERE (linked_entity_id IS NULL OR linked_entity_id = '')
+              SELECT * FROM entities_contact 
+              WHERE (primary_affiliation_id IS NULL OR primary_affiliation_id = '')
               ORDER BY created_at DESC
             `)
           : await db.execute(sql`
-              SELECT * FROM entities_contacts 
+              SELECT * FROM entities_contact 
               WHERE org_id = ${orgId} 
-                AND (linked_entity_id IS NULL OR linked_entity_id = '')
+                AND (primary_affiliation_id IS NULL OR primary_affiliation_id = '')
               ORDER BY created_at DESC
             `);
       } else {
         result = isSuperAdmin
-          ? await db.execute(sql`SELECT * FROM entities_contacts ORDER BY created_at DESC`)
-          : await db.execute(sql`SELECT * FROM entities_contacts WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+          ? await db.execute(sql`SELECT * FROM entities_contact ORDER BY created_at DESC`)
+          : await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       }
       
       return res.json(result.rows);
@@ -2178,13 +2351,14 @@ export async function registerRoutes(
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       const { id } = req.params;
-      const { linked_entity_type, linked_entity_id, relationship_type } = req.body;
+      const { linked_entity_type, linked_entity_id, linked_entity_name } = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contacts 
-        SET linked_entity_type = ${linked_entity_type}, 
-            linked_entity_id = ${linked_entity_id},
-            relationship_type = ${relationship_type || null}
+        UPDATE entities_contact 
+        SET primary_affiliation_type = ${linked_entity_type}, 
+            primary_affiliation_id = ${linked_entity_id},
+            primary_affiliation_name_snapshot = ${linked_entity_name || null},
+            updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
       `);
@@ -2211,20 +2385,27 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_contacts (
-          org_id, first_name, last_name, middle_name, full_name, salutation, gender,
-          email, phone_number, phone_extension, job_title, functional_role,
-          linkedin_url, primary_profile_url, profile_urls, contact_priority,
-          verification_status, notes, status, assigned_to
+        INSERT INTO entities_contact (
+          org_id, first_name, last_name, full_name_override, job_title, seniority_level,
+          work_email, personal_email, phone_number, linkedin_url,
+          primary_affiliation_type, primary_affiliation_id, primary_affiliation_name_snapshot,
+          is_key_contact, relationship_strength, last_contacted_date, preferred_contact_method,
+          investment_focus_areas, deal_role_types, board_seats,
+          data_confidence_score, verification_method, last_verified_date, source_coverage, assigned_to
         )
         VALUES (
-          ${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.middle_name || null},
-          ${data.full_name || null}, ${data.salutation || null}, ${data.gender || null},
-          ${data.email || null}, ${data.phone_number || data.phone || null}, ${data.phone_extension || null},
-          ${data.job_title || data.title || null}, ${data.functional_role || null},
-          ${data.linkedin_url || null}, ${data.primary_profile_url || null}, ${data.profile_urls || null},
-          ${data.contact_priority || null}, ${data.verification_status || null},
-          ${data.notes || null}, ${data.status || 'active'}, ${data.assigned_to || null}
+          ${orgId}, ${data.first_name}, ${data.last_name || null}, ${data.full_name_override || null},
+          ${data.job_title || null}, ${data.seniority_level || null},
+          ${data.work_email || data.email || null}, ${data.personal_email || null},
+          ${data.phone_number || data.phone || null}, ${data.linkedin_url || null},
+          ${data.primary_affiliation_type || null}, ${data.primary_affiliation_id || null},
+          ${data.primary_affiliation_name_snapshot || null}, ${data.is_key_contact || null},
+          ${data.relationship_strength || null}, ${data.last_contacted_date || null},
+          ${data.preferred_contact_method || null}, ${data.investment_focus_areas || null},
+          ${data.deal_role_types || null}, ${data.board_seats || null},
+          ${data.data_confidence_score || null}, ${data.verification_method || null},
+          ${data.last_verified_date || null}, ${data.source_coverage || null},
+          ${data.assigned_to || null}
         )
         RETURNING *
       `);
@@ -2248,30 +2429,31 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contacts SET
-          first_name = ${data.first_name || null},
-          last_name = ${data.last_name || null},
-          middle_name = ${data.middle_name || null},
-          full_name = ${data.full_name || null},
-          salutation = ${data.salutation || null},
-          gender = ${data.gender || null},
-          email = ${data.email || null},
-          phone_number = ${data.phone_number || data.phone || null},
-          phone_extension = ${data.phone_extension || null},
-          job_title = ${data.job_title || data.title || null},
-          functional_role = ${data.functional_role || null},
-          linkedin_url = ${data.linkedin_url || null},
-          primary_profile_url = ${data.primary_profile_url || null},
-          profile_urls = ${data.profile_urls || null},
-          contact_priority = ${data.contact_priority || null},
-          verification_status = ${data.verification_status || null},
-          last_verified_on = ${data.last_verified_on || null},
-          last_verified_by = ${data.last_verified_by || null},
-          notes = ${data.notes || null},
-          status = ${data.status || 'active'},
-          assigned_to = ${data.assigned_to || null},
-          last_updated_by = ${data.last_updated_by || null},
-          last_updated_on = NOW(),
+        UPDATE entities_contact SET
+          first_name = COALESCE(${data.first_name}, first_name),
+          last_name = COALESCE(${data.last_name}, last_name),
+          full_name_override = COALESCE(${data.full_name_override}, full_name_override),
+          job_title = COALESCE(${data.job_title}, job_title),
+          seniority_level = COALESCE(${data.seniority_level}, seniority_level),
+          work_email = COALESCE(${data.work_email || data.email}, work_email),
+          personal_email = COALESCE(${data.personal_email}, personal_email),
+          phone_number = COALESCE(${data.phone_number}, phone_number),
+          linkedin_url = COALESCE(${data.linkedin_url}, linkedin_url),
+          primary_affiliation_type = COALESCE(${data.primary_affiliation_type}, primary_affiliation_type),
+          primary_affiliation_id = COALESCE(${data.primary_affiliation_id}, primary_affiliation_id),
+          primary_affiliation_name_snapshot = COALESCE(${data.primary_affiliation_name_snapshot}, primary_affiliation_name_snapshot),
+          is_key_contact = COALESCE(${data.is_key_contact}, is_key_contact),
+          relationship_strength = COALESCE(${data.relationship_strength}, relationship_strength),
+          last_contacted_date = COALESCE(${data.last_contacted_date}, last_contacted_date),
+          preferred_contact_method = COALESCE(${data.preferred_contact_method}, preferred_contact_method),
+          investment_focus_areas = COALESCE(${data.investment_focus_areas}, investment_focus_areas),
+          deal_role_types = COALESCE(${data.deal_role_types}, deal_role_types),
+          board_seats = COALESCE(${data.board_seats}, board_seats),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
@@ -2319,19 +2501,33 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         INSERT INTO entities_deal (
-          org_id, deal_name, deal_type, deal_status, deal_amount, deal_currency, deal_date,
-          target_company, acquirer_company, investor_ids, sector, notes,
-          deal_round, asset_class, target_company_id, acquirer_company_id,
-          lead_investor, ownership_percentage, verification_status, confidence_score, source_urls
+          org_id, deal_name, transaction_type, announcement_date, close_date, deal_status,
+          target_company_id, target_company_name_snapshot, acquirer_id, acquirer_name_snapshot,
+          lead_investor_gp_id, lead_investor_gp_name_snapshot, lead_fund_id, lead_fund_name_snapshot,
+          co_investors, deal_size, deal_currency, equity_value, enterprise_value,
+          stake_acquired_percent, pre_money_valuation, post_money_valuation,
+          revenue_at_deal, ebitda_at_deal, revenue_multiple, ebitda_multiple,
+          deal_stage, industry, sub_industry, geographic_focus,
+          esg_angle_flag, impact_deal_flag, add_on_flag, platform_deal_flag, carve_out_flag,
+          data_confidence_score, verification_method, last_verified_date, source_coverage, assigned_to
         )
         VALUES (
-          ${orgId}, ${data.deal_name}, ${data.deal_type || null}, ${data.deal_status || null}, 
-          ${data.deal_amount || null}, ${data.deal_currency || null}, ${data.deal_date || null},
-          ${data.target_company || null}, ${data.acquirer_company || null}, ${data.investor_ids || null}, 
-          ${data.sector || null}, ${data.notes || null},
-          ${data.deal_round || null}, ${data.asset_class || null}, ${data.target_company_id || null}, ${data.acquirer_company_id || null},
-          ${data.lead_investor ?? null}, ${data.ownership_percentage || null}, ${data.verification_status || null}, 
-          ${data.confidence_score || null}, ${data.source_urls || null}
+          ${orgId}, ${data.deal_name}, ${data.transaction_type || null},
+          ${data.announcement_date || null}, ${data.close_date || null}, ${data.deal_status || null},
+          ${data.target_company_id || null}, ${data.target_company_name_snapshot || null},
+          ${data.acquirer_id || null}, ${data.acquirer_name_snapshot || null},
+          ${data.lead_investor_gp_id || null}, ${data.lead_investor_gp_name_snapshot || null},
+          ${data.lead_fund_id || null}, ${data.lead_fund_name_snapshot || null},
+          ${data.co_investors || null}, ${data.deal_size || null}, ${data.deal_currency || null},
+          ${data.equity_value || null}, ${data.enterprise_value || null},
+          ${data.stake_acquired_percent || null}, ${data.pre_money_valuation || null},
+          ${data.post_money_valuation || null}, ${data.revenue_at_deal || null},
+          ${data.ebitda_at_deal || null}, ${data.revenue_multiple || null}, ${data.ebitda_multiple || null},
+          ${data.deal_stage || null}, ${data.industry || null}, ${data.sub_industry || null},
+          ${data.geographic_focus || null}, ${data.esg_angle_flag || null}, ${data.impact_deal_flag || null},
+          ${data.add_on_flag || null}, ${data.platform_deal_flag || null}, ${data.carve_out_flag || null},
+          ${data.data_confidence_score || null}, ${data.verification_method || null},
+          ${data.last_verified_date || null}, ${data.source_coverage || null}, ${data.assigned_to || null}
         )
         RETURNING *
       `);
@@ -2356,26 +2552,45 @@ export async function registerRoutes(
       
       const result = await db.execute(sql`
         UPDATE entities_deal SET
-          deal_name = ${data.deal_name || null},
-          deal_type = ${data.deal_type || null},
-          deal_status = ${data.deal_status || null},
-          deal_amount = ${data.deal_amount || null},
-          deal_currency = ${data.deal_currency || null},
-          deal_date = ${data.deal_date || null},
-          target_company = ${data.target_company || null},
-          acquirer_company = ${data.acquirer_company || null},
-          investor_ids = ${data.investor_ids || null},
-          sector = ${data.sector || null},
-          notes = ${data.notes || null},
-          deal_round = ${data.deal_round || null},
-          asset_class = ${data.asset_class || null},
-          target_company_id = ${data.target_company_id || null},
-          acquirer_company_id = ${data.acquirer_company_id || null},
-          lead_investor = ${data.lead_investor ?? null},
-          ownership_percentage = ${data.ownership_percentage || null},
-          verification_status = ${data.verification_status || null},
-          confidence_score = ${data.confidence_score || null},
-          source_urls = ${data.source_urls || null},
+          deal_name = COALESCE(${data.deal_name}, deal_name),
+          transaction_type = COALESCE(${data.transaction_type}, transaction_type),
+          announcement_date = COALESCE(${data.announcement_date}, announcement_date),
+          close_date = COALESCE(${data.close_date}, close_date),
+          deal_status = COALESCE(${data.deal_status}, deal_status),
+          target_company_id = COALESCE(${data.target_company_id}, target_company_id),
+          target_company_name_snapshot = COALESCE(${data.target_company_name_snapshot}, target_company_name_snapshot),
+          acquirer_id = COALESCE(${data.acquirer_id}, acquirer_id),
+          acquirer_name_snapshot = COALESCE(${data.acquirer_name_snapshot}, acquirer_name_snapshot),
+          lead_investor_gp_id = COALESCE(${data.lead_investor_gp_id}, lead_investor_gp_id),
+          lead_investor_gp_name_snapshot = COALESCE(${data.lead_investor_gp_name_snapshot}, lead_investor_gp_name_snapshot),
+          lead_fund_id = COALESCE(${data.lead_fund_id}, lead_fund_id),
+          lead_fund_name_snapshot = COALESCE(${data.lead_fund_name_snapshot}, lead_fund_name_snapshot),
+          co_investors = COALESCE(${data.co_investors}, co_investors),
+          deal_size = COALESCE(${data.deal_size}, deal_size),
+          deal_currency = COALESCE(${data.deal_currency}, deal_currency),
+          equity_value = COALESCE(${data.equity_value}, equity_value),
+          enterprise_value = COALESCE(${data.enterprise_value}, enterprise_value),
+          stake_acquired_percent = COALESCE(${data.stake_acquired_percent}, stake_acquired_percent),
+          pre_money_valuation = COALESCE(${data.pre_money_valuation}, pre_money_valuation),
+          post_money_valuation = COALESCE(${data.post_money_valuation}, post_money_valuation),
+          revenue_at_deal = COALESCE(${data.revenue_at_deal}, revenue_at_deal),
+          ebitda_at_deal = COALESCE(${data.ebitda_at_deal}, ebitda_at_deal),
+          revenue_multiple = COALESCE(${data.revenue_multiple}, revenue_multiple),
+          ebitda_multiple = COALESCE(${data.ebitda_multiple}, ebitda_multiple),
+          deal_stage = COALESCE(${data.deal_stage}, deal_stage),
+          industry = COALESCE(${data.industry}, industry),
+          sub_industry = COALESCE(${data.sub_industry}, sub_industry),
+          geographic_focus = COALESCE(${data.geographic_focus}, geographic_focus),
+          esg_angle_flag = COALESCE(${data.esg_angle_flag}, esg_angle_flag),
+          impact_deal_flag = COALESCE(${data.impact_deal_flag}, impact_deal_flag),
+          add_on_flag = COALESCE(${data.add_on_flag}, add_on_flag),
+          platform_deal_flag = COALESCE(${data.platform_deal_flag}, platform_deal_flag),
+          carve_out_flag = COALESCE(${data.carve_out_flag}, carve_out_flag),
+          data_confidence_score = COALESCE(${data.data_confidence_score}, data_confidence_score),
+          verification_method = COALESCE(${data.verification_method}, verification_method),
+          last_verified_date = COALESCE(${data.last_verified_date}, last_verified_date),
+          source_coverage = COALESCE(${data.source_coverage}, source_coverage),
+          assigned_to = COALESCE(${data.assigned_to}, assigned_to),
           updated_at = NOW()
         WHERE id = ${id} AND org_id = ${orgId}
         RETURNING *
