@@ -54,6 +54,12 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // [DEBUG] Global API entry log - log every /api request
+  app.use("/api", (req: Request, res: Response, next) => {
+    console.log(`[DEBUG-L1] API Request: ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
   // Client config endpoint - provides Supabase credentials at runtime
   app.get("/api/config", (req: Request, res: Response) => {
     res.json({
@@ -3672,7 +3678,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/funds/:id", async (req: Request, res: Response) => {
+    console.log(`[DEBUG-L2] Fund route hit: id=${req.params.id}`);
     const orgId = await getUserOrgIdSafe(req, res);
+    console.log(`[DEBUG-L2] Fund route orgId resolved: ${orgId}`);
     if (!orgId) return;
     try {
       const fund = await storage.getEntityFund(req.params.id, orgId);

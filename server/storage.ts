@@ -1346,9 +1346,11 @@ export class DatabaseStorage extends MemStorage {
   }
 
   async getEntityFund(id: string, orgId: string): Promise<EntityFund | undefined> {
+    console.log(`[DEBUG-L3] getEntityFund called: id=${id}, orgId=${orgId}`);
     const result = await db.select().from(entitiesFund).where(
       and(eq(entitiesFund.id, id), eq(entitiesFund.orgId, orgId))
     );
+    console.log(`[DEBUG-L3] getEntityFund result count: ${result.length}`);
     return result[0];
   }
 
