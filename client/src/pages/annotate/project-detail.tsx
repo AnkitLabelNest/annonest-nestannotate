@@ -40,7 +40,14 @@ import {
   FileSpreadsheet,
   Newspaper,
   Eye,
+  FileText,
+  Users,
+  Plus,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -108,6 +115,16 @@ export default function NestAnnotateProjectDetailPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedAssignee, setSelectedAssignee] = useState("");
   const [uploading, setUploading] = useState(false);
+  
+  // Manual entry form state
+  const [manualHeadline, setManualHeadline] = useState("");
+  const [manualUrl, setManualUrl] = useState("");
+  const [manualSourceName, setManualSourceName] = useState("");
+  const [manualPublishDate, setManualPublishDate] = useState("");
+  const [manualRawText, setManualRawText] = useState("");
+  
+  // Team assignment state (multi-select)
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
 
   const { data: project, isLoading } = useQuery<ProjectDetail>({
     queryKey: ["/api/nest-annotate/projects", projectId],
@@ -128,9 +145,10 @@ export default function NestAnnotateProjectDetailPage() {
   });
 
   const uploadNewsMutation = useMutation({
-    mutationFn: async (articles: any[]) => {
+    mutationFn: async ({ articles, assignees }: { articles: any[]; assignees: string[] }) => {
       const res = await apiRequest("POST", `/api/nest-annotate/projects/${projectId}/upload-news`, {
         articles,
+        assignees, // Pass selected assignees to backend
       });
       if (!res.ok) {
         const error = await res.json();
@@ -141,6 +159,13 @@ export default function NestAnnotateProjectDetailPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/nest-annotate/projects", projectId] });
       setUploadDialogOpen(false);
+      // Reset form state
+      setManualHeadline("");
+      setManualUrl("");
+      setManualSourceName("");
+      setManualPublishDate("");
+      setManualRawText("");
+      setSelectedAssignees([]);
       toast({
         title: "Upload Complete",
         description: data.message,
@@ -244,7 +269,7 @@ export default function NestAnnotateProjectDetailPage() {
         throw new Error("No valid articles found in file");
       }
 
-      uploadNewsMutation.mutate(articles);
+      uploadNewsMutation.mutate({ articles, assignees: selectedAssignees });
     } catch (error) {
       toast({
         title: "Parse Error",
@@ -257,6 +282,34 @@ export default function NestAnnotateProjectDetailPage() {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualHeadline.trim() || !manualRawText.trim()) {
+      toast({
+        title: "Missing Required Fields",
+        description: "Headline and article text are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const article = {
+      headline: manualHeadline.trim(),
+      url: manualUrl.trim() || undefined,
+      sourceName: manualSourceName.trim() || undefined,
+      publishDate: manualPublishDate || undefined,
+      rawText: manualRawText.trim(),
+      articleState: "pending" as const,
+    };
+
+    uploadNewsMutation.mutate({ articles: [article], assignees: selectedAssignees });
+  };
+
+  const toggleAssignee = (userId: string) => {
+    setSelectedAssignees((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
   };
 
   const parseCSVLine = (line: string): string[] => {
@@ -340,7 +393,18 @@ export default function NestAnnotateProjectDetailPage() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-2xl font-bold">{tasks.length}</p>
+                <p className="text-xs text-muted-foreground">Total Items</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -523,54 +587,167 @@ export default function NestAnnotateProjectDetailPage() {
       </Card>
 
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Upload News Articles</DialogTitle>
+            <DialogTitle>Add News Articles</DialogTitle>
             <DialogDescription>
-              Upload a CSV or Excel file with news articles. Each row will become a task.
+              Upload via CSV or add a single article manually.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="border rounded-lg p-4 bg-muted/50">
-              <h4 className="font-medium mb-2">Required Columns:</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>headline - Article title</li>
-                <li>url - Article URL</li>
-                <li>source_name - Publication name</li>
-                <li>publish_date - Publication date</li>
-                <li>raw_text - Full article content</li>
-              </ul>
-              <h4 className="font-medium mt-4 mb-2">Optional Columns:</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>cleaned_text - Cleaned article content</li>
-                <li>language - Article language</li>
-                <li>article_state - pending, completed, or not_relevant (default: pending)</li>
-              </ul>
-            </div>
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileUpload}
-                className="hidden"
-                data-testid="input-file-upload"
-              />
-              <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || uploadNewsMutation.isPending}
-              >
-                {(uploading || uploadNewsMutation.isPending) && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                Select CSV File
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Supports CSV files with comma-separated values
+          
+          {/* Team Assignment Section */}
+          {orgUsers && orgUsers.length > 0 && (
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-medium text-sm">Assign To Team Members</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Select users to assign tasks. Multiple users = one task per user.
               </p>
+              <div className="flex flex-wrap gap-2">
+                {orgUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
+                      selectedAssignees.includes(u.id)
+                        ? "bg-primary/10 border-primary"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                    onClick={() => toggleAssignee(u.id)}
+                    data-testid={`checkbox-assignee-${u.id}`}
+                  >
+                    <Checkbox
+                      checked={selectedAssignees.includes(u.id)}
+                      className="pointer-events-none"
+                    />
+                    <span className="text-sm">{u.displayName}</span>
+                  </div>
+                ))}
+              </div>
+              {selectedAssignees.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  No selection = tasks remain unassigned
+                </p>
+              )}
             </div>
-          </div>
+          )}
+
+          <Tabs defaultValue="csv" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="csv" data-testid="tab-csv-upload">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                CSV Upload
+              </TabsTrigger>
+              <TabsTrigger value="manual" data-testid="tab-manual-entry">
+                <Plus className="h-4 w-4 mr-2" />
+                Manual Entry
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="csv" className="space-y-4 pt-4">
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <h4 className="font-medium mb-2 text-sm">Required Columns:</h4>
+                <p className="text-xs text-muted-foreground">
+                  headline, url, source_name, publish_date, raw_text
+                </p>
+                <h4 className="font-medium mt-3 mb-1 text-sm">Optional:</h4>
+                <p className="text-xs text-muted-foreground">
+                  cleaned_text, language, article_state (pending/completed/not_relevant)
+                </p>
+              </div>
+              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  data-testid="input-file-upload"
+                />
+                <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || uploadNewsMutation.isPending}
+                >
+                  {(uploading || uploadNewsMutation.isPending) && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  Select CSV File
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Supports CSV files with comma-separated values
+                </p>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="manual" className="space-y-4 pt-4">
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="manual-headline">Headline *</Label>
+                  <Input
+                    id="manual-headline"
+                    value={manualHeadline}
+                    onChange={(e) => setManualHeadline(e.target.value)}
+                    placeholder="Article headline"
+                    data-testid="input-manual-headline"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="manual-source">Source Name</Label>
+                    <Input
+                      id="manual-source"
+                      value={manualSourceName}
+                      onChange={(e) => setManualSourceName(e.target.value)}
+                      placeholder="e.g. Reuters"
+                      data-testid="input-manual-source"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manual-date">Publish Date</Label>
+                    <Input
+                      id="manual-date"
+                      type="date"
+                      value={manualPublishDate}
+                      onChange={(e) => setManualPublishDate(e.target.value)}
+                      data-testid="input-manual-date"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="manual-url">URL</Label>
+                  <Input
+                    id="manual-url"
+                    value={manualUrl}
+                    onChange={(e) => setManualUrl(e.target.value)}
+                    placeholder="https://..."
+                    data-testid="input-manual-url"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="manual-text">Article Text *</Label>
+                  <Textarea
+                    id="manual-text"
+                    value={manualRawText}
+                    onChange={(e) => setManualRawText(e.target.value)}
+                    placeholder="Paste article content here..."
+                    rows={6}
+                    data-testid="input-manual-text"
+                  />
+                </div>
+                <Button
+                  onClick={handleManualSubmit}
+                  disabled={uploadNewsMutation.isPending || !manualHeadline.trim() || !manualRawText.trim()}
+                  className="w-full"
+                  data-testid="button-submit-manual"
+                >
+                  {uploadNewsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add Article
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

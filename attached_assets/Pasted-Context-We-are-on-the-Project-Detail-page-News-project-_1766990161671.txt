@@ -1,0 +1,100 @@
+Context:
+We are on the Project Detail page (News project).
+Project already exists and project_id is available in route params.
+Backend is Supabase.
+Tables involved:
+- news
+- annotation_tasks
+- project_members (project_id, user_id, role) OR equivalent existing table
+- users (id, name/email)
+
+STRICT RULES:
+- News can ONLY be uploaded inside a project
+- Uploading news MUST automatically create annotation_tasks (via Supabase trigger)
+- UI must NEVER write directly to annotation_tasks
+- UI must only insert into news
+
+WHAT TO BUILD ON THIS PAGE:
+
+1) Upload News (CSV + manual)
+- Clicking “Upload News” opens a modal
+- Modal supports:
+  a) CSV upload
+  b) Manual single news entry
+- Required fields to insert into `news`:
+  - project_id (from page, hidden, mandatory)
+  - org_id
+  - headline
+  - source_name
+  - publish_date
+  - url
+  - raw_text (optional)
+  - created_by (current user)
+
+- On submit:
+  - Insert rows ONLY into `news`
+  - Do not insert into annotation_tasks
+  - Assume Supabase trigger will auto-create annotation_tasks
+  - Show success toast
+  - Refresh task list
+
+2) Team Assignment (Multi-select)
+- Add a “Team” section in header (next to Upload News)
+- Fetch project members using:
+  SELECT users.id, users.name, users.email
+  FROM project_members
+  JOIN users ON users.id = project_members.user_id
+  WHERE project_members.project_id = :project_id;
+
+- Show multi-select dropdown:
+  - Checkbox list
+  - Allow selecting multiple users
+  - Default: none selected
+
+- When uploading news:
+  - If 1 user selected → assign that user to annotation_tasks.assigned_to
+  - If multiple users selected → create ONE annotation task per user
+    (same news_id, same project_id, different assigned_to)
+  - If none selected → assigned_to = project owner
+
+3) Items List (Project Dashboard)
+- This page must list annotation tasks, NOT news
+- Query:
+  SELECT
+    at.id,
+    at.status,
+    at.assigned_to,
+    at.created_at,
+    n.headline,
+    n.source_name,
+    n.publish_date,
+    n.url
+  FROM annotation_tasks at
+  JOIN news n ON n.id = (at.metadata->>'news_id')::uuid
+  WHERE at.project_id = :project_id
+  ORDER BY at.created_at DESC;
+
+- Cards show:
+  - Headline
+  - Source
+  - Date
+  - Assigned user
+  - Status (Pending / Completed)
+
+4) Counts at top
+- Total Items = count(annotation_tasks where project_id)
+- Completed = status = 'completed'
+- Pending = status != 'completed'
+
+DO NOT:
+- Add project_id to annotation_tasks manually
+- Create new tables
+- Change existing schema
+- Show news without a task
+- Allow upload outside project
+
+Deliverables:
+- Working Upload News modal
+- CSV + manual entry
+- Multi-user assignment
+- Project dashboard auto-refreshes after upload

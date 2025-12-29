@@ -4413,9 +4413,11 @@ export async function registerRoutes(
       
       const uploadSchema = z.object({
         articles: z.array(newsItemSchema),
+        assignees: z.array(z.string()).optional().default([]),
       });
       
       const parsed = uploadSchema.parse(req.body);
+      const assignees = parsed.assignees;
       const results = { created: 0, skipped: 0, tasks: 0 };
       
       for (const article of parsed.articles) {
@@ -4440,12 +4442,18 @@ export async function registerRoutes(
             news_id: newsId,
           };
           
-          await pool.query(
-            `INSERT INTO annotation_tasks (project_id, status, metadata)
-             VALUES ($1, $2, $3)`,
-            [projectId, "pending", JSON.stringify(metadata)]
-          );
-          results.tasks++;
+          // If multiple assignees selected, create one task per assignee
+          // If no assignees selected, create one unassigned task
+          const taskAssignees = assignees.length > 0 ? assignees : [null];
+          
+          for (const assigneeId of taskAssignees) {
+            await pool.query(
+              `INSERT INTO annotation_tasks (project_id, status, metadata, assigned_to)
+               VALUES ($1, $2, $3, $4)`,
+              [projectId, "pending", JSON.stringify(metadata), assigneeId]
+            );
+            results.tasks++;
+          }
         } else {
           results.skipped++;
         }
