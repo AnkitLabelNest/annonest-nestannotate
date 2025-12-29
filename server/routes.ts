@@ -4472,6 +4472,169 @@ export async function registerRoutes(
     }
   });
 
+  // Get NestAnnotate project members
+  app.get("/api/nest-annotate/projects/:id/members", async (req: Request, res: Response) => {
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin } = userInfo;
+    const projectId = req.params.id;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Verify project exists and user has access
+      const projectCheck = isSuperAdmin
+        ? await pool.query(`SELECT id, org_id FROM label_projects WHERE id = $1`, [projectId])
+        : await pool.query(`SELECT id, org_id FROM label_projects WHERE id = $1 AND org_id = $2`, [projectId, orgId]);
+      
+      if (projectCheck.rows.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Get members with user details
+      const result = await pool.query(
+        `SELECT lpm.id, lpm.user_id, lpm.role, lpm.created_at,
+                u.display_name, u.username, u.role as user_role
+         FROM label_project_members lpm
+         JOIN users u ON lpm.user_id = u.id
+         WHERE lpm.project_id = $1
+         ORDER BY lpm.created_at DESC`,
+        [projectId]
+      );
+      
+      const members = result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        displayName: row.display_name,
+        username: row.username,
+        userRole: row.user_role,
+        memberRole: row.role,
+        createdAt: row.created_at,
+      }));
+      
+      return res.json(members);
+    } catch (error) {
+      console.error("Error fetching project members:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Add NestAnnotate project member
+  app.post("/api/nest-annotate/projects/:id/members", async (req: Request, res: Response) => {
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role: userRole } = userInfo;
+    
+    // Only super admin or manager/admin can add members
+    if (!isSuperAdmin && userRole !== "admin" && userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can add members" });
+    }
+    
+    const projectId = req.params.id;
+    const { userId, role } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Verify project exists
+      const projectCheck = isSuperAdmin
+        ? await pool.query(`SELECT id, org_id FROM label_projects WHERE id = $1`, [projectId])
+        : await pool.query(`SELECT id, org_id FROM label_projects WHERE id = $1 AND org_id = $2`, [projectId, orgId]);
+      
+      if (projectCheck.rows.length === 0) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const projectOrgId = projectCheck.rows[0].org_id;
+      
+      // Verify target user exists
+      const userCheck = await pool.query(`SELECT id, org_id, display_name FROM users WHERE id = $1`, [userId]);
+      
+      if (userCheck.rows.length === 0) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      
+      // For non-super-admin, user must be in same org as project
+      if (!isSuperAdmin && userCheck.rows[0].org_id !== projectOrgId) {
+        return res.status(400).json({ message: "User not in project organization" });
+      }
+      
+      // Check if already a member
+      const existingCheck = await pool.query(
+        `SELECT id FROM label_project_members WHERE project_id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      
+      if (existingCheck.rows.length > 0) {
+        return res.status(409).json({ message: "User is already a member" });
+      }
+      
+      // Add member
+      const result = await pool.query(
+        `INSERT INTO label_project_members (project_id, user_id, role, org_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, project_id, user_id, role, created_at`,
+        [projectId, userId, role || "member", projectOrgId]
+      );
+      
+      return res.status(201).json({
+        ...result.rows[0],
+        displayName: userCheck.rows[0].display_name,
+      });
+    } catch (error) {
+      console.error("Error adding project member:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Remove NestAnnotate project member
+  app.delete("/api/nest-annotate/projects/:id/members/:memberId", async (req: Request, res: Response) => {
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role: userRole } = userInfo;
+    
+    // Only super admin or manager/admin can remove members
+    if (!isSuperAdmin && userRole !== "admin" && userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can remove members" });
+    }
+    
+    const { id: projectId, memberId } = req.params;
+    
+    try {
+      const { pool } = await import("./db");
+      
+      // Super admin can remove any member, otherwise restrict to org
+      const result = isSuperAdmin
+        ? await pool.query(
+            `DELETE FROM label_project_members WHERE id = $1 AND project_id = $2 RETURNING id`,
+            [memberId, projectId]
+          )
+        : await pool.query(
+            `DELETE FROM label_project_members WHERE id = $1 AND project_id = $2 AND org_id = $3 RETURNING id`,
+            [memberId, projectId, orgId]
+          );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      return res.json({ message: "Member removed successfully" });
+    } catch (error) {
+      console.error("Error removing project member:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Assign task to user (manager/admin only)
   app.patch("/api/nest-annotate/tasks/:taskId/assign", async (req: Request, res: Response) => {
     const userInfo = await getUserWithRole(req);

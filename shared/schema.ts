@@ -169,9 +169,22 @@ export const annotationTasks = pgTable("annotation_tasks", {
   index("annotation_tasks_assigned_to_idx").on(table.assignedTo),
 ]);
 
+export const labelProjectMembers = pgTable("label_project_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => labelProjects.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull().default("member"),
+  orgId: varchar("org_id").references(() => organizations.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("label_project_members_project_id_idx").on(table.projectId),
+  index("label_project_members_user_id_idx").on(table.userId),
+]);
+
 export type LabelProject = typeof labelProjects.$inferSelect;
 export type InsertLabelProject = typeof labelProjects.$inferInsert;
 export type AnnotationTask = typeof annotationTasks.$inferSelect;
+export type LabelProjectMember = typeof labelProjectMembers.$inferSelect;
 export type InsertAnnotationTask = typeof annotationTasks.$inferInsert;
 
 export const firms = pgTable("firms", {

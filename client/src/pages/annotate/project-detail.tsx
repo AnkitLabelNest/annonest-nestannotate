@@ -125,6 +125,10 @@ export default function NestAnnotateProjectDetailPage() {
   
   // Team assignment state (multi-select)
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  
+  // Manage Team dialog state
+  const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
+  const [selectedMemberToAdd, setSelectedMemberToAdd] = useState("");
 
   const { data: project, isLoading } = useQuery<ProjectDetail>({
     queryKey: ["/api/nest-annotate/projects", projectId],
@@ -142,6 +146,71 @@ export default function NestAnnotateProjectDetailPage() {
       return res.json();
     },
     enabled: isManager,
+  });
+
+  // Project team members
+  interface ProjectMember {
+    id: string;
+    userId: string;
+    displayName: string;
+    username: string;
+    userRole: string;
+    memberRole: string;
+    createdAt: string;
+  }
+
+  const { data: projectMembers, refetch: refetchMembers } = useQuery<ProjectMember[]>({
+    queryKey: ["/api/nest-annotate/projects", projectId, "members"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/nest-annotate/projects/${projectId}/members`);
+      return res.json();
+    },
+    enabled: !!projectId && isManager,
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/nest-annotate/projects/${projectId}/members`, { userId });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to add member");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMembers();
+      setSelectedMemberToAdd("");
+      toast({ title: "Member added successfully" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to add member",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const res = await apiRequest("DELETE", `/api/nest-annotate/projects/${projectId}/members/${memberId}`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to remove member");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMembers();
+      toast({ title: "Member removed successfully" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to remove member",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
   });
 
   const uploadNewsMutation = useMutation({
@@ -385,12 +454,20 @@ export default function NestAnnotateProjectDetailPage() {
             </p>
           </div>
         </div>
-        {isManager && isNewsProject && (
-          <Button onClick={() => setUploadDialogOpen(true)} data-testid="button-upload-news">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload News
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isManager && (
+            <Button variant="outline" onClick={() => setManageTeamDialogOpen(true)} data-testid="button-manage-team">
+              <Users className="h-4 w-4 mr-2" />
+              Manage Team
+            </Button>
+          )}
+          {isManager && isNewsProject && (
+            <Button onClick={() => setUploadDialogOpen(true)} data-testid="button-upload-news">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload News
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -794,6 +871,87 @@ export default function NestAnnotateProjectDetailPage() {
                 {assignTaskMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Assign
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Team Dialog */}
+      <Dialog open={manageTeamDialogOpen} onOpenChange={setManageTeamDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Team</DialogTitle>
+            <DialogDescription>
+              Add or remove team members who can work on this project. Only assigned members will see this project in their work queue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            {/* Add member section */}
+            <div className="flex gap-2">
+              <Select value={selectedMemberToAdd} onValueChange={setSelectedMemberToAdd}>
+                <SelectTrigger className="flex-1" data-testid="select-member-to-add">
+                  <SelectValue placeholder="Select a user to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgUsers
+                    ?.filter((u) => !projectMembers?.some((m) => m.userId === u.id))
+                    .map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.displayName}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => {
+                  if (selectedMemberToAdd) {
+                    addMemberMutation.mutate(selectedMemberToAdd);
+                  }
+                }}
+                disabled={!selectedMemberToAdd || addMemberMutation.isPending}
+                data-testid="button-add-member"
+              >
+                {addMemberMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UserPlus className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Members list */}
+            <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
+              {projectMembers && projectMembers.length > 0 ? (
+                projectMembers.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-3">
+                    <div>
+                      <p className="font-medium text-sm">{member.displayName}</p>
+                      <p className="text-xs text-muted-foreground">@{member.username} - {member.userRole}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeMemberMutation.mutate(member.id)}
+                      disabled={removeMemberMutation.isPending}
+                      data-testid={`button-remove-member-${member.id}`}
+                    >
+                      {removeMemberMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <span className="text-destructive">Remove</span>
+                      )}
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No team members assigned yet. Add users above.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={() => setManageTeamDialogOpen(false)}>Done</Button>
             </div>
           </div>
         </DialogContent>
