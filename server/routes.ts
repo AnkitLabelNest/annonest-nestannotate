@@ -126,12 +126,15 @@ export async function registerRoutes(
   async function getUserWithRole(req: Request): Promise<{ userId: string; orgId: string; role: string; isSuperAdmin: boolean } | null> {
     const userId = req.headers["x-user-id"] as string;
     if (!userId) {
+      console.log("[auth] No x-user-id header found");
       return null;
     }
     const user = await storage.getUser(userId);
     if (!user) {
+      console.log(`[auth] User not found in database for id: ${userId}`);
       return null;
     }
+    console.log(`[auth] User found: ${user.displayName}, role: ${user.role}, orgId: ${user.orgId}`);
     return {
       userId: user.id,
       orgId: user.orgId,
@@ -5351,35 +5354,47 @@ export async function registerRoutes(
   // Get single project (NO items - items loaded separately via /items endpoint)
   // ARCHITECTURAL RULE: Project detail must NOT depend on entities_project_items
   app.get("/api/datanest/projects/:id", async (req: Request, res: Response) => {
+    const projectId = req.params.id;
+    const userId = getUserIdFromRequest(req);
+    
     try {
       const { orgId, isSuperAdmin } = await getOrgFilter(req);
-      const projectId = req.params.id;
+      console.log(`[project-detail] User ${userId} (orgId: ${orgId}, superAdmin: ${isSuperAdmin}) requesting project ${projectId}`);
       
-      const { pool, getProjectTableName, getTableName, getProjectColumns } = await import("./db");
+      const { pool, getProjectTableName, getTableName, getProjectColumns, isSupabase } = await import("./db");
       const projectTable = getProjectTableName();
       const cols = getProjectColumns();
       const membersTable = getTableName("project_members");
+      
+      console.log(`[project-detail] Using table: ${projectTable}, isSupabase: ${isSupabase}`);
+      console.log(`[project-detail] Column mapping: name=${cols.name}, desc=${cols.description}, type=${cols.type}`);
       
       // Fetch project ONLY from entities_project - no items join
       // Super admin can see any project, regular users only see their org's projects
       const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
       let projectResult;
       if (isSuperAdmin) {
+        console.log(`[project-detail] Super admin query: SELECT ... FROM ${projectTable} WHERE id = '${projectId}'`);
         projectResult = await pool.query(
           `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1`,
           [projectId]
         );
       } else {
+        console.log(`[project-detail] Regular user query: SELECT ... FROM ${projectTable} WHERE id = '${projectId}' AND org_id = '${orgId}'`);
         projectResult = await pool.query(
           `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
           [projectId, orgId]
         );
       }
       
+      console.log(`[project-detail] Query returned ${projectResult.rows.length} rows`);
+      
       if (projectResult.rows.length === 0) {
+        console.log(`[project-detail] Project not found for id=${projectId}, orgId=${orgId}, superAdmin=${isSuperAdmin}`);
         return res.status(404).json({ message: "Project not found" });
       }
       const project = projectResult.rows[0];
+      console.log(`[project-detail] Found project: ${project.name}`);
       
       // Fetch members using raw SQL with user names (separate from items)
       const membersResult = await pool.query(
@@ -5396,11 +5411,14 @@ export async function registerRoutes(
         members,
       });
     } catch (error: any) {
+      console.error(`[project-detail] Error for project ${projectId}:`, error?.message || error);
       if (error?.message === "UNAUTHORIZED") {
         return res.status(401).json({ message: "Authentication required" });
       }
-      console.error("Error fetching project:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ 
+        message: "Internal server error",
+        detail: process.env.NODE_ENV === "development" ? error?.message : undefined
+      });
     }
   });
 
