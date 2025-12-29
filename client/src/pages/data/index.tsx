@@ -54,10 +54,6 @@ interface Project {
   name: string;
   type: string; // Supabase uses 'type' not 'projectType'
   status: string;
-  totalItems: number;
-  pendingItems: number;
-  completedItems: number;
-  createdAt: string;
 }
 
 const datasetCards = [
@@ -271,9 +267,6 @@ export default function DataNestPage() {
                 <TableRow>
                   <TableHead>Project Name</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead className="text-center">Total</TableHead>
-                  <TableHead className="text-center">Pending</TableHead>
-                  <TableHead className="text-center">Completed</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
@@ -285,9 +278,6 @@ export default function DataNestPage() {
                     <TableCell>
                       <Badge variant="secondary">{project.type || "research"}</Badge>
                     </TableCell>
-                    <TableCell className="text-center">{project.totalItems}</TableCell>
-                    <TableCell className="text-center">{project.pendingItems}</TableCell>
-                    <TableCell className="text-center">{project.completedItems}</TableCell>
                     <TableCell>{getStatusBadge(project.status)}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/data/project/${project.id}`}>

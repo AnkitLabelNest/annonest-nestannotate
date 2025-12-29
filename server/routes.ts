@@ -5348,7 +5348,8 @@ export async function registerRoutes(
     }
   });
 
-  // Get single project with items
+  // Get single project (NO items - items loaded separately via /items endpoint)
+  // ARCHITECTURAL RULE: Project detail must NOT depend on entities_project_items
   app.get("/api/datanest/projects/:id", async (req: Request, res: Response) => {
     const orgId = await getUserOrgIdSafe(req, res);
     if (!orgId) return;
@@ -5358,10 +5359,9 @@ export async function registerRoutes(
       const { pool, getProjectTableName, getTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
       const cols = getProjectColumns();
-      const itemsTable = getTableName("project_items");
       const membersTable = getTableName("project_members");
       
-      // Fetch project using raw SQL - column names differ between local and Supabase
+      // Fetch project ONLY from entities_project - no items join
       const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
       const projectResult = await pool.query(
         `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
@@ -5371,33 +5371,9 @@ export async function registerRoutes(
       if (projectResult.rows.length === 0) {
         return res.status(404).json({ message: "Project not found" });
       }
-      const project = projectResult.rows;
+      const project = projectResult.rows[0];
       
-      // Fetch items using raw SQL (project_items HAS assigned_to)
-      const { getProjectItemColumns } = await import("./db");
-      const itemCols = getProjectItemColumns();
-      // Supabase doesn't have entity_name_snapshot column - conditionally include it
-      const entityNameCol = itemCols.hasEntityNameSnapshot 
-        ? `, ${itemCols.entityNameSnapshot} as "entityNameSnapshot"` 
-        : "";
-      // Build SELECT columns based on what exists in the table
-      const notesCol = itemCols.hasNotes ? ', notes' : '';
-      const orgIdCol = itemCols.hasOrgId ? ', org_id as "orgId"' : '';
-      const itemsResult = await pool.query(
-        `SELECT id, project_id as "projectId", entity_type as "entityType", entity_id as "entityId"${entityNameCol}, assigned_to as "assignedTo",
-                task_status as "taskStatus"${notesCol}${orgIdCol}, ${itemCols.createdAt} as "createdAt"
-         FROM ${itemsTable} WHERE project_id = $1`,
-        [projectId]
-      );
-      // Ensure entityNameSnapshot is always present (null for Supabase)
-      const items = (itemsResult.rows as any[]).map(item => ({
-        ...item,
-        entityNameSnapshot: item.entityNameSnapshot ?? null,
-        notes: item.notes ?? null,
-        orgId: item.orgId ?? null,
-      }));
-      
-      // Fetch members using raw SQL with user names
+      // Fetch members using raw SQL with user names (separate from items)
       const membersResult = await pool.query(
         `SELECT m.id, m.user_id as "userId", m.role, u.display_name as "userName"
          FROM ${membersTable} m LEFT JOIN users u ON m.user_id = u.id
@@ -5406,9 +5382,9 @@ export async function registerRoutes(
       );
       const members = membersResult.rows;
       
+      // Return project data WITHOUT items - items loaded via separate endpoint
       return res.json({
-        ...project[0],
-        items,
+        ...project,
         members,
       });
     } catch (error) {

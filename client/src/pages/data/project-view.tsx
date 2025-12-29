@@ -71,10 +71,9 @@ interface ProjectMember {
 interface Project {
   id: string;
   name: string;
-  projectType: string;
+  type: string;
   description: string | null;
   status: string;
-  items: ProjectItem[];
   members: ProjectMember[];
 }
 
@@ -333,7 +332,7 @@ export default function DataNestProjectView() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold" data-testid="text-project-name">{project.name}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary">{project.projectType}</Badge>
+            <Badge variant="secondary">{project.type}</Badge>
             <Badge variant={project.status === "active" ? "default" : "secondary"}>
               {project.status}
             </Badge>
