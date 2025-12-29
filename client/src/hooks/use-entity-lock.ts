@@ -69,10 +69,9 @@ export function useEntityLock({
       setError(null);
     } catch (err) {
       // Non-blocking: lock status check failure shouldn't prevent entity viewing
+      // Keep previous state but set a soft warning - don't change lock state on error
       console.warn("Lock check failed (non-blocking):", err);
-      setIsLocked(false);
-      setLock(null);
-      setError(null);
+      // Don't clear lock state - keep previous state to be safe
     }
   }, [entityType, entityId]);
 
@@ -109,10 +108,9 @@ export function useEntityLock({
       }
     } catch (err) {
       // Non-blocking: lock acquisition failure shouldn't prevent entity viewing
+      // Keep previous state but log warning - don't optimistically clear lock state
       console.warn("Lock acquisition failed (non-blocking):", err);
-      setIsLocked(false);
-      setLock(null);
-      setError(null);
+      // Don't clear lock state on error - be conservative and keep previous state
       return false;
     }
   }, [entityType, entityId, heartbeatIntervalMs]);

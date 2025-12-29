@@ -113,12 +113,14 @@ export interface IStorage {
 
   getGpFirms(orgId: string): Promise<EntityGp[]>;
   getGpFirm(id: string, orgId: string): Promise<EntityGp | undefined>;
+  getGpFirmById(id: string): Promise<EntityGp | undefined>;
   createGpFirm(gp: InsertEntityGp): Promise<EntityGp>;
   updateGpFirm(id: string, orgId: string, gp: Partial<InsertEntityGp>): Promise<EntityGp | undefined>;
   deleteGpFirm(id: string, orgId: string): Promise<boolean>;
 
   getLpFirms(orgId: string): Promise<EntityLp[]>;
   getLpFirm(id: string, orgId: string): Promise<EntityLp | undefined>;
+  getLpFirmById(id: string): Promise<EntityLp | undefined>;
   createLpFirm(lp: InsertEntityLp): Promise<EntityLp>;
   updateLpFirm(id: string, orgId: string, lp: Partial<InsertEntityLp>): Promise<EntityLp | undefined>;
   deleteLpFirm(id: string, orgId: string): Promise<boolean>;
@@ -132,24 +134,28 @@ export interface IStorage {
 
   getPortfolioCompanies(orgId: string): Promise<EntityPortfolioCompany[]>;
   getPortfolioCompany(id: string, orgId: string): Promise<EntityPortfolioCompany | undefined>;
+  getPortfolioCompanyById(id: string): Promise<EntityPortfolioCompany | undefined>;
   createPortfolioCompany(pc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany>;
   updatePortfolioCompany(id: string, orgId: string, pc: Partial<InsertEntityPortfolioCompany>): Promise<EntityPortfolioCompany | undefined>;
   deletePortfolioCompany(id: string, orgId: string): Promise<boolean>;
 
   getServiceProviders(orgId: string): Promise<EntityServiceProvider[]>;
   getServiceProvider(id: string, orgId: string): Promise<EntityServiceProvider | undefined>;
+  getServiceProviderById(id: string): Promise<EntityServiceProvider | undefined>;
   createServiceProvider(sp: InsertEntityServiceProvider): Promise<EntityServiceProvider>;
   updateServiceProvider(id: string, orgId: string, sp: Partial<InsertEntityServiceProvider>): Promise<EntityServiceProvider | undefined>;
   deleteServiceProvider(id: string, orgId: string): Promise<boolean>;
 
   getEntityContacts(orgId: string): Promise<EntityContact[]>;
   getEntityContact(id: string, orgId: string): Promise<EntityContact | undefined>;
+  getEntityContactById(id: string): Promise<EntityContact | undefined>;
   createEntityContact(contact: InsertEntityContact): Promise<EntityContact>;
   updateEntityContact(id: string, orgId: string, contact: Partial<InsertEntityContact>): Promise<EntityContact | undefined>;
   deleteEntityContact(id: string, orgId: string): Promise<boolean>;
 
   getEntityDeals(orgId: string): Promise<EntityDeal[]>;
   getEntityDeal(id: string, orgId: string): Promise<EntityDeal | undefined>;
+  getEntityDealById(id: string): Promise<EntityDeal | undefined>;
   createEntityDeal(deal: InsertEntityDeal): Promise<EntityDeal>;
   updateEntityDeal(id: string, orgId: string, deal: Partial<InsertEntityDeal>): Promise<EntityDeal | undefined>;
   deleteEntityDeal(id: string, orgId: string): Promise<boolean>;
@@ -914,12 +920,14 @@ export class MemStorage implements IStorage {
 
   async getGpFirms(_orgId: string): Promise<EntityGp[]> { return []; }
   async getGpFirm(_id: string, _orgId: string): Promise<EntityGp | undefined> { return undefined; }
+  async getGpFirmById(_id: string): Promise<EntityGp | undefined> { return undefined; }
   async createGpFirm(_gp: InsertEntityGp): Promise<EntityGp> { throw new Error("Not implemented"); }
   async updateGpFirm(_id: string, _orgId: string, _gp: Partial<InsertEntityGp>): Promise<EntityGp | undefined> { return undefined; }
   async deleteGpFirm(_id: string, _orgId: string): Promise<boolean> { return false; }
 
   async getLpFirms(_orgId: string): Promise<EntityLp[]> { return []; }
   async getLpFirm(_id: string, _orgId: string): Promise<EntityLp | undefined> { return undefined; }
+  async getLpFirmById(_id: string): Promise<EntityLp | undefined> { return undefined; }
   async createLpFirm(_lp: InsertEntityLp): Promise<EntityLp> { throw new Error("Not implemented"); }
   async updateLpFirm(_id: string, _orgId: string, _lp: Partial<InsertEntityLp>): Promise<EntityLp | undefined> { return undefined; }
   async deleteLpFirm(_id: string, _orgId: string): Promise<boolean> { return false; }
@@ -933,24 +941,28 @@ export class MemStorage implements IStorage {
 
   async getPortfolioCompanies(_orgId: string): Promise<EntityPortfolioCompany[]> { return []; }
   async getPortfolioCompany(_id: string, _orgId: string): Promise<EntityPortfolioCompany | undefined> { return undefined; }
+  async getPortfolioCompanyById(_id: string): Promise<EntityPortfolioCompany | undefined> { return undefined; }
   async createPortfolioCompany(_pc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany> { throw new Error("Not implemented"); }
   async updatePortfolioCompany(_id: string, _orgId: string, _pc: Partial<InsertEntityPortfolioCompany>): Promise<EntityPortfolioCompany | undefined> { return undefined; }
   async deletePortfolioCompany(_id: string, _orgId: string): Promise<boolean> { return false; }
 
   async getServiceProviders(_orgId: string): Promise<EntityServiceProvider[]> { return []; }
   async getServiceProvider(_id: string, _orgId: string): Promise<EntityServiceProvider | undefined> { return undefined; }
+  async getServiceProviderById(_id: string): Promise<EntityServiceProvider | undefined> { return undefined; }
   async createServiceProvider(_sp: InsertEntityServiceProvider): Promise<EntityServiceProvider> { throw new Error("Not implemented"); }
   async updateServiceProvider(_id: string, _orgId: string, _sp: Partial<InsertEntityServiceProvider>): Promise<EntityServiceProvider | undefined> { return undefined; }
   async deleteServiceProvider(_id: string, _orgId: string): Promise<boolean> { return false; }
 
   async getEntityContacts(_orgId: string): Promise<EntityContact[]> { return []; }
   async getEntityContact(_id: string, _orgId: string): Promise<EntityContact | undefined> { return undefined; }
+  async getEntityContactById(_id: string): Promise<EntityContact | undefined> { return undefined; }
   async createEntityContact(_contact: InsertEntityContact): Promise<EntityContact> { throw new Error("Not implemented"); }
   async updateEntityContact(_id: string, _orgId: string, _contact: Partial<InsertEntityContact>): Promise<EntityContact | undefined> { return undefined; }
   async deleteEntityContact(_id: string, _orgId: string): Promise<boolean> { return false; }
 
   async getEntityDeals(_orgId: string): Promise<EntityDeal[]> { return []; }
   async getEntityDeal(_id: string, _orgId: string): Promise<EntityDeal | undefined> { return undefined; }
+  async getEntityDealById(_id: string): Promise<EntityDeal | undefined> { return undefined; }
   async createEntityDeal(_deal: InsertEntityDeal): Promise<EntityDeal> { throw new Error("Not implemented"); }
   async updateEntityDeal(_id: string, _orgId: string, _deal: Partial<InsertEntityDeal>): Promise<EntityDeal | undefined> { return undefined; }
   async deleteEntityDeal(_id: string, _orgId: string): Promise<boolean> { return false; }
@@ -1288,6 +1300,11 @@ export class DatabaseStorage extends MemStorage {
     return result[0];
   }
 
+  async getGpFirmById(id: string): Promise<EntityGp | undefined> {
+    const result = await db.select().from(entitiesGp).where(eq(entitiesGp.id, id));
+    return result[0];
+  }
+
   async createGpFirm(insertGp: InsertEntityGp): Promise<EntityGp> {
     const id = randomUUID();
     const gpToInsert = { id, ...insertGp };
@@ -1318,6 +1335,11 @@ export class DatabaseStorage extends MemStorage {
     const result = await db.select().from(entitiesLp).where(
       and(eq(entitiesLp.id, id), eq(entitiesLp.orgId, orgId))
     );
+    return result[0];
+  }
+
+  async getLpFirmById(id: string): Promise<EntityLp | undefined> {
+    const result = await db.select().from(entitiesLp).where(eq(entitiesLp.id, id));
     return result[0];
   }
 
@@ -1396,6 +1418,11 @@ export class DatabaseStorage extends MemStorage {
     return result[0];
   }
 
+  async getPortfolioCompanyById(id: string): Promise<EntityPortfolioCompany | undefined> {
+    const result = await db.select().from(entitiesPortfolioCompany).where(eq(entitiesPortfolioCompany.id, id));
+    return result[0];
+  }
+
   async createPortfolioCompany(insertPc: InsertEntityPortfolioCompany): Promise<EntityPortfolioCompany> {
     const id = randomUUID();
     const pcToInsert = { id, ...insertPc };
@@ -1426,6 +1453,11 @@ export class DatabaseStorage extends MemStorage {
     const result = await db.select().from(entitiesServiceProvider).where(
       and(eq(entitiesServiceProvider.id, id), eq(entitiesServiceProvider.orgId, orgId))
     );
+    return result[0];
+  }
+
+  async getServiceProviderById(id: string): Promise<EntityServiceProvider | undefined> {
+    const result = await db.select().from(entitiesServiceProvider).where(eq(entitiesServiceProvider.id, id));
     return result[0];
   }
 
@@ -1462,6 +1494,11 @@ export class DatabaseStorage extends MemStorage {
     return result[0];
   }
 
+  async getEntityContactById(id: string): Promise<EntityContact | undefined> {
+    const result = await db.select().from(entitiesContact).where(eq(entitiesContact.id, id));
+    return result[0];
+  }
+
   async createEntityContact(insertContact: InsertEntityContact): Promise<EntityContact> {
     const id = randomUUID();
     const contactToInsert = { id, ...insertContact };
@@ -1492,6 +1529,11 @@ export class DatabaseStorage extends MemStorage {
     const result = await db.select().from(entitiesDeal).where(
       and(eq(entitiesDeal.id, id), eq(entitiesDeal.orgId, orgId))
     );
+    return result[0];
+  }
+
+  async getEntityDealById(id: string): Promise<EntityDeal | undefined> {
+    const result = await db.select().from(entitiesDeal).where(eq(entitiesDeal.id, id));
     return result[0];
   }
 

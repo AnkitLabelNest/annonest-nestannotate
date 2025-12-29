@@ -3540,10 +3540,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/gp/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const gp = await storage.getGpFirm(req.params.id, orgId);
+      const gp = userInfo.isSuperAdmin 
+        ? await storage.getGpFirmById(req.params.id)
+        : await storage.getGpFirm(req.params.id, userInfo.orgId);
       if (!gp) return res.status(404).json({ message: "Not found" });
       return res.json(gp);
     } catch (error) {
@@ -3609,10 +3612,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/lp/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const lp = await storage.getLpFirm(req.params.id, orgId);
+      const lp = userInfo.isSuperAdmin 
+        ? await storage.getLpFirmById(req.params.id)
+        : await storage.getLpFirm(req.params.id, userInfo.orgId);
       if (!lp) return res.status(404).json({ message: "Not found" });
       return res.json(lp);
     } catch (error) {
@@ -3757,10 +3763,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/portfolio-companies/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const pc = await storage.getPortfolioCompany(req.params.id, orgId);
+      const pc = userInfo.isSuperAdmin 
+        ? await storage.getPortfolioCompanyById(req.params.id)
+        : await storage.getPortfolioCompany(req.params.id, userInfo.orgId);
       if (!pc) return res.status(404).json({ message: "Not found" });
       return res.json(pc);
     } catch (error) {
@@ -3826,10 +3835,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/service-providers/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const sp = await storage.getServiceProvider(req.params.id, orgId);
+      const sp = userInfo.isSuperAdmin 
+        ? await storage.getServiceProviderById(req.params.id)
+        : await storage.getServiceProvider(req.params.id, userInfo.orgId);
       if (!sp) return res.status(404).json({ message: "Not found" });
       return res.json(sp);
     } catch (error) {
@@ -3912,10 +3924,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/contacts/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const contact = await storage.getEntityContact(req.params.id, orgId);
+      const contact = userInfo.isSuperAdmin 
+        ? await storage.getEntityContactById(req.params.id)
+        : await storage.getEntityContact(req.params.id, userInfo.orgId);
       if (!contact) return res.status(404).json({ message: "Not found" });
       return res.json(contact);
     } catch (error) {
@@ -3981,10 +3996,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/deals/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
+    
     try {
-      const deal = await storage.getEntityDeal(req.params.id, orgId);
+      const deal = userInfo.isSuperAdmin 
+        ? await storage.getEntityDealById(req.params.id)
+        : await storage.getEntityDeal(req.params.id, userInfo.orgId);
       if (!deal) return res.status(404).json({ message: "Not found" });
       return res.json(deal);
     } catch (error) {
