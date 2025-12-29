@@ -5951,11 +5951,16 @@ export async function registerRoutes(
 
   // Add project member (manager/admin only)
   app.post("/api/datanest/projects/:id/members", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role: userRole } = userInfo;
     
-    // Server-side RBAC check
-    if (!await checkManagerRole(req, res)) return;
+    // Server-side RBAC check - super admin or manager/admin
+    if (!isSuperAdmin && userRole !== "admin" && userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can add members" });
+    }
     
     const projectId = req.params.id;
     const { userId, role } = req.body;
@@ -5969,14 +5974,22 @@ export async function registerRoutes(
       const { entitiesProjectMembers, users } = await import("@shared/schema");
       const { eq, and } = await import("drizzle-orm");
       
-      // Verify the target user belongs to the same org (security check)
+      // Verify the target user exists - super admin can add users from any org
       const targetUser = await db.select({ id: users.id, orgId: users.orgId })
         .from(users)
         .where(eq(users.id, userId));
       
-      if (targetUser.length === 0 || targetUser[0].orgId !== orgId) {
+      // Super admin can add any user, regular managers can only add users from their org
+      if (targetUser.length === 0) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      
+      if (!isSuperAdmin && targetUser[0].orgId !== orgId) {
         return res.status(400).json({ message: "Invalid user or user not in your organization" });
       }
+      
+      // Use the target user's orgId for the member record
+      const memberOrgId = targetUser[0].orgId;
       
       // Check if member already exists
       const existing = await db.select().from(entitiesProjectMembers)
@@ -5993,7 +6006,7 @@ export async function registerRoutes(
         projectId,
         userId,
         role: role || "member",
-        orgId,
+        orgId: memberOrgId,
       }).returning();
       
       return res.status(201).json(result[0]);
@@ -6005,11 +6018,16 @@ export async function registerRoutes(
 
   // Remove project member (manager/admin only)
   app.delete("/api/datanest/projects/:id/members/:memberId", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin, role: userRole } = userInfo;
     
-    // Server-side RBAC check
-    if (!await checkManagerRole(req, res)) return;
+    // Server-side RBAC check - super admin or manager/admin
+    if (!isSuperAdmin && userRole !== "admin" && userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can remove members" });
+    }
     
     const { id: projectId, memberId } = req.params;
     
@@ -6018,13 +6036,24 @@ export async function registerRoutes(
       const { entitiesProjectMembers } = await import("@shared/schema");
       const { eq, and } = await import("drizzle-orm");
       
-      const result = await db.delete(entitiesProjectMembers)
-        .where(and(
-          eq(entitiesProjectMembers.id, memberId),
-          eq(entitiesProjectMembers.projectId, projectId),
-          eq(entitiesProjectMembers.orgId, orgId)
-        ))
-        .returning();
+      // Super admin can remove any member, regular managers restricted to their org
+      let result;
+      if (isSuperAdmin) {
+        result = await db.delete(entitiesProjectMembers)
+          .where(and(
+            eq(entitiesProjectMembers.id, memberId),
+            eq(entitiesProjectMembers.projectId, projectId)
+          ))
+          .returning();
+      } else {
+        result = await db.delete(entitiesProjectMembers)
+          .where(and(
+            eq(entitiesProjectMembers.id, memberId),
+            eq(entitiesProjectMembers.projectId, projectId),
+            eq(entitiesProjectMembers.orgId, orgId)
+          ))
+          .returning();
+      }
       
       if (result.length === 0) {
         return res.status(404).json({ message: "Member not found" });
