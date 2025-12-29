@@ -1571,7 +1571,7 @@ export async function registerRoutes(
         UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp
         UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider
         UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal
-        UNION ALL SELECT 'entities_contact', count(*)::int FROM entities_contact
+        UNION ALL SELECT 'entities_contacts', count(*)::int FROM entities_contacts
         UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
         UNION ALL SELECT 'public_company_snapshot', CASE WHEN to_regclass('public_company_snapshot') IS NOT NULL THEN (SELECT count(*)::int FROM public_company_snapshot) ELSE 0 END
         UNION ALL SELECT 'relationships', CASE WHEN to_regclass('relationships') IS NOT NULL THEN (SELECT count(*)::int FROM relationships) ELSE 0 END
@@ -2307,13 +2307,13 @@ export async function registerRoutes(
       if (linked_entity_type && linked_entity_id) {
         result = isSuperAdmin
           ? await db.execute(sql`
-              SELECT * FROM entities_contact 
+              SELECT * FROM entities_contacts 
               WHERE primary_affiliation_type = ${linked_entity_type as string} 
                 AND primary_affiliation_id = ${linked_entity_id as string}
               ORDER BY created_at DESC
             `)
           : await db.execute(sql`
-              SELECT * FROM entities_contact 
+              SELECT * FROM entities_contacts 
               WHERE org_id = ${orgId} 
                 AND primary_affiliation_type = ${linked_entity_type as string} 
                 AND primary_affiliation_id = ${linked_entity_id as string}
@@ -2322,20 +2322,20 @@ export async function registerRoutes(
       } else if (unlinked === 'true') {
         result = isSuperAdmin
           ? await db.execute(sql`
-              SELECT * FROM entities_contact 
+              SELECT * FROM entities_contacts 
               WHERE (primary_affiliation_id IS NULL OR primary_affiliation_id = '')
               ORDER BY created_at DESC
             `)
           : await db.execute(sql`
-              SELECT * FROM entities_contact 
+              SELECT * FROM entities_contacts 
               WHERE org_id = ${orgId} 
                 AND (primary_affiliation_id IS NULL OR primary_affiliation_id = '')
               ORDER BY created_at DESC
             `);
       } else {
         result = isSuperAdmin
-          ? await db.execute(sql`SELECT * FROM entities_contact ORDER BY created_at DESC`)
-          : await db.execute(sql`SELECT * FROM entities_contact WHERE org_id = ${orgId} ORDER BY created_at DESC`);
+          ? await db.execute(sql`SELECT * FROM entities_contacts ORDER BY created_at DESC`)
+          : await db.execute(sql`SELECT * FROM entities_contacts WHERE org_id = ${orgId} ORDER BY created_at DESC`);
       }
       
       return res.json(result.rows);
@@ -2357,7 +2357,7 @@ export async function registerRoutes(
       const { linked_entity_type, linked_entity_id, linked_entity_name } = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contact 
+        UPDATE entities_contacts 
         SET primary_affiliation_type = ${linked_entity_type}, 
             primary_affiliation_id = ${linked_entity_id},
             primary_affiliation_name_snapshot = ${linked_entity_name || null},
@@ -2388,7 +2388,7 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        INSERT INTO entities_contact (
+        INSERT INTO entities_contacts (
           org_id, first_name, last_name, full_name_override, job_title, seniority_level,
           work_email, personal_email, phone_number, linkedin_url,
           primary_affiliation_type, primary_affiliation_id, primary_affiliation_name_snapshot,
@@ -2432,7 +2432,7 @@ export async function registerRoutes(
       const data = req.body;
       
       const result = await db.execute(sql`
-        UPDATE entities_contact SET
+        UPDATE entities_contacts SET
           first_name = COALESCE(${data.first_name}, first_name),
           last_name = COALESCE(${data.last_name}, last_name),
           full_name_override = COALESCE(${data.full_name_override}, full_name_override),

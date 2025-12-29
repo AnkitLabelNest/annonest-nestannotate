@@ -28,8 +28,8 @@ export const getTableName = (entity: string) => {
     // Local dev database uses mixed table names
     const devTables: Record<string, string> = {
       project: "projects",
-      contacts: "contacts",
-      contact: "entities_contact",
+      contacts: "entities_contacts",
+      contact: "entities_contacts",
       project_items: "entities_project_items",
       project_members: "entities_project_members",
       gp: "entities_gp",

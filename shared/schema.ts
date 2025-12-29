@@ -601,7 +601,7 @@ export const entitiesServiceProvider = pgTable("entities_service_provider", {
   index("entities_service_provider_org_id_idx").on(table.orgId),
 ]);
 
-export const entitiesContact = pgTable("entities_contact", {
+export const entitiesContact = pgTable("entities_contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull(),
   firstName: text("first_name").notNull(),
@@ -658,7 +658,7 @@ export const entitiesContact = pgTable("entities_contact", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  index("entities_contact_org_id_idx").on(table.orgId),
+  index("entities_contacts_org_id_idx").on(table.orgId),
 ]);
 
 export const entitiesDeal = pgTable("entities_deal", {

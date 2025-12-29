@@ -137,7 +137,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Critical Schema Rules
 - **All column names are snake_case** (e.g., `gp_name`, `year_founded`, NOT camelCase)
-- **Table name**: `entities_contact` (not `entities_contacts`) in Supabase
+- **Table name**: `entities_contacts` (plural) in Supabase - both dev and prod use same name
 - **No status column** in most entity tables - removed from all CRM routes
 - Routes use raw SQL queries that must match Supabase exactly
 
@@ -179,7 +179,7 @@ Preferred communication style: Simple, everyday language.
 - **entities_fund**: `fund_name`, `fund_legal_name`, `fund_short_name`, `fund_type`, `strategy`, `vintage_year`, `fund_currency`, `fund_status`, `gp_id`, `target_fund_size`, `hard_cap`, `fund_size_final`, `number_of_lps`, `cornerstone_investor_flag`, `primary_asset_class`, `investment_stage`, `industry_focus`, `geographic_focus`, `net_irr`, `gross_irr`, `tvpi`, `dpi`, `rvpi`, `esg_integration_flag`, `impact_fund_flag`, `assigned_to`
 - **entities_portfolio_company**: `company_name`, `company_legal_name`, `company_short_name`, `founded_year`, `headquarters_country`, `headquarters_city`, `primary_industry`, `sub_industry`, `business_description`, `business_model_type`, `employee_count_band`, `latest_revenue`, `revenue_currency`, `revenue_year`, `growth_stage`, `current_owner_type`, `controlling_gp_id`, `controlling_fund_id`, `exit_type`, `exit_date`, `exit_valuation`, `assigned_to`
 - **entities_service_provider**: `service_provider_name`, `service_provider_legal_name`, `service_provider_short_name`, `service_provider_type`, `year_founded`, `headquarters_country`, `headquarters_city`, `operating_regions`, `primary_services`, `secondary_services`, `asset_class_focus`, `fund_stage_focus`, `employee_count_band`, `assigned_to`
-- **entities_contact**: `first_name`, `last_name`, `full_name_override`, `job_title`, `seniority_level`, `work_email`, `personal_email`, `phone_number`, `linkedin_url`, `primary_affiliation_type`, `primary_affiliation_id`, `primary_affiliation_name_snapshot`, `is_key_contact`, `relationship_strength`, `investment_focus_areas`, `deal_role_types`, `board_seats`, `assigned_to`
+- **entities_contacts**: `first_name`, `last_name`, `full_name_override`, `job_title`, `seniority_level`, `work_email`, `personal_email`, `phone_number`, `linkedin_url`, `primary_affiliation_type`, `primary_affiliation_id`, `primary_affiliation_name_snapshot`, `is_key_contact`, `relationship_strength`, `investment_focus_areas`, `deal_role_types`, `board_seats`, `assigned_to`
 - **entities_deal**: `deal_name`, `transaction_type`, `announcement_date`, `close_date`, `deal_status`, `target_company_id`, `target_company_name_snapshot`, `acquirer_id`, `lead_investor_gp_id`, `lead_fund_id`, `co_investors`, `deal_size`, `deal_currency`, `equity_value`, `enterprise_value`, `stake_acquired_percent`, `pre_money_valuation`, `post_money_valuation`, `deal_stage`, `industry`, `sub_industry`, `esg_angle_flag`, `impact_deal_flag`, `assigned_to`
 
 ### Common Fields Across Entities
