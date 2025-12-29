@@ -111,7 +111,7 @@ export default function DataNestProjectView() {
   const userRole = user?.role || "annotator";
   const isManager = ["super_admin", "admin", "manager"].includes(userRole);
 
-  const { data: project, isLoading } = useQuery<Project>({
+  const { data: project, isLoading, error: projectError } = useQuery<Project>({
     queryKey: ["/api/datanest/projects", projectId],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/datanest/projects/${projectId}`);
@@ -314,9 +314,24 @@ export default function DataNestProjectView() {
   }
 
   if (!project) {
+    const errorMessage = projectError?.message || "Project not found";
+    const is401 = errorMessage.includes("401");
     return (
-      <div className="p-6">
-        <p className="text-muted-foreground">Project not found</p>
+      <div className="p-6 space-y-4">
+        <Link href="/data">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div className="text-center py-8">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">
+            {is401 ? "Please log in to view this project" : "Project not found or access denied"}
+          </p>
+          {projectError && (
+            <p className="text-xs text-muted-foreground mt-2">{errorMessage}</p>
+          )}
+        </div>
       </div>
     );
   }
