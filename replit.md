@@ -38,8 +38,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication & Authorization
 - **Auth Strategy**: Client-side authentication state stored in localStorage
-- **Role System**: Four roles (admin, manager, annotator, QA) with module-level access control
+- **Role System**: Five roles (super_admin, admin, manager, annotator, QA) with module-level access control
 - **Module Access**: Role-to-module mapping defined in shared schema (`moduleAccessByRole`)
+- **Super Admin Pattern**: super_admin role bypasses org_id filtering for cross-organization data access
+  - Entity GET-by-id handlers use `getUserWithRole` to check `isSuperAdmin`
+  - Storage has `getXById` methods (no org filter) and `getX(id, orgId)` methods (with org filter)
+  - Non-super-admin users remain org-scoped for multi-tenant security
 
 ### Project Structure
 ```
@@ -188,3 +192,17 @@ All entity tables share these metadata columns:
 - `org_id` (multi-tenant isolation)
 - `data_confidence_score`, `verification_method`, `last_verified_date`, `source_coverage`
 - `created_at`, `updated_at` (timestamps)
+
+## Entity Lock System (Updated Dec 29, 2025)
+
+### Lock Hook Architecture
+- **Non-blocking locks**: Lock acquisition/refresh failures don't prevent entity viewing
+- **Conservative state handling**: On error, previous lock state is preserved (not cleared)
+- **Heartbeat mechanism**: Periodic heartbeat to maintain lock ownership
+- **Auto-release**: Locks released on component unmount
+
+### Lock Endpoints
+- `GET /api/locks/:entityType/:entityId` - Check lock status
+- `POST /api/locks/:entityType/:entityId/acquire` - Acquire lock
+- `POST /api/locks/:entityType/:entityId/heartbeat` - Heartbeat to maintain lock
+- `DELETE /api/locks/:entityType/:entityId` - Release lock
