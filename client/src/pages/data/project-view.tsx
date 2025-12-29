@@ -316,6 +316,17 @@ export default function DataNestProjectView() {
   if (!project) {
     const errorMessage = projectError?.message || "Project not found";
     const is401 = errorMessage.includes("401");
+    const is500 = errorMessage.includes("500");
+    // Extract detail from JSON error response if present
+    let errorDetail = "";
+    try {
+      const jsonMatch = errorMessage.match(/\{.*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        errorDetail = parsed.detail || parsed.message || "";
+      }
+    } catch { /* ignore parse errors */ }
+    
     return (
       <div className="p-6 space-y-4">
         <Link href="/data">
@@ -326,9 +337,14 @@ export default function DataNestProjectView() {
         <div className="text-center py-8">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">
-            {is401 ? "Please log in to view this project" : "Project not found or access denied"}
+            {is401 ? "Please log in to view this project" : 
+             is500 ? "Server error loading project" : 
+             "Project not found or access denied"}
           </p>
-          {projectError && (
+          {errorDetail && (
+            <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto">{errorDetail}</p>
+          )}
+          {!errorDetail && projectError && (
             <p className="text-xs text-muted-foreground mt-2">{errorMessage}</p>
           )}
         </div>

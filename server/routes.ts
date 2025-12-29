@@ -5397,13 +5397,21 @@ export async function registerRoutes(
       console.log(`[project-detail] Found project: ${project.name}`);
       
       // Fetch members using raw SQL with user names (separate from items)
-      const membersResult = await pool.query(
-        `SELECT m.id, m.user_id as "userId", m.role, u.display_name as "userName"
-         FROM ${membersTable} m LEFT JOIN users u ON m.user_id = u.id
-         WHERE m.project_id = $1`,
-        [projectId]
-      );
-      const members = membersResult.rows;
+      // Note: members table may not exist in all environments, so wrap in try-catch
+      let members: any[] = [];
+      try {
+        const membersResult = await pool.query(
+          `SELECT m.id, m.user_id as "userId", m.role, u.display_name as "userName"
+           FROM ${membersTable} m LEFT JOIN users u ON m.user_id = u.id
+           WHERE m.project_id = $1`,
+          [projectId]
+        );
+        members = membersResult.rows;
+        console.log(`[project-detail] Found ${members.length} members`);
+      } catch (membersError: any) {
+        console.log(`[project-detail] Members query failed (table may not exist): ${membersError?.message}`);
+        // Continue without members - not critical for project display
+      }
       
       // Return project data WITHOUT items - items loaded via separate endpoint
       return res.json({
@@ -5415,9 +5423,11 @@ export async function registerRoutes(
       if (error?.message === "UNAUTHORIZED") {
         return res.status(401).json({ message: "Authentication required" });
       }
+      // Return error details to help diagnose production issues
       return res.status(500).json({ 
         message: "Internal server error",
-        detail: process.env.NODE_ENV === "development" ? error?.message : undefined
+        detail: error?.message || String(error),
+        hint: error?.hint || null
       });
     }
   });
