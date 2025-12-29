@@ -34,6 +34,10 @@ import {
   Landmark,
   HandshakeIcon,
   Loader2,
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -55,6 +59,16 @@ interface Project {
   type: string; // Supabase uses 'type' not 'projectType'
   status: string;
 }
+
+interface ProjectStats {
+  total: number;
+  todo: number;
+  inProgress: number;
+  blocked: number;
+  done: number;
+}
+
+type ProjectStatsMap = Record<string, ProjectStats>;
 
 const datasetCards = [
   { id: "lp", title: "LP", icon: Landmark, path: "/data/firms?type=lp", color: "bg-purple-500" },
@@ -86,6 +100,11 @@ export default function DataNestPage() {
       const res = await apiRequest("GET", `/api/datanest/projects?role=${userRole}`);
       return res.json();
     },
+  });
+
+  // Fetch project stats separately (maintains architectural separation)
+  const { data: projectStats } = useQuery<ProjectStatsMap>({
+    queryKey: ["/api/datanest/projects-stats"],
   });
 
   const createProjectMutation = useMutation({
@@ -268,27 +287,57 @@ export default function DataNestPage() {
                   <TableHead>Project Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Items</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projects.map((project) => (
-                  <TableRow key={project.id} data-testid={`row-project-${project.id}`}>
-                    <TableCell className="font-medium">{project.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{project.type || "research"}</Badge>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(project.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/data/project/${project.id}`}>
-                        <Button size="sm" variant="ghost" data-testid={`button-open-project-${project.id}`}>
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          Open
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {projects.map((project) => {
+                  const stats = projectStats?.[project.id];
+                  return (
+                    <TableRow key={project.id} data-testid={`row-project-${project.id}`}>
+                      <TableCell className="font-medium">{project.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{project.type || "research"}</Badge>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(project.status)}</TableCell>
+                      <TableCell>
+                        {stats ? (
+                          <div className="flex items-center gap-3 text-xs">
+                            <div className="flex items-center gap-1" title="Total Items">
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{stats.total}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title="Done">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{stats.done}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title="Pending">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>{stats.todo}</span>
+                            </div>
+                            {stats.blocked > 0 && (
+                              <div className="flex items-center gap-1 text-red-600 dark:text-red-400" title="Blocked">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                <span>{stats.blocked}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/data/project/${project.id}`}>
+                          <Button size="sm" variant="ghost" data-testid={`button-open-project-${project.id}`}>
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Open
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (

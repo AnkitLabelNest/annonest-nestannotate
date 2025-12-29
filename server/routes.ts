@@ -5546,6 +5546,84 @@ export async function registerRoutes(
     }
   });
 
+  // Get status breakdown stats for all projects (loads separately from project listing)
+  // Returns counts by status for each project ID
+  app.get("/api/datanest/projects-stats", async (req: Request, res: Response) => {
+    const userInfo = await getUserWithRole(req);
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const { orgId, isSuperAdmin } = userInfo;
+    
+    try {
+      const { pool, getTableName, getProjectTableName } = await import("./db");
+      const itemsTable = getTableName("project_items");
+      const projectTable = getProjectTableName();
+      
+      // Get project IDs the user can access (same logic as project listing)
+      let projectIds: string[];
+      if (isSuperAdmin) {
+        const result = await pool.query(`SELECT id FROM ${projectTable}`);
+        projectIds = result.rows.map(r => r.id);
+      } else {
+        const result = await pool.query(
+          `SELECT id FROM ${projectTable} WHERE org_id = $1`,
+          [orgId]
+        );
+        projectIds = result.rows.map(r => r.id);
+      }
+      
+      if (projectIds.length === 0) {
+        return res.json({});
+      }
+      
+      // Get status counts for all accessible projects in one query
+      const statsResult = await pool.query(
+        `SELECT project_id as "projectId", task_status as "taskStatus", COUNT(*)::int as count
+         FROM ${itemsTable}
+         WHERE project_id = ANY($1)
+         GROUP BY project_id, task_status`,
+        [projectIds]
+      );
+      
+      // Transform into { projectId: { total, todo, inProgress, blocked, done } }
+      const statsMap: Record<string, { total: number; todo: number; inProgress: number; blocked: number; done: number }> = {};
+      
+      // Initialize all projects with zeros
+      for (const pid of projectIds) {
+        statsMap[pid] = { total: 0, todo: 0, inProgress: 0, blocked: 0, done: 0 };
+      }
+      
+      // Populate with actual counts
+      for (const row of statsResult.rows) {
+        const pid = row.projectId;
+        const status = (row.taskStatus || "pending").toLowerCase();
+        const count = row.count;
+        
+        if (statsMap[pid]) {
+          statsMap[pid].total += count;
+          if (status === "todo" || status === "pending") {
+            statsMap[pid].todo += count;
+          } else if (status === "in_progress" || status === "in progress") {
+            statsMap[pid].inProgress += count;
+          } else if (status === "blocked") {
+            statsMap[pid].blocked += count;
+          } else if (status === "done" || status === "completed") {
+            statsMap[pid].done += count;
+          }
+        }
+      }
+      
+      return res.json(statsMap);
+    } catch (error: any) {
+      console.error("Error fetching project stats:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        detail: error?.message || String(error)
+      });
+    }
+  });
+
   // Get project items (tasks)
   app.get("/api/datanest/projects/:id/items", async (req: Request, res: Response) => {
     const orgId = await getUserOrgIdSafe(req, res);
