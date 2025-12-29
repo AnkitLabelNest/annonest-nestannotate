@@ -182,10 +182,10 @@ export default function NestAnnotateProjectDetailPage() {
       setSelectedMemberToAdd("");
       toast({ title: "Member added successfully" });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Failed to add member",
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: error?.message || "Unknown error",
         variant: "destructive",
       });
     },

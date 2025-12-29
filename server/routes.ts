@@ -4591,7 +4591,8 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error adding project member:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return res.status(500).json({ message: "Internal server error", details: errorMessage });
     }
   });
 
