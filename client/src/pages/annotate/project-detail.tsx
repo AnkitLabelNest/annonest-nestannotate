@@ -302,17 +302,24 @@ export default function NestAnnotateProjectDetailPage() {
         throw new Error("File must contain a header row and at least one data row");
       }
 
-      const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
-      const requiredCols = ["headline", "url", "source_name", "publish_date", "raw_text"];
+      // Auto-detect delimiter: check if first line has tabs or commas
+      const firstLine = lines[0];
+      const hasTab = firstLine.includes("\t");
+      const delimiter = hasTab ? "\t" : ",";
+
+      const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ""));
+      const requiredCols = ["headline", "raw_text"];
       const missingCols = requiredCols.filter(col => !headers.includes(col));
       
       if (missingCols.length > 0) {
-        throw new Error(`Missing required columns: ${missingCols.join(", ")}`);
+        throw new Error(`Missing required columns: ${missingCols.join(", ")}. Found columns: ${headers.join(", ")}`);
       }
 
       const articles = [];
       for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
+        const values = hasTab 
+          ? lines[i].split("\t").map(v => v.trim())
+          : parseCSVLine(lines[i]);
         if (values.length !== headers.length) continue;
 
         const article: Record<string, string> = {};
@@ -321,6 +328,12 @@ export default function NestAnnotateProjectDetailPage() {
         });
 
         if (article.headline && article.raw_text) {
+          // Normalize article_state to lowercase
+          const rawState = (article.article_state || "pending").toLowerCase();
+          const normalizedState = ["pending", "completed", "not_relevant"].includes(rawState) 
+            ? rawState as "pending" | "completed" | "not_relevant"
+            : "pending";
+            
           articles.push({
             headline: article.headline,
             url: article.url || undefined,
@@ -329,7 +342,7 @@ export default function NestAnnotateProjectDetailPage() {
             rawText: article.raw_text,
             cleanedText: article.cleaned_text || undefined,
             language: article.language || undefined,
-            articleState: (article.article_state as "pending" | "completed" | "not_relevant") || "pending",
+            articleState: normalizedState,
           });
         }
       }
