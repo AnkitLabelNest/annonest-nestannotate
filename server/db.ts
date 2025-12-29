@@ -4,22 +4,16 @@ import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
-// In development (NODE_ENV=development), use DATABASE_URL for synced schema
-// In production, prefer SUPABASE_DATABASE_URL for multi-tenant data
-const isDevelopment = process.env.NODE_ENV === "development";
-const connectionString = isDevelopment 
-  ? (process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL)
-  : (process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL);
+// Always use Supabase for all environments - single source of truth
+const connectionString = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
   
 if (!connectionString) {
   throw new Error("SUPABASE_DATABASE_URL or DATABASE_URL environment variable is required");
 }
 
-// Use NODE_ENV to determine which database schema we're using
-// Production uses Supabase, Development uses local DB
-const isProduction = process.env.NODE_ENV === "production";
-const isSupabase = isProduction || connectionString.includes("supabase");
-console.log(`[db] Connecting to ${isProduction ? "production (Supabase)" : "development (local)"} PostgreSQL database`);
+// Always use Supabase schema - single source of truth for all environments
+const isSupabase = true;
+console.log(`[db] Connecting to Supabase PostgreSQL database`);
 
 // Table name mapping based on database connection (Supabase vs local)
 // Use isSupabase flag to determine table names so staging environments work correctly

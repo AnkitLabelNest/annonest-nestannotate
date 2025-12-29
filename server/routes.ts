@@ -3678,16 +3678,21 @@ export async function registerRoutes(
   });
 
   app.get("/api/entities/funds/:id", async (req: Request, res: Response) => {
-    console.log(`[DEBUG-L2] Fund route hit: id=${req.params.id}`);
-    const orgId = await getUserOrgIdSafe(req, res);
-    console.log(`[DEBUG-L2] Fund route orgId resolved: ${orgId}`);
-    if (!orgId) return;
+    const fundId = req.params.id;
+    const userInfo = await getUserWithRole(req);
+    console.log(`[FUND-DEBUG] fundId=${fundId}, userId=${userInfo?.userId}, role=${userInfo?.role}, orgId=${userInfo?.orgId}`);
+    
+    if (!userInfo) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
     try {
-      const fund = await storage.getEntityFund(req.params.id, orgId);
+      const fund = await storage.getEntityFund(fundId, userInfo.orgId);
+      console.log(`[FUND-DEBUG] result: ${fund ? 'found' : 'not found'}`);
       if (!fund) return res.status(404).json({ message: "Not found" });
       return res.json(fund);
     } catch (error) {
-      console.error("Error fetching entity fund:", error);
+      console.error("[FUND-DEBUG] Error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
