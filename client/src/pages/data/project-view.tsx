@@ -42,6 +42,7 @@ import {
   Ban,
   Plus,
   Search,
+  Download,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -433,6 +434,29 @@ export default function DataNestProjectView() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                  <div className="flex justify-center mb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const sampleData = `entity_type,entity_id,assigned_to,task_status
+gp,abc123-uuid-here,user-uuid-here,pending
+lp,def456-uuid-here,user-uuid-here,pending
+fund,ghi789-uuid-here,user-uuid-here,in_progress`;
+                        const blob = new Blob([sampleData], { type: "text/csv" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "bulk_tasks_sample.csv";
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      data-testid="button-download-sample"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Sample CSV
+                    </Button>
+                  </div>
                   <div className="border-2 border-dashed rounded-lg p-6 text-center">
                     <input
                       ref={fileInputRef}

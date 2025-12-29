@@ -43,6 +43,7 @@ import {
   FileText,
   Users,
   Plus,
+  Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -750,23 +751,44 @@ export default function NestAnnotateProjectDetailPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv,.xlsx,.xls,.tsv"
                   onChange={handleFileUpload}
                   className="hidden"
                   data-testid="input-file-upload"
                 />
                 <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading || uploadNewsMutation.isPending}
-                >
-                  {(uploading || uploadNewsMutation.isPending) && (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  )}
-                  Select CSV File
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const sampleData = `headline,url,source_name,publish_date,raw_text,article_state
+"Tech Giant Reports Q4 Earnings","https://example.com/article-1","Reuters","2025-01-15","Full article content goes here describing the news story in detail.","pending"
+"Market Update: Stocks Rise","https://example.com/article-2","Bloomberg","2025-01-14","Another article with the market update and analysis content.","pending"`;
+                      const blob = new Blob([sampleData], { type: "text/csv" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "news_upload_sample.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    data-testid="button-download-sample"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Sample
+                  </Button>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || uploadNewsMutation.isPending}
+                  >
+                    {(uploading || uploadNewsMutation.isPending) && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Select CSV File
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Supports CSV files with comma-separated values
+                  Supports CSV and TSV files (comma or tab separated)
                 </p>
               </div>
             </TabsContent>
