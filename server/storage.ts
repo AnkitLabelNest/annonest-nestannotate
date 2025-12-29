@@ -125,6 +125,7 @@ export interface IStorage {
 
   getEntityFunds(orgId: string): Promise<EntityFund[]>;
   getEntityFund(id: string, orgId: string): Promise<EntityFund | undefined>;
+  getEntityFundById(id: string): Promise<EntityFund | undefined>;
   createEntityFund(fund: InsertEntityFund): Promise<EntityFund>;
   updateEntityFund(id: string, orgId: string, fund: Partial<InsertEntityFund>): Promise<EntityFund | undefined>;
   deleteEntityFund(id: string, orgId: string): Promise<boolean>;
@@ -925,6 +926,7 @@ export class MemStorage implements IStorage {
 
   async getEntityFunds(_orgId: string): Promise<EntityFund[]> { return []; }
   async getEntityFund(_id: string, _orgId: string): Promise<EntityFund | undefined> { return undefined; }
+  async getEntityFundById(_id: string): Promise<EntityFund | undefined> { return undefined; }
   async createEntityFund(_fund: InsertEntityFund): Promise<EntityFund> { throw new Error("Not implemented"); }
   async updateEntityFund(_id: string, _orgId: string, _fund: Partial<InsertEntityFund>): Promise<EntityFund | undefined> { return undefined; }
   async deleteEntityFund(_id: string, _orgId: string): Promise<boolean> { return false; }
@@ -1351,6 +1353,13 @@ export class DatabaseStorage extends MemStorage {
       and(eq(entitiesFund.id, id), eq(entitiesFund.orgId, orgId))
     );
     console.log(`[DEBUG-L3] getEntityFund result count: ${result.length}`);
+    return result[0];
+  }
+
+  async getEntityFundById(id: string): Promise<EntityFund | undefined> {
+    console.log(`[DEBUG-L3] getEntityFundById (super_admin): id=${id}`);
+    const result = await db.select().from(entitiesFund).where(eq(entitiesFund.id, id));
+    console.log(`[DEBUG-L3] getEntityFundById result count: ${result.length}`);
     return result[0];
   }
 

@@ -68,8 +68,11 @@ export function useEntityLock({
       setLock(data.lock);
       setError(null);
     } catch (err) {
-      setError("Failed to check lock status");
-      console.error("Lock check failed:", err);
+      // Non-blocking: lock status check failure shouldn't prevent entity viewing
+      console.warn("Lock check failed (non-blocking):", err);
+      setIsLocked(false);
+      setLock(null);
+      setError(null);
     }
   }, [entityType, entityId]);
 
@@ -105,8 +108,11 @@ export function useEntityLock({
         return false;
       }
     } catch (err) {
-      setError("Failed to acquire lock");
-      console.error("Lock acquisition failed:", err);
+      // Non-blocking: lock acquisition failure shouldn't prevent entity viewing
+      console.warn("Lock acquisition failed (non-blocking):", err);
+      setIsLocked(false);
+      setLock(null);
+      setError(null);
       return false;
     }
   }, [entityType, entityId, heartbeatIntervalMs]);
