@@ -1057,13 +1057,20 @@ export default function EntityProfilePage() {
 
   const apiEndpoint = entityApiEndpoints[entityType];
   
+  // Build full URL - ensure it starts with /api/entities
+  const fullApiUrl = apiEndpoint ? `${apiEndpoint}/${entityId}` : null;
+  
   const { data: entity, isLoading, error, refetch } = useQuery({
-    queryKey: [apiEndpoint, entityId],
+    queryKey: ['/api/entities', entityType, entityId],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${apiEndpoint}/${entityId}`);
+      if (!fullApiUrl) {
+        throw new Error(`Unknown entity type: ${entityType}`);
+      }
+      console.log(`[DEBUG] Fetching entity: ${fullApiUrl}`);
+      const res = await apiRequest("GET", fullApiUrl);
       return res.json();
     },
-    enabled: !!entityType && !!entityId && !!apiEndpoint,
+    enabled: !!entityType && !!entityId && !!apiEndpoint && !!fullApiUrl,
   });
 
   useEffect(() => {
@@ -1104,12 +1111,15 @@ export default function EntityProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("PUT", `${apiEndpoint}/${entityId}`, data);
+      if (!fullApiUrl) {
+        throw new Error(`Unknown entity type: ${entityType}`);
+      }
+      const res = await apiRequest("PUT", fullApiUrl, data);
       return res.json();
     },
     onSuccess: async () => {
       await releaseLock();
-      queryClient.invalidateQueries({ queryKey: [apiEndpoint] });
+      queryClient.invalidateQueries({ queryKey: ['/api/entities', entityType] });
       toast({ title: "Changes saved successfully" });
       setMode("view");
       setValidationErrors({});
