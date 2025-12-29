@@ -5351,22 +5351,30 @@ export async function registerRoutes(
   // Get single project (NO items - items loaded separately via /items endpoint)
   // ARCHITECTURAL RULE: Project detail must NOT depend on entities_project_items
   app.get("/api/datanest/projects/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    const projectId = req.params.id;
-    
     try {
+      const { orgId, isSuperAdmin } = await getOrgFilter(req);
+      const projectId = req.params.id;
+      
       const { pool, getProjectTableName, getTableName, getProjectColumns } = await import("./db");
       const projectTable = getProjectTableName();
       const cols = getProjectColumns();
       const membersTable = getTableName("project_members");
       
       // Fetch project ONLY from entities_project - no items join
+      // Super admin can see any project, regular users only see their org's projects
       const selectCols = `id, ${cols.name} as name, ${cols.description} as description, ${cols.type} as type, status, created_by as "createdBy", org_id as "orgId"`;
-      const projectResult = await pool.query(
-        `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
-        [projectId, orgId]
-      );
+      let projectResult;
+      if (isSuperAdmin) {
+        projectResult = await pool.query(
+          `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1`,
+          [projectId]
+        );
+      } else {
+        projectResult = await pool.query(
+          `SELECT ${selectCols} FROM ${projectTable} WHERE id = $1 AND org_id = $2`,
+          [projectId, orgId]
+        );
+      }
       
       if (projectResult.rows.length === 0) {
         return res.status(404).json({ message: "Project not found" });
@@ -5387,7 +5395,10 @@ export async function registerRoutes(
         ...project,
         members,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "UNAUTHORIZED") {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       console.error("Error fetching project:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
