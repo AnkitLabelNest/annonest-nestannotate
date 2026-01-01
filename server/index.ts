@@ -4,6 +4,13 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+app.get("/", (req, res) => {
+  res.send("AnnoNest backend is live 🚀");
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", service: "annonest" });
+});
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
 
