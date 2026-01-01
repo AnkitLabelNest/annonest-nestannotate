@@ -6352,21 +6352,47 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Internal server error" });
     }
   });
-app.get("/api/news", async (_req: Request, res: Response) => {
-  try {
-    const { rows } = await app.locals.db.query(
-      "select id, headline, source_name, publish_date from news order by publish_date desc limit 10"
-    );
+app.get("/api/news", async (req: Request, res: Response) => {
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const offset = Number(req.query.offset) || 0;
+  const source = req.query.source as string | undefined;
 
-    return res.json({ items: rows });
+  try {
+    let query = `
+      select id, headline, source_name, publish_date
+      from news
+    `;
+    const params: any[] = [];
+
+    if (source) {
+      params.push(source);
+      query += ` where source_name = $${params.length}`;
+    }
+
+    params.push(limit, offset);
+    query += `
+      order by publish_date desc nulls last
+      limit $${params.length - 1}
+      offset $${params.length}
+    `;
+
+    const { rows } = await app.locals.db.query(query, params);
+
+    res.json({
+      items: rows,
+      limit,
+      offset,
+      count: rows.length,
+    });
   } catch (error) {
-    console.error("NEWS FETCH ERROR 👉", error);
-    return res.status(500).json({
+    console.error("NEWS LIST ERROR 👉", error);
+    res.status(500).json({
       error: "failed to fetch news",
-      detail: String(error)
+      detail: String(error),
     });
   }
 });
+
 app.get("/api/news/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
 
