@@ -6352,6 +6352,18 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  app.get("/api/news", async (_req: Request, res: Response) => {
+    try {
+      const { rows } = await app.locals.db.query(
+        "select id, headline, source_name, publish_date from news order by publish_date desc limit 10"
+      );
+
+      res.json({ items: rows });
+    } catch (err) {
+      console.error("news fetch failed", err);
+      res.status(500).json({ error: "failed to fetch news" });
+    }
+  });
 
   return httpServer;
 }
