@@ -6367,6 +6367,31 @@ app.get("/api/news", async (_req: Request, res: Response) => {
     });
   }
 });
+app.get("/api/news/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const { rows } = await app.locals.db.query(
+      `select id, headline, source_name, publish_date
+       from news
+       where id = $1
+       limit 1`,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "news not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("NEWS BY ID ERROR 👉", error);
+    res.status(500).json({
+      error: "failed to fetch news",
+      detail: String(error),
+    });
+  }
+});
 
   return httpServer;
 }
