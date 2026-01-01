@@ -61,7 +61,7 @@ export async function registerRoutes(
   });
 
   // Client config endpoint - provides Supabase credentials at runtime
-app.get("/api/config", (_req: Request, res: Response) => {
+app.get("/config", (_req: Request, res: Response) => {
   res.json({
     supabaseUrl: process.env.VITE_SUPABASE_URL,
     supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY,
