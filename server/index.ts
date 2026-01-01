@@ -1,9 +1,25 @@
+import { Pool } from "pg";
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+app.locals.db = pool;
+pool.query("select 1")
+  .then(() => {
+    console.log("✅ Database connected");
+  })
+  .catch((err) => {
+    console.error("❌ Database connection failed", err);
+  });
+
 app.get("/", (req, res) => {
   res.send("AnnoNest backend is live 🚀");
 });
