@@ -47,7 +47,7 @@ export const getQueryFn: <T>(options: {
       headers["x-user-id"] = userId;
     }
     
-    const res = await fetch(`${API_BASE}/${queryKey.join("/")}`, {
+    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, {
       credentials: "include",
       headers,
     });
