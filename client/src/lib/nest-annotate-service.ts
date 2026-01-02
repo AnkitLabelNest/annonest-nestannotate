@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { 
   LabelType, WorkContext, AnnotationTaskStatus, UserRole,
   NewsItemMetadata, RelevanceStatus, NewsFirmType, NewsEventType, 
