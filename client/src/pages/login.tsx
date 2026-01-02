@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth-context";
-import { isSupabaseConfigured, signIn as supabaseSignIn } from "@/lib/auth";
+import { signIn as supabaseSignIn } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema, type LoginInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
@@ -63,29 +63,28 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginInput) => {
     setIsLoading(true);
     
-    try {
-      const configured = await isSupabaseConfigured();
-      if (!configured) {
-        form.setError("root", { message: "Authentication service not configured" });
-        setIsLoading(false);
-        return;
-      }
+try {
+  const { user: supabaseUser, session } = await supabaseSignIn(
+    data.username,
+    data.password
+  );
 
-      const { user: supabaseUser, session } = await supabaseSignIn(data.username, data.password);
-      
-      if (!supabaseUser || !session) {
-        form.setError("root", { message: "Invalid email or password. Please check your credentials." });
-        setIsLoading(false);
-        return;
-      }
+  if (!supabaseUser || !session) {
+    form.setError("root", {
+      message: "Invalid email or password. Please check your credentials.",
+    });
+    setIsLoading(false);
+    return;
+  }
 
-      const backendResponse = await fetch("/api/auth/supabase-login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-      });
+  const backendResponse = await fetch("/api/auth/supabase-login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.access_token}`,
+    },
+  });
+
 
       let backendResult;
       try {
