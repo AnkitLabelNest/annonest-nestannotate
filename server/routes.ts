@@ -338,9 +338,9 @@ app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
     return res.status(500).json({
       message: "Supabase login failed",
       details: process.env.NODE_ENV !== "production" ? String(err) : undefined,
-	}
+	 });
+  }
 });
-
 
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
