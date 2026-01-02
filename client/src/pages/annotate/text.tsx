@@ -29,7 +29,7 @@ import {
   type AnnotationTaskDetail,
   type TextAnnotationRecord,
 } from "@/lib/nest-annotate-service";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface TextLabelMetadata {
   text_content?: string;
