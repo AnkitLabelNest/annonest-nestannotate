@@ -59,23 +59,18 @@ export default function FundsPage() {
   const { toast } = useToast();
 
   const { data: funds = [], isLoading, error } = useQuery<EntityFund[]>({
-    queryKey: ["/api/crm/funds"],
-  });
-
+  queryKey: ["/api/funds"],
+});
   const createMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
-      const res = await apiRequest("POST", "/api/crm/funds", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/crm/funds"] });
-      setIsAddDialogOpen(false);
-      toast({ title: "Fund created", description: "The fund has been added successfully." });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
+  mutationFn: async (data: Record<string, any>) => {
+    const res = await apiRequest("POST", "/api/funds", data);
+    return res.json();
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/funds"] });
+    toast({ title: "Fund created", description: "The fund has been added successfully." });
+  },
+
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
@@ -152,13 +147,13 @@ export default function FundsPage() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Funds</h1>
           <p className="text-muted-foreground">Track fund vehicles and their status</p>
         </div>
-        <Button 
-          data-testid="button-add-fund"
-          onClick={() => window.open("/entity/fund/new", "_blank")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Fund
-        </Button>
+        <Button
+  data-testid="button-add-fund"
+  onClick={() => setIsAddDialogOpen(true)}
+>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Fund
+</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -227,6 +222,19 @@ export default function FundsPage() {
           {viewItem && <FundView fund={viewItem} onClose={() => setViewItem(null)} />}
         </DialogContent>
       </Dialog>
+
+<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+  <DialogContent className="max-w-2xl max-h-[90vh]">
+    <DialogHeader>
+      <DialogTitle>Add Fund</DialogTitle>
+    </DialogHeader>
+    <FundForm
+      onSubmit={(data) => createMutation.mutate(data)}
+      isPending={createMutation.isPending}
+      onCancel={() => setIsAddDialogOpen(false)}
+    />
+  </DialogContent>
+</Dialog>
 
       <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
