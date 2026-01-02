@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth-context";
-import { isSupabaseConfigured, signUp as supabaseSignUp } from "@/lib/auth";
+import { signUp as supabaseSignUp } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signupSchema, type SignupInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight, User } from "lucide-react";
@@ -81,33 +81,29 @@ export default function SignupPage() {
     
     try {
       let backendResponse;
-      const configured = await isSupabaseConfigured();
-      
-      if (configured) {
-        const { user: supabaseUser, session } = await supabaseSignUp(data.email, data.password, data.displayName);
-        
-        if (!supabaseUser) {
-          form.setError("root", { message: "Could not create account" });
-          setIsLoading(false);
-          return;
-        }
 
-        backendResponse = await signUpWithBackend(
-          {
-            email: data.email,
-            password: data.password,
-            displayName: data.displayName,
-            supabaseId: supabaseUser.id,
-          },
-          session?.access_token
-        );
-      } else {
-        backendResponse = await signUpWithBackend({
-          email: data.email,
-          password: data.password,
-          displayName: data.displayName,
-        });
-      }
+const { user: supabaseUser, session } = await supabaseSignUp(
+  data.email,
+  data.password,
+  data.displayName
+);
+
+if (!supabaseUser) {
+  form.setError("root", { message: "Could not create account" });
+  setIsLoading(false);
+  return;
+}
+
+backendResponse = await signUpWithBackend(
+  {
+    email: data.email,
+    password: data.password,
+    displayName: data.displayName,
+    supabaseId: supabaseUser.id,
+  },
+  session?.access_token
+);
+
       
       const { user, trialStatus } = backendResponse;
       
