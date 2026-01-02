@@ -194,14 +194,34 @@ export async function registerRoutes(
 
       const { isTrialExpired, isApproved } = checkTrialStatus(user);
       
-      if (user.role === "guest" && isTrialExpired && !isApproved) {
-        const { password: _pw, ...userWithoutPassword } = user;
-        return res.status(403).json({ 
-          message: "Your trial has expired. Please wait for an administrator to approve your account.",
-          trialExpired: true,
-          user: userWithoutPassword,
-          trialStatus: { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt }
-        });
+if (user.role === "guest" && isTrialExpired && !isApproved) {
+  const { password: _pw, ...u } = user;
+
+  return res.status(403).json({
+    user: {
+      id: u.id,
+      username: u.username || u.email,
+      email: u.email,
+      role: u.role,
+      displayName: u.displayName || u.username || u.email,
+      avatar: u.avatar || null,
+      qaPercentage: u.qaPercentage ?? 20,
+      isActive: u.isActive,
+      orgId: u.orgId || "",
+      supabaseId: u.supabaseId || null,
+      createdAt: u.createdAt ?? new Date(),
+      trialEndsAt: u.trialEndsAt ?? null,
+      approvalStatus: u.approvalStatus ?? null,
+      approvedBy: u.approvedBy ?? null,
+      approvedAt: u.approvedAt ?? null,
+    },
+    modules: moduleAccessByRole[u.role as UserRole] || [],
+    trialStatus: {
+      isTrialExpired,
+      isApproved,
+      trialEndsAt: u.trialEndsAt ?? null,
+    },
+  });
       }
 
       const { password, ...userWithoutPassword } = user;
@@ -304,6 +324,8 @@ export async function registerRoutes(
       }
 
       const { isTrialExpired, isApproved } = checkTrialStatus(user);
+	  const { password: _pw, ...u } = user;
+
 
       if (user.role === "guest" && isTrialExpired && !isApproved) {
         const { password: _pw, ...userWithoutPassword } = user;
