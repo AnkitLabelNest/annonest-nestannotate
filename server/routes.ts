@@ -251,7 +251,7 @@ app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
 
     const token = authHeader.slice(7);
     const { data: { user: supabaseUser }, error } =
-      await supabase.auth.getUser(token);
+await supabaseAdmin!.auth.getUser(token);
 
     if (error || !supabaseUser) {
       return res.status(401).json({ message: "Invalid Supabase token" });
