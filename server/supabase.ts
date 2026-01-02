@@ -1,18 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL!;
+const anonKey = process.env.VITE_SUPABASE_ANON_KEY!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error("Missing Supabase backend credentials");
+if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  throw new Error("Missing Supabase environment variables");
 }
 
-export const supabase = createClient(
+/**
+ * ✅ Used ONLY to verify JWTs
+ */
+export const supabaseAuth = createClient(
   supabaseUrl,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      persistSession: false,
-    },
-  }
+  anonKey,
+  { auth: { persistSession: false } }
+);
+
+/**
+ * ✅ Used for admin DB operations
+ */
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  serviceRoleKey,
+  { auth: { persistSession: false } }
 );

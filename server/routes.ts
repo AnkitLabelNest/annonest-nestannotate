@@ -1581,34 +1581,64 @@ await supabaseAdmin!.auth.getUser(token);
   // CRM Routes - New Entity Tables
   // ==========================================
   
-  // CRM entity counts
-  app.get("/api/crm/counts", async (_req: Request, res: Response) => {
-    try {
-      const { db } = await import("./db");
-      const { sql } = await import("drizzle-orm");
-      
-      const counts = await db.execute(sql`
-        SELECT 'entities_gp' as entity, count(*)::int as count FROM entities_gp
-        UNION ALL SELECT 'entities_fund', count(*)::int FROM entities_fund
-        UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp
-        UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider
-        UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal
-        UNION ALL SELECT 'entities_contacts', count(*)::int FROM entities_contacts
-        UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company
-        UNION ALL SELECT 'public_company_snapshot', CASE WHEN to_regclass('public_company_snapshot') IS NOT NULL THEN (SELECT count(*)::int FROM public_company_snapshot) ELSE 0 END
-        UNION ALL SELECT 'relationships', CASE WHEN to_regclass('relationships') IS NOT NULL THEN (SELECT count(*)::int FROM relationships) ELSE 0 END
-        UNION ALL SELECT 'ext_agritech', CASE WHEN to_regclass('ext_agritech_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_agritech_portfolio_company) ELSE 0 END
-        UNION ALL SELECT 'ext_blockchain', CASE WHEN to_regclass('ext_blockchain_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_blockchain_portfolio_company) ELSE 0 END
-        UNION ALL SELECT 'ext_healthcare', CASE WHEN to_regclass('ext_healthcare_portfolio_company') IS NOT NULL THEN (SELECT count(*)::int FROM ext_healthcare_portfolio_company) ELSE 0 END
-        UNION ALL SELECT 'entities_public_market', CASE WHEN to_regclass('entities_public_market') IS NOT NULL THEN (SELECT count(*)::int FROM entities_public_market) ELSE 0 END
-      `);
-      
-      return res.json(counts.rows);
-    } catch (error) {
-      console.error("Error fetching CRM counts:", error);
-      return res.status(500).json({ message: "Internal server error" });
+app.get("/api/crm/counts", async (req: Request, res: Response) => {
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+
+    const orgId = req.headers["x-org-id"];
+
+    if (!orgId) {
+      return res.status(400).json({ message: "org_id missing" });
     }
-  });
+
+    const counts = await db.execute(sql`
+      SELECT 'entities_gp' as entity, count(*)::int FROM entities_gp WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_fund', count(*)::int FROM entities_fund WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_lp', count(*)::int FROM entities_lp WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_service_provider', count(*)::int FROM entities_service_provider WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_deal', count(*)::int FROM entities_deal WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_contacts', count(*)::int FROM entities_contacts WHERE org_id = ${orgId}
+      UNION ALL SELECT 'entities_portfolio_company', count(*)::int FROM entities_portfolio_company WHERE org_id = ${orgId}
+
+      UNION ALL SELECT 'public_company_snapshot',
+        CASE WHEN to_regclass('public_company_snapshot') IS NOT NULL
+        THEN (SELECT count(*)::int FROM public_company_snapshot)
+        ELSE 0 END
+
+      UNION ALL SELECT 'relationships',
+        CASE WHEN to_regclass('relationships') IS NOT NULL
+        THEN (SELECT count(*)::int FROM relationships WHERE org_id = ${orgId})
+        ELSE 0 END
+
+      UNION ALL SELECT 'ext_agritech',
+        CASE WHEN to_regclass('ext_agritech_portfolio_company') IS NOT NULL
+        THEN (SELECT count(*)::int FROM ext_agritech_portfolio_company)
+        ELSE 0 END
+
+      UNION ALL SELECT 'ext_blockchain',
+        CASE WHEN to_regclass('ext_blockchain_portfolio_company') IS NOT NULL
+        THEN (SELECT count(*)::int FROM ext_blockchain_portfolio_company)
+        ELSE 0 END
+
+      UNION ALL SELECT 'ext_healthcare',
+        CASE WHEN to_regclass('ext_healthcare_portfolio_company') IS NOT NULL
+        THEN (SELECT count(*)::int FROM ext_healthcare_portfolio_company)
+        ELSE 0 END
+
+      UNION ALL SELECT 'entities_public_market',
+        CASE WHEN to_regclass('entities_public_market') IS NOT NULL
+        THEN (SELECT count(*)::int FROM entities_public_market)
+        ELSE 0 END
+    `);
+
+    return res.json(counts.rows);
+  } catch (error) {
+    console.error("Error fetching CRM counts:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 
   // GP Routes
   app.get("/api/crm/gps", async (req: Request, res: Response) => {
