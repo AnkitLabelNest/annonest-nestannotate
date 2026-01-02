@@ -241,116 +241,107 @@ if (user.role === "guest" && isTrialExpired && !isApproved) {
   });
 
   // Supabase login - authenticates via Supabase token and syncs/creates local user
-  app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
-    try {
-      if (!supabase) {
-        return res.status(503).json({ message: "Supabase authentication not configured" });
-      }
-      
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Authorization token required" });
-      }
+app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ message: "Supabase authentication not configured" });
+    }
 
-      const token = authHeader.substring(7);
-      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authorization token required" });
+    }
 
-      if (error || !supabaseUser) {
-        return res.status(401).json({ message: "Invalid Supabase token" });
-      }
+    const token = authHeader.slice(7);
+    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
 
-      // Try to find user by supabaseId first, then by email
-      let user = await storage.getUserBySupabaseId(supabaseUser.id);
-      
-      if (!user && supabaseUser.email) {
-        user = await storage.getUserByEmail(supabaseUser.email);
-        // If found by email but no supabaseId, link the accounts
-        if (user && !user.supabaseId) {
-          user = await storage.updateUser(user.id, { supabaseId: supabaseUser.id });
-        }
-        // If user was invited and is logging in for first time, activate them
-        if (user && user.inviteStatus === "sent" && !user.isActive) {
-          user = await storage.updateUser(user.id, { 
-            isActive: true, 
-            inviteStatus: "accepted",
-            supabaseId: supabaseUser.id 
-          });
-        }
-      }
+    if (error || !supabaseUser) {
+      return res.status(401).json({ message: "Invalid Supabase token" });
+    }
 
-      // If still no user, create one
-      if (!user) {
-        const displayName = supabaseUser.user_metadata?.displayName || 
-                           supabaseUser.user_metadata?.full_name ||
-                           supabaseUser.email?.split("@")[0] || 
-                           "User";
-        
-        const email = supabaseUser.email || "";
-        const orgId = getOrgIdByEmailDomain(email);
-        
-        user = await storage.createUserWithId(supabaseUser.id, {
-          orgId,
-          username: email || supabaseUser.id,
-          password: await bcrypt.hash(crypto.randomUUID(), 10), // Random password for Supabase users
-          email,
-          displayName,
-          role: "annotator",
-          isActive: true,
-          avatar: supabaseUser.user_metadata?.avatar_url || null,
-          qaPercentage: 20,
-          supabaseId: supabaseUser.id,
-          createdAt: new Date(),
-          trialEndsAt: null,
-          approvalStatus: "approved",
-          approvedBy: null,
-          approvedAt: null,
-        });
-      }
+    // 1. Find or create user
+    let user =
+      await storage.getUserBySupabaseId(supabaseUser.id) ||
+      (supabaseUser.email
+        ? await storage.getUserByEmail(supabaseUser.email)
+        : null);
 
-      if (!user) {
-        return res.status(500).json({ message: "Could not create or find user" });
-      }
+    if (user && !user.supabaseId) {
+      user = await storage.updateUser(user.id, { supabaseId: supabaseUser.id });
+    }
 
-      // Activate invited user on first successful Supabase login
-      if (!user.isActive && user.inviteStatus === "sent") {
-        user = await storage.updateUser(user.id, { 
-          isActive: true, 
-          inviteStatus: "accepted" 
-        });
-      }
-
-      if (!user?.isActive) {
-        return res.status(403).json({ message: "Account is deactivated" });
-      }
-
-      const { isTrialExpired, isApproved } = checkTrialStatus(user);
-	  const { password: _pw, ...u } = user;
-
-
-      if (user.role === "guest" && isTrialExpired && !isApproved) {
-        const { password: _pw, ...userWithoutPassword } = user;
-        return res.status(403).json({
-          message: "Your trial has expired. Please wait for an administrator to approve your account.",
-          trialExpired: true,
-          user: userWithoutPassword,
-          trialStatus: { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt }
-        });
-      }
-
-const { password, ...userWithoutPassword } = user;
-      return res.json({
-        user: userWithoutPassword,
-        modules: moduleAccessByRole[user.role as UserRole] || [],
-        trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
+    if (!user) {
+      const email = supabaseUser.email || "";
+      user = await storage.createUserWithId(supabaseUser.id, {
+        orgId: getOrgIdByEmailDomain(email),
+        username: email || supabaseUser.id,
+        password: await bcrypt.hash(crypto.randomUUID(), 10),
+        email,
+        displayName:
+          supabaseUser.user_metadata?.displayName ||
+          supabaseUser.user_metadata?.full_name ||
+          email.split("@")[0] ||
+          "User",
+        role: "annotator",
+        isActive: true,
+        qaPercentage: 20,
+        supabaseId: supabaseUser.id,
+        trialEndsAt: null,
+        approvalStatus: "approved",
       });
-} catch (err) {
-  console.error("Supabase login error:", err);
-  return res.status(500).json({
-    message: "Supabase login failed",
-    details: process.env.NODE_ENV !== "production" ? String(err) : undefined,
-  });
-}
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        user: null,
+        modules: [],
+        trialStatus: null,
+      });
+    }
+
+    const { isTrialExpired, isApproved } = checkTrialStatus(user);
+    const { password: _pw, ...u } = user;
+
+    const payload = {
+      user: {
+        id: u.id,
+        username: u.username || u.email,
+        email: u.email,
+        role: u.role,
+        displayName: u.displayName || u.username || u.email,
+        avatar: u.avatar || null,
+        qaPercentage: u.qaPercentage ?? 20,
+        isActive: u.isActive,
+        orgId: u.orgId || "",
+        supabaseId: u.supabaseId || null,
+        createdAt: u.createdAt ?? new Date(),
+        trialEndsAt: u.trialEndsAt ?? null,
+        approvalStatus: u.approvalStatus ?? null,
+        approvedBy: u.approvedBy ?? null,
+        approvedAt: u.approvedAt ?? null,
+      },
+      modules: moduleAccessByRole[u.role as UserRole] || [],
+      trialStatus:
+        u.role === "guest"
+          ? { isTrialExpired, isApproved, trialEndsAt: u.trialEndsAt ?? null }
+          : null,
+    };
+
+    if (u.role === "guest" && isTrialExpired && !isApproved) {
+      return res.status(403).json(payload);
+    }
+
+    return res.status(200).json(payload);
+
+  } catch (err) {
+    console.error("Supabase login error:", err);
+    return res.status(500).json({
+      message: "Supabase login failed",
+      details: process.env.NODE_ENV !== "production" ? String(err) : undefined,
+    });
+  }
 });
+
 
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
