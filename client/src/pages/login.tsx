@@ -71,14 +71,17 @@ export default function LoginPage() {
 const text = await res.text();
 const result: LoginResponse = text ? JSON.parse(text) : {};
 
+console.log("backend login result", result);
+
+
       /** ❗ Handle backend errors but KEEP payload */
       if (!res.ok && !result?.user) {
         throw new Error(result?.message || "Authentication failed");
       }
 
-      if (!result.user) {
-        throw new Error("Could not sync with backend");
-      }
+     if (!result?.user) {
+  throw new Error(result?.message || "Could not sync with backend");
+}
 
       const { user, trialStatus } = result;
 
