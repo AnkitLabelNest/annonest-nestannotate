@@ -243,11 +243,7 @@ if (user.role === "guest" && isTrialExpired && !isApproved) {
   // Supabase login - authenticates via Supabase token and syncs/creates local user
 app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
   try {
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Supabase env missing at runtime");
-      return res.status(503).json({ message: "Supabase authentication not configured" });
-    }
-
+   
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ message: "Authorization token required" });
