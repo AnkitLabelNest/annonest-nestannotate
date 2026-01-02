@@ -70,7 +70,7 @@ export default function FundsPage() {
     queryClient.invalidateQueries({ queryKey: ["/api/funds"] });
     toast({ title: "Fund created", description: "The fund has been added successfully." });
   },
-
+});
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
