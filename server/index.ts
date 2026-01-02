@@ -65,6 +65,15 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// 🔍 Supabase debug health check
+app.get("/api/_debug/supabase", (_req, res) => {
+  res.json({
+    hasSupabaseUrl: !!process.env.SUPABASE_URL,
+    hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    nodeEnv: process.env.NODE_ENV,
+  });
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
