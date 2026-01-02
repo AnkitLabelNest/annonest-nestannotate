@@ -1944,7 +1944,7 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
   });
 
   // Fund Routes
-  app.get("/api/crm/funds", async (req: Request, res: Response) => {
+  app.get("/api/funds", async (req: Request, res: Response) => {
     try {
       const { orgId, isSuperAdmin } = await getOrgFilter(req);
       const { db } = await import("./db");
@@ -1962,7 +1962,7 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
     }
   });
 
-  app.post("/api/crm/funds", async (req: Request, res: Response) => {
+  app.post("/api/funds", async (req: Request, res: Response) => {
     try {
       const orgId = await getUserOrgId(req);
       const { db } = await import("./db");
@@ -2013,7 +2013,7 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
     }
   });
 
-  app.patch("/api/crm/funds/:id", async (req: Request, res: Response) => {
+  app.patch("/api/funds/:id", async (req: Request, res: Response) => {
     try {
       const orgId = await getUserOrgId(req);
       const { db } = await import("./db");

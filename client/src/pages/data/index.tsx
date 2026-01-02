@@ -127,13 +127,14 @@ export default function DataNestPage() {
     },
   });
 
-  const handleOpenEntityInNewTab = (entityType: string, mode: "create") => {
-    const url = `/entity/${entityType}/new?mode=edit`;
-    const newWindow = window.open(url, "_blank");
-    if (!newWindow) {
-      window.location.href = url;
-    }
-  };
+  const handleOpenEntityInNewTab = (entityType: string) => {
+  const url = `/entity/${entityType}/new`;
+  const newWindow = window.open(url, "_blank");
+  if (!newWindow) {
+    window.location.href = url;
+  }
+};
+
 
 
   const handleCreateProject = () => {
@@ -241,20 +242,21 @@ export default function DataNestPage() {
                     )}
                   </div>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="w-full mt-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleOpenEntityInNewTab(card.id, "create");
-                  }}
-                  data-testid={`button-add-${card.id}`}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add
-                </Button>
+                <Button
+  size="sm"
+  variant="ghost"
+  className="w-full mt-2"
+  onClick={(e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    handleOpenEntityInNewTab(card.id);
+  }}
+  data-testid={`button-add-${card.id}`}
+>
+  <Plus className="h-3 w-3 mr-1" />
+  Add
+</Button>
+
               </CardContent>
             </Card>
           </Link>

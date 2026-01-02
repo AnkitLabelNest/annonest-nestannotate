@@ -74,11 +74,11 @@ export default function FundsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
-      const res = await apiRequest("PATCH", `/api/crm/funds/${id}`, data);
+      const res = await apiRequest("PATCH", `/api/funds/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/crm/funds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/funds"] });
       setEditItem(null);
       toast({ title: "Fund updated", description: "The fund has been updated successfully." });
     },
