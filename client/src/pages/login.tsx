@@ -68,7 +68,8 @@ export default function LoginPage() {
         },
       });
 
-      const result: LoginResponse = await res.json();
+const text = await res.text();
+const result: LoginResponse = text ? JSON.parse(text) : {};
 
       /** ❗ Handle backend errors but KEEP payload */
       if (!res.ok && !result?.user) {
