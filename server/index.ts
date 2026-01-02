@@ -8,6 +8,12 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+
+console.log("ENV CHECK", {
+  SUPABASE_URL: !!process.env.SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
+
 app.use(
   cors({
     origin: ["https://annonest-frontend.onrender.com"],
