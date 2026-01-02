@@ -337,7 +337,7 @@ if (user.role === "guest" && isTrialExpired && !isApproved) {
         });
       }
 
-      const { password: _pw, ...userWithoutPassword } = user;
+const { password, ...userWithoutPassword } = user;
       return res.json({
         user: userWithoutPassword,
         modules: moduleAccessByRole[user.role as UserRole] || [],
