@@ -321,14 +321,14 @@ export async function registerRoutes(
         modules: moduleAccessByRole[user.role as UserRole] || [],
         trialStatus: user.role === "guest" ? { isTrialExpired, isApproved, trialEndsAt: user.trialEndsAt } : null
       });
-    } catch (err) {
+} catch (err) {
   console.error("Supabase login error:", err);
   return res.status(500).json({
     message: "Supabase login failed",
     details: process.env.NODE_ENV !== "production" ? String(err) : undefined,
   });
 }
-
+});
 
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
