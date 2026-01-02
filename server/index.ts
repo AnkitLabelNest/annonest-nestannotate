@@ -1,3 +1,5 @@
+import cors from "cors";
+
 import { Pool } from "pg";
 
 import express, { type Request, Response, NextFunction } from "express";
@@ -6,6 +8,17 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+app.use(
+  cors({
+    origin: ["https://annonest-frontend.onrender.com"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+app.options("*", cors());
+
 const pool = new Pool({
   connectionString: process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
