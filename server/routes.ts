@@ -243,7 +243,8 @@ if (user.role === "guest" && isTrialExpired && !isApproved) {
   // Supabase login - authenticates via Supabase token and syncs/creates local user
 app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
   try {
-    if (!supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Supabase env missing at runtime");
       return res.status(503).json({ message: "Supabase authentication not configured" });
     }
 
@@ -253,11 +254,15 @@ app.post("/api/auth/supabase-login", async (req: Request, res: Response) => {
     }
 
     const token = authHeader.slice(7);
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
+    const { data: { user: supabaseUser }, error } =
+      await supabase.auth.getUser(token);
 
     if (error || !supabaseUser) {
       return res.status(401).json({ message: "Invalid Supabase token" });
     }
+
+    // rest unchanged
+
 
     // 1. Find or create user
     let user =
