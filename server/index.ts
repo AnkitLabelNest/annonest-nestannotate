@@ -14,16 +14,27 @@ console.log("ENV CHECK", {
   SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
 });
 
+import cors from "cors";
+
 app.use(
   cors({
-    origin: ["https://annonest-frontend.onrender.com"],
+    origin: [
+      "https://annonest-frontend.onrender.com",
+      "http://localhost:5173"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-org-id",
+      "x-user-id"
+    ],
     credentials: true,
   })
 );
 
 app.options("*", cors());
+
 
 const pool = new Pool({
   connectionString: process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL,
