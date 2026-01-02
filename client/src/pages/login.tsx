@@ -25,6 +25,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema, type LoginInput } from "@shared/schema";
 import { Loader2, Lock, Mail, ChevronRight } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface LoginResponse {
   user: any;
   modules?: any[];
@@ -61,12 +63,16 @@ export default function LoginPage() {
       }
 
       /** 2️⃣ Backend sync */
-      const res = await fetch("/api/auth/supabase-login", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      const res = await fetch(
+  `${API_BASE_URL}/api/auth/supabase-login`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  }
+);
+
 
 const text = await res.text();
 const result: LoginResponse = text ? JSON.parse(text) : {};
