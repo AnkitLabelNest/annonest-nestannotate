@@ -3373,12 +3373,16 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
     }
   });
 
-  // ============== GP Firms ==============
-  app.get("/api/entities/gp", async (req: Request, res: Response) => {
-      const lps = await storage.getLpFirms(orgId);
-      return res.json(lps);
+  // ============== GP Firms (Entity) ==============
+  app.get("/api/entities/gps", async (req: Request, res: Response) => {
+    const orgId = await getUserOrgIdSafe(req, res);
+    if (!orgId) return;
+
+    try {
+      const gps = await storage.getGpFirms(orgId);
+      return res.json(gps);
     } catch (error) {
-      console.error("Error fetching LP firms:", error);
+      console.error("Error fetching GP firms:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
