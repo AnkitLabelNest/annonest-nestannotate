@@ -445,143 +445,104 @@ export const entitiesLp = pgTable("entities_lp", {
 
 import {
   pgTable,
-  varchar,
   text,
+  varchar,
   integer,
   boolean,
   numeric,
+  date,
   timestamp,
-  index,
 } from "drizzle-orm/pg-core";
 
-/**
- * Supabase table: entities_fund
- * Source of truth: user-provided column list (Jan 2026)
- */
-export const entitiesFund = pgTable(
-  "entities_fund",
-  {
-    id: varchar("id").primaryKey(),
-    orgId: varchar("org_id").notNull(),
+export const entitiesFund = pgTable("entities_fund", {
+  /* ============================
+     Primary & System
+  ============================ */
+  id: varchar("id").primaryKey(),
+  orgId: varchar("org_id").notNull(),
 
-    status: text("status"),
-    createdAt: timestamp("created_at"),
-    updatedAt: timestamp("updated_at"),
+  status: text("status"), // active | archived | draft
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 
-    /* ===== Core Identity ===== */
-    fundName: text("fund_name").notNull(),
-    fundLegalName: text("fund_legal_name"),
-    formerNames: text("former_names"),
-    fundType: text("fund_type"),
-    vintageYear: integer("vintage_year"),
-    fundSeries: text("fund_series"),
-    isBlindPool: boolean("is_blind_pool"),
-    description: text("description"),
+  /* ============================
+     Core Identity
+  ============================ */
+  fundName: text("fund_name").notNull(),           // Display name
+  fundLegalName: text("fund_legal_name"),          // Legal entity name
+  formerNames: text("former_names"),               // JSON/string list
+  fundType: text("fund_type"),                     // PE / VC / Credit / Infra
+  vintageYear: integer("vintage_year"),
+  fundSeries: text("fund_series"),                 // Fund I, II, III
+  description: text("description"),
+  isBlindPool: boolean("is_blind_pool"),
 
-    /* ===== GP / Manager ===== */
-    gpId: varchar("gp_id"),
-    managementCompanyName: text("management_company_name"),
-    fundManagerType: text("fund_manager_type"),
-    keyPersonClausePresent: boolean("key_person_clause_present"),
+  /* ============================
+     Fund Lifecycle (DASHBOARD)
+     → Drives Fundraising / Investing / Closed
+  ============================ */
+  fundStage: text("fund_stage"), 
+  // fundraising | investing | harvesting | closed
 
-    /* ===== Legal & Regulatory ===== */
-    legalStructure: text("legal_structure"),
-    domicileCountry: text("domicile_country"),
-    domicileJurisdiction: text("domicile_jurisdiction"),
-    regulatorNames: text("regulator_names"),
-    registrationNumbers: text("registration_numbers"),
-    regulatoryStatus: text("regulatory_status"),
+  firstCloseDate: date("first_close_date"),
+  finalCloseDate: date("final_close_date"),
+  investmentPeriodEnd: date("investment_period_end"),
+  fundEndDate: date("fund_end_date"),
 
-    /* ===== Fund Size & Economics ===== */
-    targetFundSize: numeric("target_fund_size"),
-    hardCap: numeric("hard_cap"),
-    finalFundSize: numeric("final_fund_size"),
-    currency: text("currency"),
+  /* ============================
+     GP / Manager
+  ============================ */
+  gpId: varchar("gp_id"),                          // FK → entities_gp
+  managementCompanyName: text("management_company_name"),
+  fundManagerType: text("fund_manager_type"),      // Single GP / Multi GP
+  keyPersonClausePresent: boolean("key_person_clause_present"),
 
-    /* ===== Lifecycle ===== */
-    firstCloseDate: text("first_close_date"),
-    finalCloseDate: text("final_close_date"),
-    fundraisingStatus: text("fundraising_status"),
-    investmentPeriodYears: integer("investment_period_years"),
-    fundLifeYears: integer("fund_life_years"),
+  /* ============================
+     Fund Size & Economics
+  ============================ */
+  targetFundSize: numeric("target_fund_size"),
+  hardCap: numeric("hard_cap"),
+  finalFundSize: numeric("final_fund_size"),
+  currency: text("currency"),                      // USD / INR / EUR
 
-    /* ===== Fees & Terms ===== */
-    managementFeeStructure: text("management_fee_structure"),
-    carryPercent: numeric("carry_percent"),
-    hurdleRate: numeric("hurdle_rate"),
-    recyclingAllowed: boolean("recycling_allowed"),
+  managementFeePct: numeric("management_fee_pct"),
+  carriedInterestPct: numeric("carried_interest_pct"),
+  hurdleRatePct: numeric("hurdle_rate_pct"),
 
-    /* ===== Strategy ===== */
-    assetClasses: text("asset_classes"),
-    investmentStrategy: text("investment_strategy"),
-    stageFocus: text("stage_focus"),
-    sectorFocus: text("sector_focus"),
-    geographicFocus: text("geographic_focus"),
+  /* ============================
+     Strategy & Focus
+  ============================ */
+  primaryStrategy: text("primary_strategy"),       // Buyout / Growth / Early VC
+  sectorFocus: text("sector_focus"),                // SaaS, FinTech etc
+  geographyFocus: text("geography_focus"),          // India, APAC, Global
+  investmentStage: text("investment_stage"),        // Seed / Series A / Buyout
+  ticketSizeMin: numeric("ticket_size_min"),
+  ticketSizeMax: numeric("ticket_size_max"),
 
-    /* ===== Ticketing ===== */
-    ticketSizeMin: numeric("ticket_size_min"),
-    ticketSizeMax: numeric("ticket_size_max"),
-    ownershipPreference: text("ownership_preference"),
+  /* ============================
+     Regulatory & Structure
+  ============================ */
+  legalStructure: text("legal_structure"),          // LP / Trust / LLC
+  domicileCountry: text("domicile_country"),
+  domicileState: text("domicile_state"),
+  regulatoryRegistration: text("regulatory_registration"), // SEBI / SEC
+  regulatoryId: text("regulatory_id"),
 
-    /* ===== Portfolio ===== */
-    numberOfPortfolioCompanies: integer("number_of_portfolio_companies"),
-    numberOfExits: integer("number_of_exits"),
-    largestInvestmentPercent: numeric("largest_investment_percent"),
-    top5ConcentrationPercent: numeric("top_5_concentration_percent"),
-    averageHoldingPeriodYears: numeric("average_holding_period_years"),
+  /* ============================
+     Reporting & Ops
+  ============================ */
+  reportingFrequency: text("reporting_frequency"), // Quarterly / Annual
+  valuationMethodology: text("valuation_methodology"),
 
-    /* ===== Performance ===== */
-    grossIrr: numeric("gross_irr"),
-    netIrr: numeric("net_irr"),
-    tvpi: numeric("tvpi"),
-    dpi: numeric("dpi"),
-    rvpi: numeric("rvpi"),
-    performanceAsOfDate: text("performance_as_of_date"),
-    performanceTransparencyLevel: text("performance_transparency_level"),
+  /* ============================
+     Source & QA (LabelNest Core)
+  ============================ */
+  sourceType: text("source_type"),                  // manual / scraped / imported
+  sourceUrl: text("source_url"),
+  confidenceScore: integer("confidence_score"),     // 0–100
+  lastVerifiedAt: timestamp("last_verified_at"),
+});
 
-    /* ===== LP Base ===== */
-    numberOfLps: integer("number_of_lps"),
-    lpTypeMix: text("lp_type_mix"),
-    anchorLpPresent: boolean("anchor_lp_present"),
-    anchorLpType: text("anchor_lp_type"),
-
-    /* ===== ESG ===== */
-    esgPolicyExists: boolean("esg_policy_exists"),
-    esgPolicyPublic: boolean("esg_policy_public"),
-    esgPolicyUrl: text("esg_policy_url"),
-    esgReportingFrequency: text("esg_reporting_frequency"),
-    esgIntegratedInInvestmentProcess: boolean("esg_integrated_in_investment_process"),
-    esgDueDiligenceRequired: boolean("esg_due_diligence_required"),
-    exclusionListExists: boolean("exclusion_list_exists"),
-    portfolioEsgMonitoring: boolean("portfolio_esg_monitoring"),
-    impactFundFlag: boolean("impact_fund_flag"),
-    impactThemes: text("impact_themes"),
-
-    /* ===== Risk / Governance ===== */
-    sideLetterComplexity: text("side_letter_complexity"),
-    complianceFunctionExists: boolean("compliance_function_exists"),
-    auditFirmName: text("audit_firm_name"),
-    valuationPolicyExists: boolean("valuation_policy_exists"),
-    riskManagementFramework: text("risk_management_framework"),
-
-    /* ===== Signals ===== */
-    recentCloseEvent: boolean("recent_close_event"),
-    extensionExercised: boolean("extension_exercised"),
-    strategyShiftDetected: boolean("strategy_shift_detected"),
-    regulatoryEventFlag: boolean("regulatory_event_flag"),
-
-    /* ===== Metadata ===== */
-    lastUpdatedOn: timestamp("last_updated_on"),
-    lastUpdatedBy: text("last_updated_by"),
-    lastUpdateNotes: text("last_update_notes"),
-    updateTrigger: text("update_trigger"),
-    serviceProviders: text("service_providers"),
-    assignedTo: text("assigned_to"),
-  },
-  (table) => ({
-    orgIdx: index("entities_fund_org_id_idx").on(table.orgId),
-  })
-);
 
 
 
