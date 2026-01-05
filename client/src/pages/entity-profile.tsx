@@ -186,10 +186,8 @@ function GpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
       <div className="grid grid-cols-3 gap-4">
         {f("total_aum", "Total AUM", { type: "number" })}
         {f("aum_currency", "AUM Currency")}
-        {f("number_of_funds", "Number of Funds", { type: "number" })}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {f("active_funds_count", "Active Funds Count", { type: "number" })}
         {f("total_capital_raised", "Total Capital Raised", { type: "number" })}
         {f("estimated_deal_count", "Estimated Deal Count", { type: "number" })}
       </div>
@@ -202,8 +200,6 @@ function GpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
       </div>
       <div className="grid grid-cols-3 gap-4">
         {f("geographic_focus", "Geographic Focus")}
-        {f("first_fund_vintage", "First Fund Vintage", { type: "number" })}
-        {f("latest_fund_vintage", "Latest Fund Vintage", { type: "number" })}
       </div>
 
       <SectionHeader title="Organization" />
@@ -247,7 +243,6 @@ function GpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
 
       <SectionHeader title="Linked Entities" />
       <div className="grid grid-cols-4 gap-4">
-        {f("linked_funds_count", "Linked Funds", { type: "number" })}
         {f("linked_lps_count", "Linked LPs", { type: "number" })}
         {f("linked_portfolio_companies_count", "Linked Portfolio Companies", { type: "number" })}
         {f("linked_service_providers_count", "Linked Service Providers", { type: "number" })}
@@ -322,15 +317,11 @@ function LpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
         {f("industry_preferences", "Industry Preferences")}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {f("fund_stage_preference", "Fund Stage Preference")}
-        {f("fund_size_preference", "Fund Size Preference")}
         {f("ticket_size_band", "Ticket Size Band")}
       </div>
 
       <SectionHeader title="Investment Activity" />
       <div className="grid grid-cols-3 gap-4">
-        {f("active_fund_commitments_count", "Active Fund Commitments", { type: "number" })}
-        {f("total_fund_commitments_lifetime", "Total Lifetime Commitments", { type: "number" })}
         {f("direct_investment_flag", "Direct Investment", { isBoolean: true })}
       </div>
       <div className="grid grid-cols-3 gap-4">
@@ -371,7 +362,6 @@ function LpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
       <SectionHeader title="Linked Entities" />
       <div className="grid grid-cols-3 gap-4">
         {f("linked_gps_count", "Linked GPs", { type: "number" })}
-        {f("linked_funds_count", "Linked Funds", { type: "number" })}
         {f("linked_service_providers_count", "Linked Service Providers", { type: "number" })}
       </div>
 
@@ -383,122 +373,124 @@ function LpView({ entity, isEditing, onFieldChange, errors }: { entity: any; isE
   );
 }
 
-function FundView({ entity, isEditing, onFieldChange, errors }: { entity: any; isEditing: boolean; onFieldChange?: (field: string, value: any) => void; errors: Record<string, string> }) {
-  const f = (fieldName: string, label: string, opts: any = {}) => (
-    <FieldDisplay 
-      label={label} 
-      value={entity[fieldName]} 
-      isEditing={isEditing} 
-      fieldName={fieldName} 
+function FundView({
+  entity,
+  isEditing,
+  onFieldChange,
+  errors,
+}: {
+  entity: any;
+  isEditing: boolean;
+  onFieldChange?: (field: string, value: any) => void;
+  errors: Record<string, string>;
+}) {
+  const f = (field: string, label: string, opts: any = {}) => (
+    <FieldDisplay
+      label={label}
+      value={entity[field]}
+      isEditing={isEditing}
+      fieldName={field}
       onChange={onFieldChange}
-      error={errors[fieldName]}
+      error={errors[field]}
       {...opts}
     />
   );
 
   return (
     <div className="space-y-2">
+      {/* BASIC */}
       <SectionHeader title="Basic Information" />
       <div className="grid grid-cols-3 gap-4">
         {f("fund_name", "Fund Name", { required: true })}
         {f("fund_legal_name", "Legal Name")}
         {f("fund_short_name", "Short Name")}
       </div>
+
       <div className="grid grid-cols-3 gap-4">
         {f("fund_type", "Fund Type")}
-        {f("strategy", "Strategy")}
         {f("vintage_year", "Vintage Year", { type: "number" })}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("fund_currency", "Fund Currency")}
         {f("fund_status", "Fund Status")}
       </div>
 
-      <SectionHeader title="GP Relationship" />
-      <div className="grid grid-cols-3 gap-4">
-        {f("gp_id", "GP ID")}
-        {f("gp_name_snapshot", "GP Name")}
-      </div>
-
+      {/* SIZE */}
       <SectionHeader title="Fund Size" />
       <div className="grid grid-cols-3 gap-4">
-        {f("target_fund_size", "Target Fund Size", { type: "number" })}
-        {f("hard_cap", "Hard Cap", { type: "number" })}
-        {f("fund_size_final", "Final Fund Size", { type: "number" })}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("capital_called", "Capital Called", { type: "number" })}
-        {f("capital_distributed", "Capital Distributed", { type: "number" })}
-        {f("remaining_value", "Remaining Value", { type: "number" })}
+        {f("target_size", "Target Size", { type: "number" })}
+        {f("target_size_currency", "Currency")}
+        {f("final_close_size", "Final Close Size", { type: "number" })}
       </div>
 
-      <SectionHeader title="Fundraising" />
       <div className="grid grid-cols-3 gap-4">
         {f("first_close_date", "First Close Date", { type: "date" })}
         {f("final_close_date", "Final Close Date", { type: "date" })}
-        {f("fundraising_status", "Fundraising Status")}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("number_of_lps", "Number of LPs", { type: "number" })}
-        {f("cornerstone_investor_flag", "Cornerstone Investor", { isBoolean: true })}
+        {f("investment_period_end", "Investment Period End", { type: "date" })}
       </div>
 
-      <SectionHeader title="Investment Strategy" />
+      {/* STRATEGY */}
+      <SectionHeader title="Strategy" />
       <div className="grid grid-cols-3 gap-4">
+        {f("strategy_focus", "Strategy Focus")}
         {f("primary_asset_class", "Primary Asset Class")}
-        {f("investment_stage", "Investment Stage")}
+        {f("investment_stages", "Investment Stages")}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {f("geographic_focus", "Geographic Focus")}
         {f("industry_focus", "Industry Focus")}
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("geographic_focus", "Geographic Focus")}
-      </div>
 
+      {/* PERFORMANCE (LIGHT) */}
       <SectionHeader title="Performance" />
       <div className="grid grid-cols-3 gap-4">
-        {f("net_irr", "Net IRR", { type: "number" })}
-        {f("gross_irr", "Gross IRR", { type: "number" })}
+        {f("target_irr", "Target IRR %", { type: "number" })}
+        {f("target_multiple", "Target Multiple", { type: "number" })}
         {f("tvpi", "TVPI", { type: "number" })}
       </div>
-      <div className="grid grid-cols-3 gap-4">
+
+      <div className="grid grid-cols-2 gap-4">
         {f("dpi", "DPI", { type: "number" })}
         {f("rvpi", "RVPI", { type: "number" })}
-        {f("performance_data_available", "Performance Data Available", { isBoolean: true })}
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("performance_as_of_date", "Performance As Of Date", { type: "date" })}
       </div>
 
-      <SectionHeader title="Portfolio" />
-      <div className="grid grid-cols-3 gap-4">
-        {f("deal_count", "Deal Count", { type: "number" })}
-        {f("active_portfolio_companies_count", "Active Portfolio Companies", { type: "number" })}
-        {f("realized_portfolio_companies_count", "Realized Portfolio Companies", { type: "number" })}
-      </div>
-
+      {/* ESG */}
       <SectionHeader title="ESG & Sustainability" />
       <div className="grid grid-cols-3 gap-4">
-        {f("esg_integration_flag", "ESG Integration", { isBoolean: true })}
-        {f("impact_fund_flag", "Impact Fund", { isBoolean: true })}
-        {f("sustainability_objective", "Sustainability Objective")}
+        {f("esg_policy_available", "ESG Policy", { isBoolean: true })}
+        {f("pri_signatory", "PRI Signatory", { isBoolean: true })}
+        {f("impact_fund", "Impact Fund", { isBoolean: true })}
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        {f("dei_policy_available", "DEI Policy", { isBoolean: true })}
+        {f("sustainability_report_url", "Sustainability Report", { isLink: !isEditing })}
+      </div>
+
+      {/* DATA QUALITY */}
       <SectionHeader title="Data Quality" />
       <div className="grid grid-cols-3 gap-4">
-        {f("data_confidence_score", "Data Confidence Score", { type: "number" })}
+        {f("data_confidence_score", "Confidence Score", { type: "number" })}
         {f("verification_method", "Verification Method")}
         {f("last_verified_date", "Last Verified Date", { type: "date" })}
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {f("source_coverage", "Source Coverage")}
-      </div>
 
-      <SectionHeader title="Assignment" />
-      <div className="grid grid-cols-3 gap-4">
-        {f("assigned_to", "Assigned To")}
-      </div>
+      {/* SOURCES */}
+      <SectionHeader title="Sources & URLs" />
+      <SourceTrackingSection
+        data={{
+          sourcesUsed: entity.sources_used || [],
+          sourceUrls: entity.source_urls || [],
+          lastUpdatedBy: entity.last_updated_by,
+          lastUpdatedOn: entity.last_updated_on,
+        }}
+        onChange={() => {}}
+        isEditing={false}
+      />
+
+      <EntityUrlsSection entityType="fund" entityId={entity.id} />
     </div>
   );
 }
+
 
 function ServiceProviderView({ entity, isEditing, onFieldChange, errors }: { entity: any; isEditing: boolean; onFieldChange?: (field: string, value: any) => void; errors: Record<string, string> }) {
   const f = (fieldName: string, label: string, opts: any = {}) => (
@@ -550,7 +542,6 @@ function ServiceProviderView({ entity, isEditing, onFieldChange, errors }: { ent
         {f("asset_class_coverage", "Asset Class Coverage")}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {f("fund_stage_coverage", "Fund Stage Coverage")}
         {f("typical_client_type", "Typical Client Type")}
         {f("client_size_focus", "Client Size Focus")}
       </div>
@@ -595,7 +586,6 @@ function ServiceProviderView({ entity, isEditing, onFieldChange, errors }: { ent
       <SectionHeader title="Linked Entities" />
       <div className="grid grid-cols-4 gap-4">
         {f("linked_gps_count", "Linked GPs", { type: "number" })}
-        {f("linked_funds_count", "Linked Funds", { type: "number" })}
         {f("linked_lps_count", "Linked LPs", { type: "number" })}
         {f("linked_portfolio_companies_count", "Linked Portfolio Companies", { type: "number" })}
       </div>
@@ -676,12 +666,9 @@ function PortfolioCompanyView({ entity, isEditing, onFieldChange, errors }: { en
       <div className="grid grid-cols-3 gap-4">
         {f("current_owner_type", "Current Owner Type")}
         {f("controlling_gp_id", "Controlling GP ID")}
-        {f("controlling_fund_id", "Controlling Fund ID")}
       </div>
       <div className="grid grid-cols-3 gap-4">
         {f("first_investment_year", "First Investment Year", { type: "number" })}
-        {f("total_funding_raised", "Total Funding Raised", { type: "number" })}
-        {f("funding_currency", "Funding Currency")}
       </div>
 
       <SectionHeader title="Operations" />
@@ -724,7 +711,6 @@ function PortfolioCompanyView({ entity, isEditing, onFieldChange, errors }: { en
       <SectionHeader title="Linked Entities" />
       <div className="grid grid-cols-4 gap-4">
         {f("linked_gps_count", "Linked GPs", { type: "number" })}
-        {f("linked_funds_count", "Linked Funds", { type: "number" })}
         {f("linked_deals_count", "Linked Deals", { type: "number" })}
         {f("linked_service_providers_count", "Linked Service Providers", { type: "number" })}
       </div>
@@ -768,10 +754,8 @@ function DealView({ entity, isEditing, onFieldChange, errors }: { entity: any; i
       <div className="grid grid-cols-3 gap-4">
         {f("gp_id", "GP ID")}
         {f("gp_name_snapshot", "GP Name")}
-        {f("fund_id", "Fund ID")}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {f("fund_name_snapshot", "Fund Name")}
         {f("portfolio_company_id", "Portfolio Company ID")}
         {f("portfolio_company_name_snapshot", "Portfolio Company Name")}
       </div>
@@ -947,7 +931,6 @@ function ContactView({ entity, isEditing, onFieldChange, errors }: { entity: any
       <div className="grid grid-cols-3 gap-4">
         {f("deal_involvement_flag", "Deal Involvement", { isBoolean: true })}
         {f("board_roles", "Board Roles")}
-        {f("associated_fund_ids", "Associated Fund IDs")}
       </div>
 
       <SectionHeader title="Focus Areas" />
