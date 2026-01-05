@@ -91,12 +91,14 @@ export default function FundsPage() {
             Track fund vehicles and vintages
           </p>
         </div>
-        <Button
-          onClick={() => window.open("/entity/fund/new", "_blank")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Fund
-        </Button>
+       <Button
+  onClick={() => {
+    alert("Add Fund button clicked");
+  }}
+>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Fund
+</Button>
       </div>
 
       {/* Stats */}
