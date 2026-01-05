@@ -443,57 +443,147 @@ export const entitiesLp = pgTable("entities_lp", {
   index("entities_lp_org_id_idx").on(table.orgId),
 ]);
 
-export const entitiesFund = pgTable("entities_fund", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orgId: varchar("org_id").notNull(),
-  fundName: text("fund_name").notNull(),
-  fundLegalName: text("fund_legal_name"),
-  fundShortName: text("fund_short_name"),
-  fundType: text("fund_type"),
-  strategy: text("strategy"),
-  vintageYear: integer("vintage_year"),
-  fundCurrency: text("fund_currency"),
-  fundStatus: text("fund_status"),
-  gpId: varchar("gp_id"),
-  gpNameSnapshot: text("gp_name_snapshot"),
-  targetFundSize: numeric("target_fund_size"),
-  hardCap: numeric("hard_cap"),
-  fundSizeFinal: numeric("fund_size_final"),
-  capitalCalled: numeric("capital_called"),
-  capitalDistributed: numeric("capital_distributed"),
-  remainingValue: numeric("remaining_value"),
-  firstCloseDate: text("first_close_date"),
-  finalCloseDate: text("final_close_date"),
-  fundraisingStatus: text("fundraising_status"),
-  numberOfLps: integer("number_of_lps"),
-  cornerstoneInvestorFlag: boolean("cornerstone_investor_flag"),
-  primaryAssetClass: text("primary_asset_class"),
-  investmentStage: text("investment_stage"),
-  industryFocus: text("industry_focus"),
-  geographicFocus: text("geographic_focus"),
-  netIrr: numeric("net_irr"),
-  grossIrr: numeric("gross_irr"),
-  tvpi: numeric("tvpi"),
-  dpi: numeric("dpi"),
-  rvpi: numeric("rvpi"),
-  performanceDataAvailable: boolean("performance_data_available"),
-  performanceAsOfDate: text("performance_as_of_date"),
-  dealCount: integer("deal_count"),
-  activePortfolioCompaniesCount: integer("active_portfolio_companies_count"),
-  realizedPortfolioCompaniesCount: integer("realized_portfolio_companies_count"),
-  esgIntegrationFlag: boolean("esg_integration_flag"),
-  impactFundFlag: boolean("impact_fund_flag"),
-  sustainabilityObjective: text("sustainability_objective"),
-  dataConfidenceScore: numeric("data_confidence_score"),
-  verificationMethod: text("verification_method"),
-  lastVerifiedDate: text("last_verified_date"),
-  sourceCoverage: text("source_coverage"),
-  assignedTo: text("assigned_to"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("entities_fund_org_id_idx").on(table.orgId),
-]);
+import {
+  pgTable,
+  varchar,
+  text,
+  integer,
+  boolean,
+  numeric,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+
+/**
+ * Supabase table: entities_fund
+ * Source of truth: user-provided column list (Jan 2026)
+ */
+export const entitiesFund = pgTable(
+  "entities_fund",
+  {
+    id: varchar("id").primaryKey(),
+    orgId: varchar("org_id").notNull(),
+
+    status: text("status"),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+
+    /* ===== Core Identity ===== */
+    fundName: text("fund_name").notNull(),
+    fundLegalName: text("fund_legal_name"),
+    formerNames: text("former_names"),
+    fundType: text("fund_type"),
+    vintageYear: integer("vintage_year"),
+    fundSeries: text("fund_series"),
+    isBlindPool: boolean("is_blind_pool"),
+    description: text("description"),
+
+    /* ===== GP / Manager ===== */
+    gpId: varchar("gp_id"),
+    managementCompanyName: text("management_company_name"),
+    fundManagerType: text("fund_manager_type"),
+    keyPersonClausePresent: boolean("key_person_clause_present"),
+
+    /* ===== Legal & Regulatory ===== */
+    legalStructure: text("legal_structure"),
+    domicileCountry: text("domicile_country"),
+    domicileJurisdiction: text("domicile_jurisdiction"),
+    regulatorNames: text("regulator_names"),
+    registrationNumbers: text("registration_numbers"),
+    regulatoryStatus: text("regulatory_status"),
+
+    /* ===== Fund Size & Economics ===== */
+    targetFundSize: numeric("target_fund_size"),
+    hardCap: numeric("hard_cap"),
+    finalFundSize: numeric("final_fund_size"),
+    currency: text("currency"),
+
+    /* ===== Lifecycle ===== */
+    firstCloseDate: text("first_close_date"),
+    finalCloseDate: text("final_close_date"),
+    fundraisingStatus: text("fundraising_status"),
+    investmentPeriodYears: integer("investment_period_years"),
+    fundLifeYears: integer("fund_life_years"),
+
+    /* ===== Fees & Terms ===== */
+    managementFeeStructure: text("management_fee_structure"),
+    carryPercent: numeric("carry_percent"),
+    hurdleRate: numeric("hurdle_rate"),
+    recyclingAllowed: boolean("recycling_allowed"),
+
+    /* ===== Strategy ===== */
+    assetClasses: text("asset_classes"),
+    investmentStrategy: text("investment_strategy"),
+    stageFocus: text("stage_focus"),
+    sectorFocus: text("sector_focus"),
+    geographicFocus: text("geographic_focus"),
+
+    /* ===== Ticketing ===== */
+    ticketSizeMin: numeric("ticket_size_min"),
+    ticketSizeMax: numeric("ticket_size_max"),
+    ownershipPreference: text("ownership_preference"),
+
+    /* ===== Portfolio ===== */
+    numberOfPortfolioCompanies: integer("number_of_portfolio_companies"),
+    numberOfExits: integer("number_of_exits"),
+    largestInvestmentPercent: numeric("largest_investment_percent"),
+    top5ConcentrationPercent: numeric("top_5_concentration_percent"),
+    averageHoldingPeriodYears: numeric("average_holding_period_years"),
+
+    /* ===== Performance ===== */
+    grossIrr: numeric("gross_irr"),
+    netIrr: numeric("net_irr"),
+    tvpi: numeric("tvpi"),
+    dpi: numeric("dpi"),
+    rvpi: numeric("rvpi"),
+    performanceAsOfDate: text("performance_as_of_date"),
+    performanceTransparencyLevel: text("performance_transparency_level"),
+
+    /* ===== LP Base ===== */
+    numberOfLps: integer("number_of_lps"),
+    lpTypeMix: text("lp_type_mix"),
+    anchorLpPresent: boolean("anchor_lp_present"),
+    anchorLpType: text("anchor_lp_type"),
+
+    /* ===== ESG ===== */
+    esgPolicyExists: boolean("esg_policy_exists"),
+    esgPolicyPublic: boolean("esg_policy_public"),
+    esgPolicyUrl: text("esg_policy_url"),
+    esgReportingFrequency: text("esg_reporting_frequency"),
+    esgIntegratedInInvestmentProcess: boolean("esg_integrated_in_investment_process"),
+    esgDueDiligenceRequired: boolean("esg_due_diligence_required"),
+    exclusionListExists: boolean("exclusion_list_exists"),
+    portfolioEsgMonitoring: boolean("portfolio_esg_monitoring"),
+    impactFundFlag: boolean("impact_fund_flag"),
+    impactThemes: text("impact_themes"),
+
+    /* ===== Risk / Governance ===== */
+    sideLetterComplexity: text("side_letter_complexity"),
+    complianceFunctionExists: boolean("compliance_function_exists"),
+    auditFirmName: text("audit_firm_name"),
+    valuationPolicyExists: boolean("valuation_policy_exists"),
+    riskManagementFramework: text("risk_management_framework"),
+
+    /* ===== Signals ===== */
+    recentCloseEvent: boolean("recent_close_event"),
+    extensionExercised: boolean("extension_exercised"),
+    strategyShiftDetected: boolean("strategy_shift_detected"),
+    regulatoryEventFlag: boolean("regulatory_event_flag"),
+
+    /* ===== Metadata ===== */
+    lastUpdatedOn: timestamp("last_updated_on"),
+    lastUpdatedBy: text("last_updated_by"),
+    lastUpdateNotes: text("last_update_notes"),
+    updateTrigger: text("update_trigger"),
+    serviceProviders: text("service_providers"),
+    assignedTo: text("assigned_to"),
+  },
+  (table) => ({
+    orgIdx: index("entities_fund_org_id_idx").on(table.orgId),
+  })
+);
+
+
 
 export const entitiesPortfolioCompany = pgTable("entities_portfolio_company", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
