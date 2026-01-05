@@ -11,6 +11,28 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+const entityEndpointMap: Record<string, string> = {
+  fund: "/api/entities/funds",
+  gp: "/api/entities/gps",
+  lp: "/api/entities/lps",
+  deal: "/api/entities/deals",
+  contact: "/api/entities/contacts",
+  portfolio_company: "/api/entities/portfolio-companies",
+  service_provider: "/api/entities/service-providers",
+};
+
+function mapFundPayload(data: Record<string, any>) {
+  return {
+    fund_name: data.fundName,
+    fund_type: data.fundType,
+    vintage_year: data.vintageYear,
+    target_size: data.targetFundSize,
+    fund_status: data.fundStatus?.toLowerCase(),
+    primary_asset_class: data.primaryAssetClass,
+    geographic_focus: data.geographicFocus,
+  };
+}
+
 interface EntityConfig {
   title: string;
   icon: typeof Building2;
@@ -261,10 +283,14 @@ export default function NewEntityPage() {
   const [formData, setFormData] = useState<Record<string, string>>({});
 
   const createEntityMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
-      const res = await apiRequest("POST", `/api/datanest/entities/${entityType}`, data);
-      return res.json();
-    },
+  mutationFn: async (data: Record<string, any>) => {
+    const endpoint = entityEndpointMap[entityType];
+    if (!endpoint) {
+      throw new Error(`Unsupported entity type: ${entityType}`);
+    }
+    const res = await apiRequest("POST", endpoint, data);
+    return res.json();
+  },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/datanest/entity-counts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/datanest/entities", entityType] });
@@ -321,7 +347,10 @@ export default function NewEntityPage() {
       }
     });
 
-    createEntityMutation.mutate(processedData);
+    const payload =
+      entityType === "fund" ? mapFundPayload(processedData) : processedData;
+
+    createEntityMutation.mutate(payload);
   };
 
   const Icon = config.icon;
