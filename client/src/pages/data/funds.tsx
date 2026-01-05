@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, Calendar, TrendingUp, DollarSign, Search, Plus } from "lucide-react";
+import {
+  Wallet,
+  Calendar,
+  TrendingUp,
+  DollarSign,
+  Search,
+  Plus,
+} from "lucide-react";
 import type { EntityFund } from "@shared/schema";
 
 const statusColors: Record<string, string> = {
@@ -18,6 +26,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function FundsPage() {
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: funds = [], isLoading, error } = useQuery<EntityFund[]>({
@@ -91,10 +100,11 @@ export default function FundsPage() {
             Track fund vehicles and vintages
           </p>
         </div>
-       <Button onClick={() => window.open("/entity/fund/new", "_blank")}>
-  <Plus className="h-4 w-4 mr-2" />
-  Add Fund
-</Button>
+
+        <Button onClick={() => navigate("/entity/fund/new")}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Fund
+        </Button>
       </div>
 
       {/* Stats */}
@@ -103,17 +113,17 @@ export default function FundsPage() {
           { label: "Total Funds", value: funds.length, icon: Wallet },
           {
             label: "Fundraising",
-            value: funds.filter(f => f.fund_status === "fundraising").length,
+            value: funds.filter((f) => f.fund_status === "fundraising").length,
             icon: TrendingUp,
           },
           {
             label: "Investing",
-            value: funds.filter(f => f.fund_status === "investing").length,
+            value: funds.filter((f) => f.fund_status === "investing").length,
             icon: TrendingUp,
           },
           {
             label: "Closed",
-            value: funds.filter(f => f.fund_status === "closed").length,
+            value: funds.filter((f) => f.fund_status === "closed").length,
             icon: Wallet,
           },
         ].map((stat) => (
