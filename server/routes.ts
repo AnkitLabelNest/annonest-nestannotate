@@ -3388,64 +3388,7 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
     }
   });
 
-  app.get("/api/entities/lp/:id", async (req: Request, res: Response) => {
-    const userInfo = await getUserWithRole(req);
-    if (!userInfo) return res.status(401).json({ message: "Authentication required" });
-    
-    try {
-      const lp = userInfo.isSuperAdmin 
-        ? await storage.getLpFirmById(req.params.id)
-        : await storage.getLpFirm(req.params.id, userInfo.orgId);
-      if (!lp) return res.status(404).json({ message: "Not found" });
-      return res.json(lp);
-    } catch (error) {
-      console.error("Error fetching LP firm:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
 
-  app.post("/api/entities/lp", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    try {
-      const userId = getUserIdFromRequest(req);
-      const dataWithTracking = addSourceTrackingFields({ ...req.body, orgId }, userId);
-      const parsed = insertEntityLpSchema.parse(dataWithTracking);
-      const lp = await storage.createLpFirm(parsed);
-      return res.status(201).json(lp);
-    } catch (error) {
-      console.error("Error creating LP firm:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.put("/api/entities/lp/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    try {
-      const userId = getUserIdFromRequest(req);
-      const dataWithTracking = addSourceTrackingFields(req.body, userId);
-      const lp = await storage.updateLpFirm(req.params.id, orgId, dataWithTracking);
-      if (!lp) return res.status(404).json({ message: "Not found" });
-      return res.json(lp);
-    } catch (error) {
-      console.error("Error updating LP firm:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.delete("/api/entities/lp/:id", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    try {
-      const deleted = await storage.deleteLpFirm(req.params.id, orgId);
-      if (!deleted) return res.status(404).json({ message: "Not found" });
-      return res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting LP firm:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
 
   app.get("/api/entities/gp/:id", async (req: Request, res: Response) => {
     const userInfo = await getUserWithRole(req);
@@ -3505,6 +3448,8 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+
+
 
   // ============== LP Firms ==============
 
