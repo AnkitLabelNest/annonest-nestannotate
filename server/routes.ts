@@ -1885,6 +1885,35 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
       return res.status(500).json({ message: error?.message || "Internal server error" });
     }
   });
+  
+  
+  app.get("/api/crm/lps/:id", async (req: Request, res: Response) => {
+  try {
+    const { orgId, isSuperAdmin } = await getOrgFilter(req);
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+    const { id } = req.params;
+
+    const result = isSuperAdmin
+      ? await db.execute(sql`SELECT * FROM entities_lp WHERE id = ${id}`)
+      : await db.execute(
+          sql`SELECT * FROM entities_lp WHERE id = ${id} AND org_id = ${orgId}`
+        );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "LP not found" });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error: any) {
+    if (error?.message === "UNAUTHORIZED") {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    console.error("Error fetching LP by id:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 
 
   // Portfolio Company Routes
