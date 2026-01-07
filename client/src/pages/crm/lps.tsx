@@ -1,3 +1,5 @@
+import { useLocation } from "wouter";
+
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +50,7 @@ interface LP {
 
 export default function LPsPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newLP, setNewLP] = useState({
@@ -260,8 +263,12 @@ export default function LPsPage() {
                 </TableRow>
               ) : (
                 filteredLPs.map((lp) => (
-                  <TableRow key={lp.id} className="cursor-pointer hover-elevate" data-testid={`row-lp-${lp.id}`}>
-                    <TableCell>
+<TableRow
+  key={lp.id}
+  className="cursor-pointer hover-elevate"
+  data-testid={`row-lp-${lp.id}`}
+  onClick={() => navigate(`/entity/lp/${lp.id}`)}
+>                    <TableCell>
                       <div className="flex items-center gap-2">
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{lp.lp_name}</span>
