@@ -64,6 +64,7 @@ export async function registerRoutes(
   // Health check endpoint for debugging
   app.get("/api/health", async (req: Request, res: Response) => {
     try {
+
       const dbCheck = await storage.getUserByUsername("admin");
       return res.json({
         status: "ok",
@@ -3445,16 +3446,6 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    try {
-      const gps = await storage.getGpFirms(orgId);
-      return res.json(gps);
-    } catch (error) {
-      console.error("Error fetching GP firms:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
 
   app.get("/api/entities/gp/:id", async (req: Request, res: Response) => {
     const userInfo = await getUserWithRole(req);
@@ -3516,10 +3507,6 @@ app.get("/api/crm/counts", async (req: Request, res: Response) => {
   });
 
   // ============== LP Firms ==============
-  app.get("/api/entities/lp", async (req: Request, res: Response) => {
-    const orgId = await getUserOrgIdSafe(req, res);
-    if (!orgId) return;
-    try {
 
   // ============== Funds (Entity) ==============
   app.get("/api/entities/funds", async (req: Request, res: Response) => {
