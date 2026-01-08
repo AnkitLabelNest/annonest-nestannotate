@@ -1,6 +1,16 @@
+if (!process.env.DATABASE_URL) {
+  throw new Error("❌ DATABASE_URL missing");
+}
+
+
+import "dotenv/config";
+
+console.log("DATABASE_URL =", process.env.DATABASE_URL);
+
 import cors from "cors";
 
 import { Pool } from "pg";
+import { startNewsScheduler } from "./jobs/newsScheduler";
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -37,22 +47,31 @@ app.options("*", cors());
 
 
 const pool = new Pool({
-  connectionString: process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+    ca: undefined,
+  },
 });
 
 app.locals.db = pool;
+
 pool.query("select 1")
   .then(() => {
-    console.log("✅ Database connected");
+    console.log("🟢 DB health check passed");
+
+    // Scheduler will start when server runs
+    startNewsScheduler(app.locals.db);
   })
   .catch((err) => {
-    console.error("❌ Database connection failed", err);
+    console.error("❌ DB health check failed", err);
+    process.exit(1);
   });
 
 app.get("/", (req, res) => {
   res.send("AnnoNest backend is live 🚀");
 });
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "annonest" });
@@ -147,7 +166,7 @@ app.use((req, res, next) => {
   // For Autoscale deployments, PORT will be set to 80
   // For development, default to 5000 if not specified
   // This serves both the API and the client.
-  const port = Number(process.env.PORT) || 5000;
+  const port = Number(process.env.PORT) || 5001;
   
   log(`Starting server in ${process.env.NODE_ENV || 'development'} mode on port ${port}`);
 
