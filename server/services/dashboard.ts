@@ -111,3 +111,51 @@ export const getDashboardMetrics = async (
     res.status(500).json({ error: "dashboard_metrics_failed" });
   }
 };
+export const getSystemHealth = async (req: any, res: any) => {
+  try {
+    const db = req.app.locals.db;
+
+    /* -------------------------------
+       DB health (cheap ping)
+    -------------------------------- */
+    await db.query("select 1");
+
+    /* -------------------------------
+       Last processed news
+    -------------------------------- */
+    const lastProcessed = await db.query(
+      `
+      select max(updated_at) as last_processed
+      from news
+      where processing_status = 'COMPLETED'
+      `
+    );
+
+    /* -------------------------------
+       Failed in last 24h
+    -------------------------------- */
+    const failed24h = await db.query(
+      `
+      select count(*)::int as failed
+      from news
+      where processing_status = 'FAILED'
+        and updated_at >= now() - interval '24 hours'
+      `
+    );
+
+    res.json({
+      db: "ok",
+      scheduler: "running",
+      last_news_processed_at:
+        lastProcessed.rows[0]?.last_processed || null,
+      failed_last_24h: failed24h.rows[0]?.failed || 0,
+    });
+  } catch (err) {
+    console.error("SYSTEM HEALTH CHECK FAILED", err);
+    res.status(500).json({
+      db: "error",
+      scheduler: "unknown",
+      error: String(err),
+    });
+  }
+};
