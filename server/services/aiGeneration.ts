@@ -1,3 +1,5 @@
+const AI_MODE = process.env.AI_MODE || "manual";
+
 if (!process.env.GOOGLE_AI_API_KEY) {
   console.warn("⚠️ GOOGLE_AI_API_KEY not set — AI generation disabled");
 }
@@ -63,6 +65,10 @@ export const generateAi = async ({
   newsId,
   userId,
 }: GenerateAiInput) => {
+	
+	  if (AI_MODE === "off") {
+    throw new Error("AI generation is disabled (AI_MODE=off)");
+  }
   /* -------------------------------
      1️⃣ Fetch news content
   -------------------------------- */
