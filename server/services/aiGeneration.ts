@@ -1,3 +1,5 @@
+import { linkEntitiesFromAi } from "./linkEntitiesFromAi";
+
 const AI_MODE = process.env.AI_MODE || "manual";
 
 if (!process.env.GOOGLE_AI_API_KEY) {
@@ -158,21 +160,26 @@ ${raw_text || ""}
   /* -------------------------------
      4️⃣ Persist AI output
   -------------------------------- */
-  const insert = await db.query(
-    `
-    insert into ai_outputs (
-      org_id,
-      source_type,
-      source_id,
-      output_json,
-      status,
-      created_by
-    )
-    values ($1, 'news', $2, $3, 'AI_DONE', $4)
-    returning id
-    `,
-    [orgId, newsId, aiJson, userId || null]
-  );
+const insert = await db.query(
+  `
+  insert into ai_outputs (
+    org_id,
+    source_type,
+    source_id,
+    output_json,
+    status,
+    created_by
+  )
+  values ($1, 'news', $2, $3, 'AI_DONE', $4)
+  returning id
+  `,
+  [orgId, newsId, aiJson, userId || null]
+);
 
-  return insert.rows[0].id;
-};
+const aiOutputId = insert.rows[0].id;
+
+// 🔥 Phase 14: auto-link entities from AI into the data graph
+await linkEntitiesFromAi(db, aiOutputId);
+
+return aiOutputId;
+
