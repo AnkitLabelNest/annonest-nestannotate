@@ -920,11 +920,47 @@ const [aiLoading, setAiLoading] = useState(false);
       </Button>
     )}
 
-    {aiOutput && (
-      <pre className="bg-muted p-3 rounded text-xs max-h-96 overflow-auto">
-        {JSON.stringify(aiOutput, null, 2)}
-      </pre>
+   {aiOutput && (
+  <div className="space-y-4 text-sm">
+
+    {aiOutput.summary && (
+      <div>
+        <p className="font-medium mb-1">Summary</p>
+        <div className="p-3 rounded bg-background border">
+          {aiOutput.summary}
+        </div>
+      </div>
     )}
+
+    {Array.isArray(aiOutput.entities) && aiOutput.entities.length > 0 && (
+      <div>
+        <p className="font-medium mb-1">Entities detected</p>
+        <div className="flex flex-wrap gap-2">
+          {aiOutput.entities.map((e: any, idx: number) => (
+            <Badge key={idx} variant="secondary">
+              {e.name} ({e.type})
+            </Badge>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {aiOutput.suggested_tags && (
+      <div>
+        <p className="font-medium mb-1">Suggested classification</p>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(aiOutput.suggested_tags).map(([k, v]) => (
+            <div key={k} className="p-2 border rounded bg-background">
+              <strong>{k}</strong>: {String(v)}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+  </div>
+)}
+
   </CardContent>
 </Card>
 
