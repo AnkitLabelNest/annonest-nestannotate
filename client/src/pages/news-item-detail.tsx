@@ -403,8 +403,9 @@ const [aiLoading, setAiLoading] = useState(false);
     setAiStatus("PROCESSING");
 
     setTimeout(() => {
-      window.location.reload();
-    }, 3000);
+  queryClient.invalidateQueries({ queryKey: ["news-item", taskId] });
+  queryClient.invalidateQueries({ queryKey: ["ai-outputs"] });
+}, 3000);
   } catch (e) {
     console.error("AI run failed", e);
   }
