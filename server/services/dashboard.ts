@@ -159,3 +159,37 @@ export const getSystemHealth = async (req: any, res: any) => {
     });
   }
 };
+export const getBacklogMetrics = async (req: any, res: any) => {
+  try {
+    const db = req.app.locals.db;
+
+    // Backlog counts
+    const backlog = await db.query(`
+      select
+        count(*) filter (where processing_status = 'NEW')::int as new_count,
+        count(*) filter (where processing_status = 'PROCESSING')::int as processing_count,
+        count(*) filter (where processing_status = 'FAILED')::int as failed_count,
+        count(*) filter (where processing_status = 'COMPLETED')::int as completed_count
+      from news
+    `);
+
+    // Latency for completed items
+    const latency = await db.query(`
+      select
+        percentile_cont(0.5) within group (order by (updated_at - created_at)) as p50_latency,
+        percentile_cont(0.9) within group (order by (updated_at - created_at)) as p90_latency
+      from news
+      where processing_status = 'COMPLETED'
+    `);
+
+    res.json({
+      backlog: backlog.rows[0],
+      latency: latency.rows[0],
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("BACKLOG METRICS ERROR", err);
+    res.status(500).json({ error: "backlog_metrics_failed" });
+  }
+};
+
