@@ -1,3 +1,5 @@
+console.log("🔧 Dashboard routes registered");
+
 import type { Server } from "http";
 import type { Express } from "express";
 
