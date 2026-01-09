@@ -424,6 +424,40 @@ const [aiLoading, setAiLoading] = useState(false);
     
     setIsAddingLink(true);
     try {
+		
+		async function applyAi() {
+  if (!aiOutput || !taskId) return;
+
+  try {
+    const tags: Partial<NewsItemMetadata> = {
+      relevance_status: aiOutput.relevance_status,
+      firm_type: aiOutput.firm_type || [],
+      event_type: aiOutput.event_type || [],
+      asset_class: aiOutput.asset_class || [],
+      action_type: aiOutput.action_type || [],
+      relevance_notes: "Auto-filled from AI",
+    };
+
+    await updateNewsItemTags(taskId, tags);
+
+    toast({
+      title: "AI applied",
+      description: "AI suggestions were applied to this task.",
+    });
+
+    queryClient.invalidateQueries({ queryKey: ["news-item", taskId] });
+    queryClient.invalidateQueries({ queryKey: ["news-intelligence"] });
+
+  } catch (e) {
+    console.error("Apply AI failed", e);
+    toast({
+      title: "Failed",
+      description: "Could not apply AI suggestions.",
+      variant: "destructive",
+    });
+  }
+}
+
       // Ensure news record exists and get its ID for entity linking
       const newsId = await ensureNewsRecord(taskId, orgId, userId);
       
@@ -914,11 +948,18 @@ const [aiLoading, setAiLoading] = useState(false);
       <strong>Status:</strong> {aiStatus}
     </div>
 
-    {aiStatus !== "PROCESSING" && (
-      <Button onClick={runAi} disabled={aiLoading}>
-        {aiLoading ? "Running AI..." : "Run AI"}
-      </Button>
-    )}
+   <div className="flex gap-3">
+  <Button onClick={runAi} disabled={aiLoading}>
+    {aiLoading ? "Running AI..." : "Run AI"}
+  </Button>
+
+  {aiOutput && (
+    <Button variant="secondary" onClick={applyAi}>
+      Apply AI
+    </Button>
+  )}
+</div>
+
 
    {aiOutput && (
   <div className="space-y-4 text-sm">
