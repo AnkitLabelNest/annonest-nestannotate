@@ -182,4 +182,4 @@ const aiOutputId = insert.rows[0].id;
 await linkEntitiesFromAi(db, aiOutputId);
 
 return aiOutputId;
-
+};
