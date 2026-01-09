@@ -191,6 +191,10 @@ function MultiSelectTags({ options, labels, selected, onChange, disabled }: Mult
 
 export default function NewsItemDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
+  const [aiOutput, setAiOutput] = useState<any>(null);
+const [aiStatus, setAiStatus] = useState<string>("NONE");
+const [aiLoading, setAiLoading] = useState(false);
+
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -241,6 +245,38 @@ export default function NewsItemDetailPage() {
       setCreatedEntities(meta.created_entities || []);
     }
   }, [newsItem]);
+  
+  useEffect(() => {
+  async function loadAi() {
+    if (!taskId || !orgId) return;
+
+    try {
+      const res = await fetch(
+        `/api/ai-outputs?source_type=news&source_id=${taskId}`,
+        {
+          headers: {
+            "x-org-id": orgId,
+            "x-user-id": userId,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        setAiOutput(data[0].output_json);
+        setAiStatus(data[0].status);
+      } else {
+        setAiStatus("NONE");
+      }
+    } catch (e) {
+      console.error("AI load failed", e);
+    }
+  }
+
+  loadAi();
+}, [taskId, orgId]);
+
 
   // Load entity links from news_entity_links table using newsId from metadata
   useEffect(() => {
@@ -349,6 +385,33 @@ export default function NewsItemDetailPage() {
     };
     saveTagsMutation.mutate(tags);
   };
+  
+  async function runAi() {
+  if (!taskId) return;
+
+  setAiLoading(true);
+
+  try {
+    await fetch(`/api/news/${taskId}/process`, {
+      method: "POST",
+      headers: {
+        "x-org-id": orgId,
+        "x-user-id": userId,
+      },
+    });
+
+    setAiStatus("PROCESSING");
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+  } catch (e) {
+    console.error("AI run failed", e);
+  }
+
+  setAiLoading(false);
+}
+
 
   const handleMarkCompleted = () => {
     handleSaveTags();
@@ -840,6 +903,29 @@ export default function NewsItemDetailPage() {
           </CardContent>
         </Card>
       )}
+<Card>
+  <CardHeader>
+    <CardTitle>🧠 AI Intelligence</CardTitle>
+  </CardHeader>
+
+  <CardContent className="space-y-4">
+    <div>
+      <strong>Status:</strong> {aiStatus}
+    </div>
+
+    {aiStatus !== "PROCESSING" && (
+      <Button onClick={runAi} disabled={aiLoading}>
+        {aiLoading ? "Running AI..." : "Run AI"}
+      </Button>
+    )}
+
+    {aiOutput && (
+      <pre className="bg-muted p-3 rounded text-xs max-h-96 overflow-auto">
+        {JSON.stringify(aiOutput, null, 2)}
+      </pre>
+    )}
+  </CardContent>
+</Card>
 
       <div className="flex items-center justify-between gap-4 pt-4">
         <Button

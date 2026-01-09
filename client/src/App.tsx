@@ -1,3 +1,5 @@
+import NewsListPage from "@/pages/news-intelligence/list";
+
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -131,6 +133,8 @@ function AppRoutes() {
         <Route path="/annotate/projects/:id" component={NestAnnotateProjectDetailPage} />
         <Route path="/annotate/shell-profiles" component={ShellProfilesPage} />
         <Route path="/news-intelligence" component={NewsIntelligencePage} />
+		<Route path="/news-intelligence/list" component={NewsListPage} />
+
         <Route path="/news/:taskId" component={NewsItemDetailPage} />
         <Route path="/projects/:projectId" component={ProjectViewPage} />
         <Route path="/demo" component={DemoDataNestPage} />
